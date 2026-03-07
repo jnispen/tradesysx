@@ -1,0 +1,22 @@
+# Core data handling
+pandas
+numpy
+
+# Plotting / visualization
+matplotlib
+seaborn
+
+# Financial data / technical analysis
+yfinance
+TA-Lib          # pip package name for the TA‑Lib C library bindings
+statsmodels
+scipy
+
+# HTTP / API helpers
+requests
+
+# PDF generation
+weasyprint
+
+# Telegram bot integration
+python-telegram-bot   # provides the `telegram` package used in utils.py
