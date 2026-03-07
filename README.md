@@ -8,6 +8,6 @@ When run GetQuotes will perform the following steps:
 - save data, generate plots and reports for all the steps mentioned
 - (if configured) publish a summary of the results on a (private) telegram channel
 
-The script was directly inspired by the various books on trading systems development written by Dr. Van K. Tharp.
+The script was directly inspired by the various books on trading systems development written by Dr. Van K. Tharp (https://vantharpinstitute.com/).
 
 #### Setup
