@@ -1,0 +1,7 @@
+{
+    "risk_percent" : 0.01,
+    "balance"      : 10000,
+    "sim_len_max"  : 100,
+    "iterations"   : 500,
+    "outlier"      : 4
+}

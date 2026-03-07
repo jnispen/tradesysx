@@ -1,0 +1,22 @@
+{
+  "AAPL":   "Apple Inc.",
+  "MSFT":   "Microsoft Corp.",
+  "AMZN":   "Amazon.com Inc.",
+  "GOOGL":  "Alphabet Inc.",
+  "NVDA":   "NVIDIA Corp.",
+  "TSLA":   "Tesla Inc.",
+  "BRK-B":  "Berkshire Hathaway Inc.",
+  "META":   "Meta Platforms Inc.",
+  "UNH":    "UnitedHealth Group Inc.",
+  "JNJ":    "Johnson & Johnson",
+  "V":      "Visa Inc.",
+  "PG":     "Procter & Gamble Co.",
+  "JPM":    "JPMorgan Chase & Co.",
+  "XOM":    "Exxon Mobil Corp.",
+  "WMT":    "Walmart Inc.",
+  "HD":     "Home Depot Inc.",
+  "MA":     "Mastercard Inc.",
+  "PFE":    "Pfizer Inc.",
+  "CVX":    "Chevron Corp.",
+  "NFLX":   "Netflix Inc."
+}
