@@ -663,7 +663,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     for key, value in active_trades.items():
         if value != 0:
             tmp_df = df_trades_table.loc[(df_trades_table['Ticker'] == key) & (df_trades_table['LastClose'] != '-'), :]
-            closed_ret = float(tmp_df['LastClose']) * float(value)
+            closed_ret = float(tmp_df['LastClose'].iloc[0]) * float(value)
             balance += closed_ret
             print("Closed: {} {:,.2f}".format(key, closed_ret))
             tmp_row = {
@@ -674,7 +674,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
                 'Profit': tmp_df['Profit'].iloc[0],
                 'Units': round(float(value), 2),
                 'Gain': round(float(tmp_df['Profit'].iloc[0]) * float(value), 2),
-                'Exit': float(tmp_df['LastClose']),
+                'Exit': float(tmp_df['LastClose'].iloc[0]),
                 'Invested': -round(float(closed_ret), 2),
                 'Balance': round(float(balance), 2),
                 'Value': "-",
