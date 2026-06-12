@@ -204,25 +204,33 @@ def add_trading_signals(df, conf):
     risk_oneR   = 0.0
     entry_atr   = 0.0
     entry_price = 0.0
-    
-    df["Signal"] = None
-    df['Rcur']   = np.nan
-    df['Enter']  = np.nan
-    df['Exit']   = np.nan
-    df['MAE']    = np.nan   # Maximum Adverse Excursion
-    df['MFE']    = np.nan   # Maximum Favorable Excursion
-    df["ERatio"] = np.nan   # MFE/MAE
-    
+
     # trackers for MAE and MFE
     lowest_since_entry  = np.inf
     highest_since_entry = -np.inf
 
-    for index, row in df.iterrows():
+    n = len(df)
+    signal_lst  = [None] * n
+    rcur_lst    = [np.nan] * n
+    enter_lst   = [np.nan] * n
+    exit_lst    = [np.nan] * n
+    mae_lst     = [np.nan] * n   # Maximum Adverse Excursion
+    mfe_lst     = [np.nan] * n   # Maximum Favorable Excursion
+    eratio_lst  = [np.nan] * n   # MFE/MAE
+    intrade_lst = [0] * n
+    stloss_lst  = [0.0] * n
+    pricein_lst = [0.0] * n
+    profit_lst  = [0.0] * n
+    risk_lst    = [0.0] * n
+    rmul_lst    = [np.nan] * n
+    tlen_lst    = [np.nan] * n
 
-        df.at[index, 'Signal'] = "-"
+    for i, (index, row) in enumerate(df.iterrows()):
+
+        signal_lst[i] = "-"
 
         if intrade != 0:
-            df.at[index, 'Rcur'] = (row['Close'] - entry_price) / risk_oneR
+            rcur_lst[i] = (row['Close'] - entry_price) / risk_oneR
 
             lowest_since_entry  = min(lowest_since_entry,  row['Close'])
             highest_since_entry = max(highest_since_entry, row['Close'])
@@ -231,17 +239,17 @@ def add_trading_signals(df, conf):
             if entry_atr != 0:
                 mae = (entry_price - lowest_since_entry) / entry_atr
                 mfe = (highest_since_entry - entry_price) / entry_atr
-                df.at[index, "MAE"] = mae
-                df.at[index, "MFE"] = mfe
-                df.at[index, "ERatio"] = mfe / mae if mae != 0 else np.nan
+                mae_lst[i] = mae
+                mfe_lst[i] = mfe
+                eratio_lst[i] = mfe / mae if mae != 0 else np.nan
             else:
-                df.at[index, ["MAE", "MFE", "ERatio"]] = np.nan
+                mae_lst[i] = mfe_lst[i] = eratio_lst[i] = np.nan
 
         # ENTER signal
-        if intrade == 0 and signals.check_enter_signal(row) == True:        
-            df.at[index, 'Enter'] = row['Close']
-            df.at[index, 'Signal'] = "ENTER"
-            
+        if intrade == 0 and signals.check_enter_signal(row) == True:
+            enter_lst[i] = row['Close']
+            signal_lst[i] = "ENTER"
+
             intrade = 1
             stoploss = stloss.get_stoploss(row)
             risk_oneR = row['Close'] - stoploss
@@ -255,20 +263,20 @@ def add_trading_signals(df, conf):
         # EXIT signal
         if intrade != 0 and (signals.check_exit_signal(row, intrade) or row['Close'] < stoploss):
 
-            df.at[index, 'Exit'] = row['Close']
-            df.at[index, 'Rmul'] = (row['Close'] - entry_price)/risk_oneR
-            df.at[index, 'TLen'] = intrade
+            exit_lst[i] = row['Close']
+            rmul_lst[i] = (row['Close'] - entry_price)/risk_oneR
+            tlen_lst[i] = intrade
 
             if entry_atr != 0:
                 mae = (entry_price - lowest_since_entry) / entry_atr
                 mfe = (highest_since_entry - entry_price) / entry_atr
-                df.at[index, "MAE"]    = mae
-                df.at[index, "MFE"]    = mfe
-                df.at[index, "ERatio"] = mfe / mae if mae != 0 else np.nan
+                mae_lst[i] = mae
+                mfe_lst[i] = mfe
+                eratio_lst[i] = mfe / mae if mae != 0 else np.nan
             else:
-                df.at[index, ["MAE", "MFE", "ERatio"]] = np.nan
+                mae_lst[i] = mfe_lst[i] = eratio_lst[i] = np.nan
 
-            df.at[index, 'Signal'] = "STOPLOSS" if row['Close'] < stoploss else "EXIT"
+            signal_lst[i] = "STOPLOSS" if row['Close'] < stoploss else "EXIT"
 
             intrade     = 0
             stoploss    = 0.0
@@ -278,18 +286,33 @@ def add_trading_signals(df, conf):
             lowest_since_entry  = np.inf
             highest_since_entry = -np.inf
 
-        df.at[index, 'InTrade'] = int(intrade)
-        df.at[index, 'STLoss']  = stoploss
-        
+        intrade_lst[i] = int(intrade)
+        stloss_lst[i]  = stoploss
+
         if intrade != 0:
-            df.at[index, 'PriceIn'] = entry_price
-            df.at[index, 'Profit']  = row['Close'] - entry_price
-            df.at[index, 'Risk']    = risk_oneR
+            pricein_lst[i] = entry_price
+            profit_lst[i]  = row['Close'] - entry_price
+            risk_lst[i]    = risk_oneR
             intrade += 1
         else:
-            df.at[index, 'PriceIn'] = 0.0
-            df.at[index, 'Profit']  = 0.0
-            df.at[index, 'Risk']    = 0.0
+            pricein_lst[i] = 0.0
+            profit_lst[i]  = 0.0
+            risk_lst[i]    = 0.0
+
+    df["Signal"] = signal_lst
+    df['Rcur']   = rcur_lst
+    df['Enter']  = enter_lst
+    df['Exit']   = exit_lst
+    df['MAE']    = mae_lst
+    df['MFE']    = mfe_lst
+    df["ERatio"] = eratio_lst
+    df['InTrade'] = intrade_lst
+    df['STLoss']  = stloss_lst
+    df['PriceIn'] = pricein_lst
+    df['Profit']  = profit_lst
+    df['Risk']    = risk_lst
+    df['Rmul']    = rmul_lst
+    df['TLen']    = tlen_lst
 
     return df
 
