@@ -569,6 +569,8 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
 
     balance = total_balance = float(conf['balance'])
 
+    ohlc_cache = load_ohlc_cache(dframe['Ticker'].unique(), ctx)
+
     for row in dframe.itertuples(index=False):
 
         if row.Enter != '-':
@@ -591,7 +593,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
             abs_risk_lst.append('-')
             risk_lst.append('-')
 
-        total_invested_value = get_total_invested_value(active_trades, row.Date, ctx)
+        total_invested_value = get_total_invested_value(active_trades, row.Date, ohlc_cache)
         balance -= cap_invested
         total_balance = total_invested_value + balance
 
@@ -1259,30 +1261,45 @@ def _get_proceeds(row, conf):
     ''' return the proceeds from the trade '''
     return row.Units * row.Exit - (row.Units * row.Exit) * float(conf['trading_fee'])/100
 
-def get_total_invested_value(active_trades, date, ctx):
+def load_ohlc_cache(tickers, ctx):
     """
-    For each ticker in active_trades, open its CSV file, get the 'Enter' price for the given date,
-    and return the total value (units * enter price) summed over all tickers.
+    Pre-load each ticker's raw OHLC CSV once, indexed by 'Date', so repeated
+    per-row lookups (see get_total_invested_value) don't re-read from disk.
     """
-    total_value = 0.0
-    for ticker, units in active_trades.items():
+    cache = {}
+    for ticker in tickers:
         file_path = ctx.path(f"out/data/{ticker}_ohlc_raw.csv")
         try:
             df = pd.read_csv(file_path)
-            row = df[df['Date'] == date]
-            if not row.empty:
-                enter_price = row.iloc[0]['Open']
-                # Handle possible string values like '-' or NaN
-                if isinstance(enter_price, (int, float)) and not pd.isna(enter_price):
-                    total_value += units * enter_price
-                else:
-                    try:
-                        enter_price = float(enter_price)
-                        total_value += units * enter_price
-                    except Exception:
-                        pass  # skip if not a valid number
+            cache[ticker] = df.set_index('Date')
         except Exception as e:
             print(f"Error reading {file_path}: {e}")
+            cache[ticker] = None
+    return cache
+
+def get_total_invested_value(active_trades, date, ohlc_cache):
+    """
+    For each ticker in active_trades, look up the 'Open' price for the given date
+    in the pre-loaded OHLC cache, and return the total value (units * enter price)
+    summed over all tickers.
+    """
+    total_value = 0.0
+    for ticker, units in active_trades.items():
+        if units == 0:
+            continue
+        df = ohlc_cache.get(ticker)
+        if df is None or date not in df.index:
+            continue
+        enter_price = df.at[date, 'Open']
+        # Handle possible string values like '-' or NaN
+        if isinstance(enter_price, (int, float)) and not pd.isna(enter_price):
+            total_value += units * enter_price
+        else:
+            try:
+                enter_price = float(enter_price)
+                total_value += units * enter_price
+            except Exception:
+                pass  # skip if not a valid number
     return total_value
 
 def save_trades_table(dframe, conf, ctx):
