@@ -734,24 +734,18 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk):
     print(f"+++ Risk per trade (%)    : {risk*100:.2f}")
 
     sim_runs = conf['iterations']
-    # dataframe to hold balance values of all iterations (for visualisation)
-    N = sim_runs                                                                       # number of simulations (columns)    
+    # array to hold balance values of all iterations (for visualisation)
+    N = sim_runs                                                                       # number of simulations (columns)
     M = len(Rmul_arr) if len(Rmul_arr) <= conf['sim_len_max'] else conf['sim_len_max'] # number of trades (rows)
 
-    mc_result_df = pd.DataFrame(
-        data = [[float('nan')] * N for _ in range(M)],
-        columns = [f'{i}' for i in range(N)]
-    )
+    start_balance = float(conf['balance'])
+    balances = np.empty((M, N))
 
-    min_balance = max_balance = float(conf['balance'])
     max_neg_run = 0
     avg_neg_run = 0.0
 
     # Monte Carlo balance simulation
     for it in range(0, N):
-
-        # reset balance
-        balance = float(conf['balance'])
 
         # draw samples from the original distribution
         Rmul_sampled = np.random.choice(multiset, size=M, replace=True)
@@ -760,20 +754,15 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk):
         neg_run = longest_negative_streak(Rmul_sampled)
         avg_neg_run = ((avg_neg_run * it) + neg_run) / (it+1)
         if neg_run > max_neg_run:
-            max_neg_run = neg_run 
+            max_neg_run = neg_run
 
-        for Rs in range(0, len(Rmul_sampled)):
-            risk_cur = balance * risk
-            trade_result = risk_cur * Rmul_sampled[Rs]
-            balance += trade_result
+        # cumulative balance path for this iteration (balance *= 1 + risk*Rmul each trade)
+        factors = 1.0 + risk * Rmul_sampled
+        balances[:, it] = start_balance * np.cumprod(factors)
 
-            if balance < min_balance:
-                min_balance = balance
-            if balance > max_balance:
-                max_balance = balance
-            
-            # store the balance of trade Rs = (row) at it = idx (column)
-            mc_result_df.iat[Rs, it] = balance
+    min_balance = min(start_balance, balances.min())
+
+    mc_result_df = pd.DataFrame(balances, columns=[f'{i}' for i in range(N)])
 
     # insert first row with the starting balance (same for all simulation runs)
     start_row = [conf['balance']] * N
