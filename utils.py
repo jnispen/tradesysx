@@ -8,7 +8,6 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import statistics as st
-import config
 import requests
 import random
 
@@ -32,35 +31,30 @@ from telegram.constants import ParseMode
 
 from strategy import Stoploss, TradingSignals
 from tables import TotalTradesList, TradesTable
+from context import RunContext, SystemStats
 
 # for concat of empty dataframe 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-async def bot_signal_update(lastclose, snd_message):
-    bot = Bot(token=config.bot_token)
+async def bot_signal_update(ctx, lastclose, snd_message):
+    bot = Bot(token=ctx.bot_token)
     lastclose = lastclose.strftime('%a %d-%m-%Y')
     msg = f"<b>{lastclose}</b>\n<b>No. Ticker Close (Stoploss) Signal</b>\n<b>============================</b>\n{snd_message}"
-    await bot.send_message(chat_id=config.chat_id, text=msg, parse_mode=ParseMode.HTML)
+    await bot.send_message(chat_id=ctx.chat_id, text=msg, parse_mode=ParseMode.HTML)
 
-def bot_summary_update(file_path):
+def bot_summary_update(ctx, file_path):
     ''' send system summary to bot '''
 
-    url = f'https://api.telegram.org/bot{config.bot_token}/sendDocument'
+    url = f'https://api.telegram.org/bot{ctx.bot_token}/sendDocument'
     with open(file_path, 'rb') as f:
         files = {'document': f}
         data  = {
-            'chat_id': config.chat_id,
+            'chat_id': ctx.chat_id,
             'caption': '',
         }
         response = requests.post(url, data=data, files=files)
     return response
-
-def data_path(*parts):
-    """Return a string path inside the root output directory."""
-    p = os.path.join(config.basedir, *parts)
-    os.makedirs(os.path.dirname(p), exist_ok=True)
-    return p
 
 def get_history_data(ticker, period=None, start=None, end=None):
     ''' 
@@ -98,7 +92,7 @@ def get_history_data(ticker, period=None, start=None, end=None):
 
     return raw_df
 
-def get_quotes_data(quotes, conf, outfile):
+def get_quotes_data(quotes, conf, outfile, ctx):
     ''' download the quotes data '''
     config_str = '+++ downloading quotes (' + str(len(quotes)) + ')'
     print(config_str)
@@ -114,7 +108,7 @@ def get_quotes_data(quotes, conf, outfile):
         else:
             dfr = get_history_data(ticker, conf["interval"])
 
-        dfr.to_csv(data_path('out/data',f"{ticker}_{outfile}"))
+        dfr.to_csv(ctx.path('out/data',f"{ticker}_{outfile}"))
 
 def add_technical_indicators(dframe, conf):
     ''' adds technical indicators as columns to the dataframe '''
@@ -372,9 +366,9 @@ def generate_trading_table(df, ticker):
 
     return trades_table, trades_lst
 
-def generate_system_stats(trades_df, trading_period):
+def generate_system_stats(trades_df, trading_period, ctx, stats):
     ''' compute system statistics and return summary info '''
-    
+
     num_trades = trades_df.shape[0]
     len_trades = trading_period
     Rmax = trades_df['Rmul'].max()
@@ -384,7 +378,7 @@ def generate_system_stats(trades_df, trading_period):
 
     # System Quality Number (SQN)
     SysQ = (Ravg / Rstd) * math.sqrt(len(trades_df)) if len(trades_df) < 100 else (Ravg / Rstd) * math.sqrt(100)
-    config.sqn = SysQ
+    stats.sqn = SysQ
 
     trades_lst = trades_df['Rmul'].tolist()
     times_lst  = trades_df['Length'].tolist()
@@ -412,12 +406,12 @@ def generate_system_stats(trades_df, trading_period):
     win_perc  = float(100 * len(pos_lst) / num_trades)
     b = abs(pos_mean_r/neg_mean_r)
     kelly_criterion = (win_perc - ((1 - win_perc) / b)) / 100
-    config.kelly_crit = kelly_criterion
+    stats.kelly_crit = kelly_criterion
 
-    # set some global config values
-    config.trades_len = len_trades
-    config.trades_num = num_trades
-    config.win_rate = float(len(pos_lst)/num_trades * 100)
+    # store stats for use by later pipeline steps
+    stats.trades_len = len_trades
+    stats.trades_num = num_trades
+    stats.win_rate = float(len(pos_lst)/num_trades * 100)
 
     data = {
         "Metric": [
@@ -447,7 +441,7 @@ def generate_system_stats(trades_df, trading_period):
             f"{neg_mean_r:,.2f}",
             f"{int(pos_mean_len)}",
             f"{int(neg_mean_len)}",
-            f"{config.win_rate:.0f}",
+            f"{stats.win_rate:.0f}",
             f"{kelly_criterion:,.2f}"
         ]
     }
@@ -468,24 +462,24 @@ def generate_system_stats(trades_df, trading_period):
         f"+++ R mean (loss)     : {neg_mean_r:,.2f}",
         f"+++ Length mean (win) : {int(pos_mean_len)}",
         f"+++ Length mean (loss): {int(neg_mean_len)}",
-        f"+++ Win Rate (%)      : {config.win_rate:.0f}",
+        f"+++ Win Rate (%)      : {stats.win_rate:.0f}",
         f"+++ Kelly criterion   : {kelly_criterion:,.2f}",
     ])
 
-    trades_plot(trades_lst, trades_df['Rmul30'].tolist(), stat_str)
+    trades_plot(trades_lst, trades_df['Rmul30'].tolist(), stat_str, ctx, stats)
 
     return stats_df
 
-def generate_summary_report(stat_df, conf_str, quotes_str):
+def generate_summary_report(stat_df, conf_str, quotes_str, ctx):
     ''' generate a pdf report with system summary, configuration and figures'''
 
     stat_df = stat_df.to_string(index=False)
 
-    fig_a = data_path(str(config.basedir), "out/reports/system_trades_plot.png")
-    fig_b = data_path(str(config.basedir), "out/reports/system_trades_dist_plot.png")
-    fig_c = data_path(str(config.basedir), "out/reports/balance_plot.png")
-    fig_d = data_path(str(config.basedir), "out/reports/monte_carlo_sampled_plot.png")
-    fig_e = data_path(str(config.basedir), "out/plots/URTH_plot.png")
+    fig_a = ctx.path("out/reports/system_trades_plot.png")
+    fig_b = ctx.path("out/reports/system_trades_dist_plot.png")
+    fig_c = ctx.path("out/reports/balance_plot.png")
+    fig_d = ctx.path("out/reports/monte_carlo_sampled_plot.png")
+    fig_e = ctx.path("out/plots/URTH_plot.png")
 
     fig_width = 650
 
@@ -524,7 +518,7 @@ def generate_summary_report(stat_df, conf_str, quotes_str):
     </html>
     """
 
-    HTML(string=html_content).write_pdf(data_path("out", "system_summary.pdf"))
+    HTML(string=html_content).write_pdf(ctx.path("out", "system_summary.pdf"))
 
 def format_to_2_decimals(x):
     # Matches numbers, including negatives and decimals
@@ -532,7 +526,7 @@ def format_to_2_decimals(x):
         return f"{float(x):.2f}"
     return x
 
-def compute_position_size(conf, balance):
+def compute_position_size(conf, balance, stats):
     '''return the amount of capital to allocate per trade.'''
 
     ps = conf["pos_sizing"]
@@ -546,12 +540,12 @@ def compute_position_size(conf, balance):
     elif ps == "fixed_amount":
         return conf["pos_amount"]             # position size as a fixed_amount
     elif ps == "kelly":
-        return conf['kelly_ratio'] * config.kelly_crit * balance
+        return conf['kelly_ratio'] * stats.kelly_crit * balance
     else:
         print(f"The position sizing strategy [{conf['pos_sizing']}] does not exist!")
         sys.exit(1)
 
-def do_balance_simulation(dframe, df_trades_table, conf, last_close_date):
+def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, stats):
     ''' simulates the virtual account balance for the trades list '''
 
     print('+++ Trading simulation (backtest)')
@@ -578,7 +572,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date):
     for row in dframe.itertuples(index=False):
 
         if row.Enter != '-':
-            units, cap_invested = _get_capital_invested(row, conf, balance)
+            units, cap_invested = _get_capital_invested(row, conf, balance, stats)
             active_trades[row.Ticker] = units
             units_lst.append(round(units, 2))
             gain_lst.append('-')
@@ -597,7 +591,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date):
             abs_risk_lst.append('-')
             risk_lst.append('-')
 
-        total_invested_value = get_total_invested_value(active_trades, row.Date)
+        total_invested_value = get_total_invested_value(active_trades, row.Date, ctx)
         balance -= cap_invested
         total_balance = total_invested_value + balance
 
@@ -657,8 +651,8 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date):
     avg_risk_abs = abs_risk_df['RiskAbs'].mean()
     avg_risk_per = per_risk_df['RiskPerc'].mean()
 
-    # store values for general use
-    config.avg_risk = avg_risk_abs
+    # store values for use by later pipeline steps
+    stats.avg_risk = avg_risk_abs
     
     print(f"\nAverage investment: {avg_invested:,.2f}")
     print(f"Average balance   : {avg_balance:,.2f}")
@@ -672,29 +666,37 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date):
 
     if conf['verbose'] == True:
         print('\n', dframe)
-    dframe.to_csv(data_path("out/tables/", "trades_list.csv"), index=False)
+    dframe.to_csv(ctx.path("out/tables/", "trades_list.csv"), index=False)
 
     # save to pdf file
     dframe.index = dframe.index + 1
     dframe['Date'] = pd.to_datetime(dframe['Date'], errors='coerce').dt.strftime('%d-%m-%Y')
     html = df_to_html(dframe)
-    HTML(string=html).write_pdf(data_path("out", "trades_list.pdf"))
+    HTML(string=html).write_pdf(ctx.path("out", "trades_list.pdf"))
 
     return dframe
 
-def do_monte_carlo_simulation_sampled(total_trades_list, conf):
+def do_monte_carlo_simulation_sampled(total_trades_list, conf, ctx, stats):
     ''' takes the list of R-multiples and randomly samples from the list (bag of marbles simulation)'''
-
-    print(f"+++ Monte Carlo simulation (sampled) ({conf['iterations']} iterations)")
 
     # extract Rmul values from the trades list
     Rmul_arr = total_trades_list['Rmul'].dropna().to_numpy()
-    
+
+    # set fixed variables for simulation
+    risk = stats.avg_risk / conf['balance'] if len(Rmul_arr) <= conf['sim_len_max'] else (stats.avg_risk/stats.trades_num) * conf['sim_len_max'] / conf['balance']
+
+    run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk)
+
+def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk):
+    ''' run a Monte Carlo balance simulation by sampling from the given R-multiple distribution (bag of marbles) '''
+
+    print(f"+++ Monte Carlo simulation (sampled) ({conf['iterations']} iterations)")
+
     print(f"+++ Trades total          : {len(Rmul_arr)}")
     print(f"+++ Real Rmul average     : {np.mean(Rmul_arr):.2f}")
     print(f"+++ Real Rmul maximum     : {Rmul_arr.max():.2f}")
     print(f"+++ Real Rmul minimum     : {Rmul_arr.min():.2f}")
-    print(f"+++ System Quality Number : {config.sqn:.2f}")
+    print(f"+++ System Quality Number : {stats.sqn:.2f}")
 
     # sample from the real distribution as measured by the closed trades
     multiset = Rmul_arr.tolist()
@@ -703,12 +705,9 @@ def do_monte_carlo_simulation_sampled(total_trades_list, conf):
 
     print(f"+++ Sampled Rmul average  : {np.mean(Rmul_sample):.2f} (10000 samples)")
 
-    # set fixed variables for simulation
-    #risk = float(conf['risk_percent'])/float(len(Rmul_arr)/config.quotes)
-    risk = config.avg_risk / conf['balance'] if len(Rmul_arr) <= conf['sim_len_max'] else (config.avg_risk/config.trades_num) * conf['sim_len_max'] / conf['balance']
     print(f"+++ Risk per trade ($)    : {risk*conf['balance']:.2f}")
     print(f"+++ Risk per trade (%)    : {risk*100:.2f}")
-    
+
     sim_runs = conf['iterations']
     # dataframe to hold balance values of all iterations (for visualisation)
     N = sim_runs                                                                       # number of simulations (columns)    
@@ -756,9 +755,9 @@ def do_monte_carlo_simulation_sampled(total_trades_list, conf):
     start_row_df = pd.DataFrame([start_row], columns=mc_result_df.columns)
     mc_result_df = pd.concat([start_row_df, mc_result_df], ignore_index=True)
 
-    # set global values
-    config.max_drawdown = 100.0 - float(min_balance/conf['balance'] * 100)
-    config.min_balance = min_balance
+    # store values for use by later pipeline steps
+    stats.max_drawdown = 100.0 - float(min_balance/conf['balance'] * 100)
+    stats.min_balance = min_balance
 
     last_row = mc_result_df.iloc[-1]
     print ("+++ MONTE CARLO results")
@@ -768,11 +767,11 @@ def do_monte_carlo_simulation_sampled(total_trades_list, conf):
     print(f"+++ Min                   : {last_row.min():,.0f}")
     print(f"+++ Loss streak avg       : {avg_neg_run:.0f}")
     print(f"+++ Loss streak max       : {max_neg_run:.0f}")
-    print(f"+++ Minimum balance       : {config.min_balance:,.0f}")
-    print(f"+++ Max drawdown (%)      : {config.max_drawdown:.1f}")
+    print(f"+++ Minimum balance       : {stats.min_balance:,.0f}")
+    print(f"+++ Max drawdown (%)      : {stats.max_drawdown:.1f}")
 
      # save the balances and plot the result (see simulation plot)
-    plot_monte_carlo_results_sampled(mc_result_df, conf, risk, np.mean(Rmul_arr), np.mean(Rmul_sampled), avg_neg_run, max_neg_run)
+    plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, np.mean(Rmul_arr), np.mean(Rmul_sampled), avg_neg_run, max_neg_run)
 
 def longest_negative_streak(values):
     max_len = cur_len = 0
@@ -790,7 +789,7 @@ def ann_return(start_capital: float, end_capital: float, years: float) -> float:
     ratio = end_capital / start_capital
     return ratio ** (1.0 / years) - 1.0
 
-def plot_monte_carlo_results_sampled(mc_result_df, conf, risk, Rmul_avg, Rmul_avg_sampled, avg_neg_run, max_neg_run):
+def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_avg, Rmul_avg_sampled, avg_neg_run, max_neg_run):
     ''' plot the results of the monte carlo simulation '''
 
     # plot all series of balances for all iterations
@@ -828,11 +827,11 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, risk, Rmul_avg, Rmul_av
         f"Risk        : {risk*100:,.2f}%\n"
         f"Loss avg    : {avg_neg_run:.0f}x\n"
         f"Loss max    : {max_neg_run:.0f}x\n"
-        f"Max drawdown: {config.max_drawdown:.1f}%\n"
-        f"Min balance : ${config.min_balance:,.0f}\n"
+        f"Max drawdown: {stats.max_drawdown:.1f}%\n"
+        f"Min balance : ${stats.min_balance:,.0f}\n"
         f"Ravg (sim)  : {Rmul_avg_sampled:.2f}\n"
         f"Ravg (real) : {Rmul_avg:.2f}\n"
-        f"SQN         : {config.sqn:.2f}"
+        f"SQN         : {stats.sqn:.2f}"
     )
     ax.text(
         0.03, 0.95, sim_str,
@@ -868,7 +867,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, risk, Rmul_avg, Rmul_av
     )
 
     # annualized gain trading simulation (CAGR)
-    ann_ret_sim = ann_return(conf['balance'], mc_result_df.iloc[-1].median(), config.trades_len/365)
+    ann_ret_sim = ann_return(conf['balance'], mc_result_df.iloc[-1].median(), stats.trades_len/365)
     
     y_max = plt.ylim()[1]
     y_val = mc_result_df.iloc[-1].median() + 0.035 * y_max
@@ -880,8 +879,8 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, risk, Rmul_avg, Rmul_av
     )
 
     # retrieve the benchmark data (URTH) and compute annualized gain
-    val_out = _get_urth_benchmark_result(conf)
-    ann_ret_hodl = ann_return(conf['balance'], val_out, config.trades_len/365)
+    val_out = _get_urth_benchmark_result(conf, ctx)
+    ann_ret_hodl = ann_return(conf['balance'], val_out, stats.trades_len/365)
 
     ax.axhline(val_out, color='black', linewidth=1.5, linestyle='-.', alpha=.7)
 
@@ -897,10 +896,10 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, risk, Rmul_avg, Rmul_av
     ax.set_ylabel('Balance (USD)')
     ax.grid(True, which='both', linestyle='dotted', alpha=0.5)
 
-    plt.savefig(data_path("out/reports", "monte_carlo_sampled_plot.png"), dpi=150)
+    plt.savefig(ctx.path("out/reports", "monte_carlo_sampled_plot.png"), dpi=150)
     plt.close()
 
-def do_monte_carlo_simulation_shuffled(total_trades_list, conf, last_close_date):
+def do_monte_carlo_simulation_shuffled(total_trades_list, conf, ctx, stats, last_close_date):
     ''' takes the trades tabel and randomly permutates the trades in the dataframe'''
 
     print(f"+++ Monte Carlo simulation (shuffled) ({conf['iterations']} iterations)")
@@ -998,7 +997,7 @@ def do_monte_carlo_simulation_shuffled(total_trades_list, conf, last_close_date)
 
                 units_list = []
                 for row in rows_as_tuples:
-                    units, cap_invested = _get_capital_invested(row, conf, balance)
+                    units, cap_invested = _get_capital_invested(row, conf, balance, stats)
                     balance -= cap_invested
                     units_list.append(units)
                     cap_tot += cap_invested
@@ -1032,11 +1031,11 @@ def do_monte_carlo_simulation_shuffled(total_trades_list, conf, last_close_date)
     print(f"+++ Min             : {df_results['balance'].min():,.0f}")
     
     # plot results of the simulation
-    plot_monte_carlo_results_shuffled(df_results, mc_result_df, conf)
+    plot_monte_carlo_results_shuffled(df_results, mc_result_df, conf, ctx)
 
     return monte_carlo_df
 
-def plot_monte_carlo_results_shuffled(df_results, mc_result_df, conf):
+def plot_monte_carlo_results_shuffled(df_results, mc_result_df, conf, ctx):
     ''' plot the results of the monte carlo simulation '''
 
     sns.set_style("white")
@@ -1067,7 +1066,7 @@ def plot_monte_carlo_results_shuffled(df_results, mc_result_df, conf):
     )
 
     # retrieve the benchmark data (URTH)
-    val_out = _get_urth_benchmark_result(conf)
+    val_out = _get_urth_benchmark_result(conf, ctx)
     annotation_text = f"HODL {val_out:,.0f}"
     plt.annotate(
         annotation_text,
@@ -1109,7 +1108,7 @@ def plot_monte_carlo_results_shuffled(df_results, mc_result_df, conf):
     plt.xlabel('Balance (USD)')
     plt.ylabel('Count')
 
-    plt.savefig(data_path("out/reports", "monte_carlo_shuffled_result_plot.png"), dpi=150)
+    plt.savefig(ctx.path("out/reports", "monte_carlo_shuffled_result_plot.png"), dpi=150)
     plt.close(fig)
 
     sns.set_style("white")
@@ -1187,7 +1186,7 @@ def plot_monte_carlo_results_shuffled(df_results, mc_result_df, conf):
     ax.set_ylabel('Balance (USD)')
     ax.grid(True, which='both', linestyle='--', alpha=0.5)
 
-    plt.savefig(data_path("out/reports", "monte_carlo_shuffled_plot.png"), dpi=150)
+    plt.savefig(ctx.path("out/reports", "monte_carlo_shuffled_plot.png"), dpi=150)
     plt.close()
 
 def _do_date_transform(df, start, end, range):
@@ -1220,11 +1219,11 @@ def _do_date_transform(df, start, end, range):
 
     return tf_df
 
-def _get_capital_invested(row, conf, balance):
+def _get_capital_invested(row, conf, balance, stats):
     ''' return the invested capital and the no. of units bought'''
-    
+
     # capital allocated for this trade
-    capital_per_trade = compute_position_size(conf, balance)
+    capital_per_trade = compute_position_size(conf, balance, stats)
 
     # number of units for the position sizing strategy
     if conf["pos_sizing"] in {"core_equity_risk", "fixed_dollar_risk"}:
@@ -1260,14 +1259,14 @@ def _get_proceeds(row, conf):
     ''' return the proceeds from the trade '''
     return row.Units * row.Exit - (row.Units * row.Exit) * float(conf['trading_fee'])/100
 
-def get_total_invested_value(active_trades, date):
+def get_total_invested_value(active_trades, date, ctx):
     """
     For each ticker in active_trades, open its CSV file, get the 'Enter' price for the given date,
     and return the total value (units * enter price) summed over all tickers.
     """
     total_value = 0.0
     for ticker, units in active_trades.items():
-        file_path = data_path(f"out/data/{ticker}_ohlc_raw.csv")
+        file_path = ctx.path(f"out/data/{ticker}_ohlc_raw.csv")
         try:
             df = pd.read_csv(file_path)
             row = df[df['Date'] == date]
@@ -1286,7 +1285,7 @@ def get_total_invested_value(active_trades, date):
             print(f"Error reading {file_path}: {e}")
     return total_value
 
-def save_trades_table(dframe, conf):
+def save_trades_table(dframe, conf, ctx):
     ''' save the trades table to file '''
     dframe.sort_values(by='Enter', ascending=True, inplace=True)
     dframe.reset_index(drop=True, inplace=True)
@@ -1296,15 +1295,15 @@ def save_trades_table(dframe, conf):
 
     if conf['verbose'] == True:
         print('\n', dframe)
-    dframe.to_csv(data_path('out/tables', "trades_table.csv"), index=False)
-    
+    dframe.to_csv(ctx.path('out/tables', "trades_table.csv"), index=False)
+
     # save to pdf file
     dframe.index = dframe.index + 1
     dframe['Enter'] = pd.to_datetime(dframe['Enter'], errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = pd.to_datetime(dframe['Exit'], format='%Y-%m-%d', errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = dframe['Exit'].where(dframe['Exit'].notna(), "-")
     html = df_to_html(dframe)
-    HTML(string=html).write_pdf(data_path('out', "trades_table.pdf"))
+    HTML(string=html).write_pdf(ctx.path('out', "trades_table.pdf"))
 
 def df_to_html(df,
                font_px: int = 10,
@@ -1360,20 +1359,20 @@ def df_to_html(df,
     html_table = df.to_html(border=0)
     return f"<html><head>{css}</head><body>{html_table}</body></html>"
 
-def _get_urth_benchmark_result(conf):
-    
+def _get_urth_benchmark_result(conf, ctx):
+
     # get benchmarkdata (from MSCI World ETF)
-    urth_df = pd.read_csv(data_path('out/data', "URTH_ohlc_raw.csv"))
+    urth_df = pd.read_csv(ctx.path('out/data', "URTH_ohlc_raw.csv"))
     urth_in = urth_df['Close'].iloc[0]
     urth_out = urth_df['Close'].iloc[-1]
     shares = conf['balance']/urth_in
     return shares * urth_out
 
-def balance_plot(df, conf):
+def balance_plot(df, conf, ctx):
     ''' plot paper trading simulation results '''
 
     # retrieve the benchmark data (URTH)
-    val_out = _get_urth_benchmark_result(conf)
+    val_out = _get_urth_benchmark_result(conf, ctx)
 
     fig = plt.figure(figsize = (10, 5))
     plot_title = f"Trading simulation (backtest) [{conf['pos_sizing']}] (${conf['balance']:,.0f})"
@@ -1442,10 +1441,10 @@ def balance_plot(df, conf):
     plt.grid(linestyle='--')
     plt.ylabel('Balance (USD)')
     plt.legend(loc='upper left')
-    plt.savefig(data_path("out/reports", "balance_plot.png"), dpi=150)
+    plt.savefig(ctx.path("out/reports", "balance_plot.png"), dpi=150)
     plt.close(fig)
 
-def trades_plot(trades_lst, Rmul30_lst, sys_stats):
+def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
     ''' plot trades histograms '''
 
     trades_tot = len(trades_lst)
@@ -1454,7 +1453,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats):
 
     Ravg = st.mean(trades_lst)
     #SysQ = (st.mean(trades_lst) / st.stdev(trades_lst)) * math.sqrt(len(trades_lst)) if len(trades_lst) < 100 else (st.mean(trades_lst) / st.stdev(trades_lst)) * math.sqrt(100)
-    SysQ = config.sqn
+    SysQ = stats.sqn
 
     xs = np.arange(len(trades_lst))
     fig = plt.figure(figsize = (10, 5))
@@ -1474,7 +1473,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats):
         bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.5')
     )
 
-    plt.savefig(data_path("out/reports", "system_trades_plot.png"), dpi=150) 
+    plt.savefig(ctx.path("out/reports", "system_trades_plot.png"), dpi=150)
     plt.close(fig)
 
     sns.set_style("white")
@@ -1513,7 +1512,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats):
     sys_str = (
         f"R-average: {Ravg:,.2f} {get_rmean_qlabel(Ravg)}\n"
         f"SQN      : {SysQ:,.2f} {get_system_qlabel(SysQ)}\n"
-        f"Win Rate : {config.win_rate:.0f}%"
+        f"Win Rate : {stats.win_rate:.0f}%"
     )
     plt.text(
         0.60, 0.95, sys_str,
@@ -1529,10 +1528,10 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats):
         )
     )
 
-    plt.savefig(data_path("out/reports", "system_trades_dist_plot.png"), dpi=150)
+    plt.savefig(ctx.path("out/reports", "system_trades_dist_plot.png"), dpi=150)
     plt.close(fig)
 
-def ticker_plot(df, ticker, description, conf):
+def ticker_plot(df, ticker, description, conf, ctx):
     ''' plot ticker + enter and exits points '''
 
     fig = plt.figure(figsize = (28, 10))
@@ -1620,10 +1619,10 @@ def ticker_plot(df, ticker, description, conf):
     plt.xlabel('Date')
     plt.ylabel('Price (USD)')
     plt.legend(loc='lower right')
-    plt.savefig(data_path("out/plots", f"{ticker}_plot.png"), dpi=150)
+    plt.savefig(ctx.path("out/plots", f"{ticker}_plot.png"), dpi=150)
     plt.close(fig)
 
-def ticker_plot_ta(df, ticker, description, conf):
+def ticker_plot_ta(df, ticker, description, conf, ctx):
     ''' plot ticker +ta indicators + enter and exits points '''
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize = (28, 15))
@@ -1730,5 +1729,5 @@ def ticker_plot_ta(df, ticker, description, conf):
     ax1.set_ylabel('Price(USD)')
     ax1.legend(loc='lower right')
     ax3.legend(loc='lower right')
-    plt.savefig(data_path("out/plots/TA", f"{ticker}_plot_ta.png"), dpi=150)
+    plt.savefig(ctx.path("out/plots/TA", f"{ticker}_plot_ta.png"), dpi=150)
     plt.close(fig)
