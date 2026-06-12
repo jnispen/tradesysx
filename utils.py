@@ -209,6 +209,13 @@ def add_trading_signals(df, conf):
     lowest_since_entry  = np.inf
     highest_since_entry = -np.inf
 
+    # CEE/XR exit strategies read row['Rcur'] during iteration; this column
+    # is otherwise only written via rcur_lst after the loop, so pre-create it
+    # (stays NaN for the snapshot rows seen by df.iterrows(), matching the
+    # original behaviour). Also preserves the original column ordering.
+    df["Signal"] = None
+    df['Rcur']   = np.nan
+
     n = len(df)
     signal_lst  = [None] * n
     rcur_lst    = [np.nan] * n
@@ -322,51 +329,63 @@ def generate_trading_table(df, ticker):
     trades_table = TradesTable()
     trades_lst = TotalTradesList()
 
-    enter_lst, exit_lst, ticker_lst, pricein_lst, priceout_lst, risk_lst, duration_lst, \
-        profit_lst, rmul_lst, signal_lst, lastclose_lst =  ([] for i in range(11))
-    date_lst, tck_lst, buy_lst, sell_lst, oneR_lst, pprofit_lst =  ([] for i in range(6))
+    enter_mask = df['Enter'].notna()
+    exit_mask  = df['Exit'].notna()
 
-    for index, row in df.iterrows():
-        
-        if math.isnan(row['Enter']) == False:
-            enter_lst.append(index)
-            ticker_lst.append(ticker)
-            price_in = row['Enter']
-            pricein_lst.append(round(row['Enter'], 2))
-            risk_lst.append(round(row['Risk'], 2))
+    enter_rows = df.loc[enter_mask]
+    exit_rows  = df.loc[exit_mask]
 
-            date_lst.append(index)
-            tck_lst.append(ticker)
-            buy_lst.append(row['Enter'])
-            sell_lst.append("-")
-            oneR_lst.append(round(row['Risk'], 2))
-            pprofit_lst.append('-')
+    n_enter = len(enter_rows)
+    n_exit  = len(exit_rows)
 
-        if math.isnan(row['Exit']) == False:
-            exit_lst.append(index)
-            priceout_lst.append(round(row['Exit'], 2))
-            profit_lst.append(round(row['Close'] - price_in, 2))
-            rmul_lst.append(round(row['Rmul'], 2))
-            duration_lst.append(int(round(row['TLen'], 0)))
-            signal_lst.append(row['Signal'])
-            lastclose_lst.append('-')
+    # each EXIT is paired with the n-th ENTER (trades alternate strictly:
+    # ENTER, EXIT, ENTER, EXIT, ... with at most one open trailing ENTER)
+    price_in_arr = enter_rows['Enter'].to_numpy()[:n_exit]
+    profit_arr = exit_rows['Close'].to_numpy() - price_in_arr
 
-            date_lst.append(index)
-            tck_lst.append(ticker)
-            buy_lst.append("-")
-            sell_lst.append(row['Exit'])
-            oneR_lst.append("-")
-            pprofit_lst.append(row['Close'] - price_in)
+    enter_lst    = list(enter_rows.index)
+    ticker_lst   = [ticker] * n_enter
+    pricein_lst  = enter_rows['Enter'].round(2).tolist()
+    risk_lst     = enter_rows['Risk'].round(2).tolist()
 
-    # for open trades, fill in the empty fields
+    exit_lst     = list(exit_rows.index)
+    priceout_lst = exit_rows['Exit'].round(2).tolist()
+    profit_lst   = np.round(profit_arr, 2).tolist()
+    rmul_lst     = exit_rows['Rmul'].round(2).tolist()
+    duration_lst = exit_rows['TLen'].round(0).astype(int).tolist()
+    signal_lst   = exit_rows['Signal'].tolist()
+    lastclose_lst = ['-'] * n_exit
+
+    date_lst   = [None] * (n_enter + n_exit)
+    tck_lst    = [ticker] * (n_enter + n_exit)
+    buy_lst    = [None] * (n_enter + n_exit)
+    sell_lst   = [None] * (n_enter + n_exit)
+    oneR_lst   = [None] * (n_enter + n_exit)
+    pprofit_lst = [None] * (n_enter + n_exit)
+
+    date_lst[0::2]    = list(enter_rows.index)
+    buy_lst[0::2]     = enter_rows['Enter'].tolist()
+    sell_lst[0::2]    = ['-'] * n_enter
+    oneR_lst[0::2]    = enter_rows['Risk'].round(2).tolist()
+    pprofit_lst[0::2] = ['-'] * n_enter
+
+    date_lst[1::2]    = list(exit_rows.index)
+    buy_lst[1::2]     = ['-'] * n_exit
+    sell_lst[1::2]    = exit_rows['Exit'].tolist()
+    oneR_lst[1::2]    = ['-'] * n_exit
+    pprofit_lst[1::2] = profit_arr.tolist()
+
+    # for open trades, fill in the empty fields (the open trade's ENTER is
+    # already included in enter_rows above; only extend the exit-side lists)
     if df['InTrade'].iloc[-1] != 0:
+        last_row = df.iloc[-1]
         exit_lst.append("-")
         priceout_lst.append("-")
-        profit_lst.append(round(row['Profit'], 2))
-        rmul_lst.append(round((row['Close']-row['PriceIn'])/row['Risk'], 2))
-        duration_lst.append(int(round(row['InTrade'], 0)))
-        signal_lst.append(row['Signal'])
-        lastclose_lst.append(round(row['Close'], 2))
+        profit_lst.append(round(last_row['Profit'], 2))
+        rmul_lst.append(round((last_row['Close']-last_row['PriceIn'])/last_row['Risk'], 2))
+        duration_lst.append(int(round(last_row['InTrade'], 0)))
+        signal_lst.append(last_row['Signal'])
+        lastclose_lst.append(round(last_row['Close'], 2))
 
     trades_table.df['Enter']    = enter_lst
     trades_table.df['Exit']     = exit_lst
