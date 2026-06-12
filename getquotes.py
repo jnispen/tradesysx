@@ -48,6 +48,10 @@ def update_quotes(conf, ctx):
         config_str = '+++ processing quotes (' + str(num_quotes) + ')'
         print(config_str)
 
+        trades_table_frames = []
+        trades_list_frames = []
+        telegram_frames = []
+
         idx = 1
         for ticker, desc in quotes.items():
             print(f'{idx} - {ticker}: {desc}\n', end='')
@@ -73,18 +77,26 @@ def update_quotes(conf, ctx):
 
             # 6. generate the table and list of trades (timesequence for simulation)
             trade_table, trade_list = ut.generate_trading_table(dft, ticker)
-            total_trades_table.df = pd.concat([total_trades_table.df, trade_table.df])
-            total_trades_list.df = pd.concat([total_trades_list.df, trade_list.df])
+            trades_table_frames.append(trade_table.df)
+            trades_list_frames.append(trade_list.df)
 
             # add ticker and signals to daily msg
             cols = ['Close', 'Signal','STLoss']
             last_rec = dft[cols].tail(1).copy()
             last_rec['Ticker'] = ticker
-            telegram_df = pd.concat([telegram_df, last_rec], ignore_index=True)
-            telegram_df[['Close', 'STLoss']] = telegram_df[['Close', 'STLoss']].round(2)
-        
+            telegram_frames.append(last_rec)
+
             # 7. save processed data to .csv
             dft.to_csv(ctx.path('out/data',f"{ticker}_{outp_filename}"))
+
+        # combine the per-ticker frames collected above into the totals
+        if trades_table_frames:
+            total_trades_table.df = pd.concat([total_trades_table.df] + trades_table_frames)
+        if trades_list_frames:
+            total_trades_list.df = pd.concat([total_trades_list.df] + trades_list_frames)
+        if telegram_frames:
+            telegram_df = pd.concat([telegram_df] + telegram_frames, ignore_index=True)
+            telegram_df[['Close', 'STLoss']] = telegram_df[['Close', 'STLoss']].round(2)
 
     # 8. save combined trades data to .csv
     ut.save_trades_table(total_trades_table.df, conf, ctx)
