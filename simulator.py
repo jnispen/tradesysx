@@ -4,6 +4,7 @@ import pandas as pd
 import json
 import argparse
 import config
+import logging
 import sys
 import os
 import numpy as np
@@ -12,32 +13,96 @@ import math
 import statistics
 import matplotlib.pyplot as plt
 
+# loggers created by this app's own modules (simulator.py runs as "__main__")
+APP_LOGGER_NAMES = ("__main__",)
+
+RESET = "\033[0m"
+LEVEL_COLORS = {
+    logging.DEBUG: "\033[36m",     # cyan
+    logging.INFO: "\033[32m",      # green
+    logging.WARNING: "\033[33m",   # yellow
+    logging.ERROR: "\033[31m",     # red
+    logging.CRITICAL: "\033[1;31m", # bold red
+}
+
+
+class BracketFormatter(logging.Formatter):
+    ''' prefix each message with a colored "[HH:MM:SS LEVEL]" tag '''
+
+    def format(self, record):
+        color = LEVEL_COLORS.get(record.levelno, "")
+        timestamp = self.formatTime(record, "%H:%M:%S")
+        prefix = f"{color}[{timestamp} {record.levelname}]{RESET}"
+        return f"{prefix} {record.getMessage()}"
+
+
+def add_logging_arguments(parser):
+    ''' add the shared --loglevel CLI flag to an argparse parser '''
+    parser.add_argument(
+        '--loglevel',
+        type=str.upper,
+        default='INFO',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help='set the console logging verbosity (default: INFO)'
+    )
+
+
+def setup_logging(loglevel='INFO'):
+    ''' configure console logging based on --loglevel
+
+    Only this app's own loggers (APP_LOGGER_NAMES) follow --loglevel.
+    Third-party libraries (matplotlib, seaborn, ...) are held at ERROR
+    so their INFO/WARNING chatter doesn't show up.
+    '''
+    level = getattr(logging, loglevel.upper(), logging.INFO)
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(BracketFormatter())
+    handler.setLevel(logging.DEBUG)
+
+    root = logging.getLogger()
+    root.setLevel(logging.ERROR)
+    root.handlers = [handler]
+
+    for name in APP_LOGGER_NAMES:
+        logging.getLogger(name).setLevel(level)
+
+    # some libraries set their own logger level on import, overriding
+    # root's level - force those back down to ERROR too
+    for name, other in logging.root.manager.loggerDict.items():
+        if name in APP_LOGGER_NAMES or not isinstance(other, logging.Logger):
+            continue
+        other.setLevel(logging.ERROR)
+
+
+logger = logging.getLogger(__name__)
+
 
 def do_monte_carlo_simulation(rmul_list, conf):
     ''' takes the list of R-multiples and randomly samples from the list (bag of marbles simulation)'''
 
-    print(f"+++ Monte Carlo simulation (sampled) ({conf['iterations']} iterations)")
+    logger.info(f"+++ Monte Carlo simulation (sampled) ({conf['iterations']} iterations)")
 
     # extract Rmul values from the trades list
-    Rmul_arr = np.array(rmul_list, dtype=float)  
-    
-    print(f"+++ Trades total          : {len(Rmul_arr)}")
-    print(f"+++ Real Rmul average     : {np.mean(Rmul_arr):.2f}")
-    print(f"+++ Real Rmul maximum     : {Rmul_arr.max():.2f}")
-    print(f"+++ Real Rmul minimum     : {Rmul_arr.min():.2f}")
-    print(f"+++ System Quality Number : {config.sqn:.2f}")
+    Rmul_arr = np.array(rmul_list, dtype=float)
+
+    logger.info(f"+++ Trades total          : {len(Rmul_arr)}")
+    logger.info(f"+++ Real Rmul average     : {np.mean(Rmul_arr):.2f}")
+    logger.info(f"+++ Real Rmul maximum     : {Rmul_arr.max():.2f}")
+    logger.info(f"+++ Real Rmul minimum     : {Rmul_arr.min():.2f}")
+    logger.info(f"+++ System Quality Number : {config.sqn:.2f}")
 
     # sample from the real distribution as measured by the closed trades
     multiset = Rmul_arr.tolist()
     sample_count = 10000
     Rmul_sample = np.random.choice(multiset, size=sample_count, replace=True)
 
-    print(f"+++ Sampled Rmul average  : {np.mean(Rmul_sample):.2f} (10000 samples)")
+    logger.info(f"+++ Sampled Rmul average  : {np.mean(Rmul_sample):.2f} (10000 samples)")
 
     # set fixed variables for simulation
     risk = float(conf['risk_percent'])
-    print(f"+++ Risk per trade ($)    : {risk*conf['balance']:.2f}")
-    print(f"+++ Risk per trade (%)    : {risk*100:.2f}")
+    logger.info(f"+++ Risk per trade ($)    : {risk*conf['balance']:.2f}")
+    logger.info(f"+++ Risk per trade (%)    : {risk*100:.2f}")
     
     sim_runs = conf['iterations']
     # dataframe to hold balance values of all iterations (for visualisation)
@@ -91,15 +156,15 @@ def do_monte_carlo_simulation(rmul_list, conf):
     config.min_balance = min_balance
 
     last_row = mc_result_df.iloc[-1]
-    print ("+++ MONTE CARLO results")
-    print(f"+++ Median                : {last_row.median():,.0f}")
-    print(f"+++ Stdev                 : {last_row.std():,.0f}")
-    print(f"+++ Max                   : {last_row.max():,.0f}")
-    print(f"+++ Min                   : {last_row.min():,.0f}")
-    print(f"+++ Loss streak avg       : {avg_neg_run:.0f}")
-    print(f"+++ Loss streak max       : {max_neg_run:.0f}")
-    print(f"+++ Minimum balance       : {config.min_balance:,.0f}")
-    print(f"+++ Max drawdown (%)      : {config.max_drawdown:.1f}")
+    logger.info("+++ MONTE CARLO results")
+    logger.info(f"+++ Median                : {last_row.median():,.0f}")
+    logger.info(f"+++ Stdev                 : {last_row.std():,.0f}")
+    logger.info(f"+++ Max                   : {last_row.max():,.0f}")
+    logger.info(f"+++ Min                   : {last_row.min():,.0f}")
+    logger.info(f"+++ Loss streak avg       : {avg_neg_run:.0f}")
+    logger.info(f"+++ Loss streak max       : {max_neg_run:.0f}")
+    logger.info(f"+++ Minimum balance       : {config.min_balance:,.0f}")
+    logger.info(f"+++ Max drawdown (%)      : {config.max_drawdown:.1f}")
 
      # save the balances and plot the result (see simulation plot)
     plot_monte_carlo_results_sampled(mc_result_df, conf, risk, np.mean(Rmul_arr), np.mean(Rmul_sampled), avg_neg_run, max_neg_run)
@@ -223,7 +288,9 @@ def main():
         default='',
         help='Base directory'
     )
+    add_logging_arguments(parser)
     args = parser.parse_args()
+    setup_logging(args.loglevel)
 
     # set base directory
     if args.basedir:
@@ -231,16 +298,16 @@ def main():
     else:
         base_dir = os.getcwd()
     config.basedir = base_dir
-    print("+++ base directory: " + str(config.basedir))
+    logger.info("+++ base directory: " + str(config.basedir))
 
     # load system confguration
     conf_file = data_path(str(config.basedir), 'config/simulator_conf.json')
     try:
         with open(conf_file) as f:
-            print(f"+++ configuration file: {conf_file}")
+            logger.info(f"+++ configuration file: {conf_file}")
             conf = json.loads(f.read())
     except Exception as e:
-        print(f"+++ failed to load configuration file: {e}")
+        logger.critical(f"+++ failed to load configuration file: {e}")
         sys.exit(1)
     
     rmul_list = [

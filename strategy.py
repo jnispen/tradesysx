@@ -2,6 +2,9 @@
 
 import sys
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Stoploss():
     ''' STOPLOSS strategy '''
@@ -14,7 +17,7 @@ class Stoploss():
         elif self.conf['stloss'] == 'percent':
             return self._PercentageStoploss(row)
         else:
-            print("The Stoploss strategy {} does not exist!".format(self.conf['stloss']))
+            logger.critical("The Stoploss strategy {} does not exist!".format(self.conf['stloss']))
             sys.exit(1)
 
     def _ATRStoploss(self, row):

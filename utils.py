@@ -4,6 +4,7 @@ import sys
 import math
 import os
 import re
+import logging
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -33,7 +34,9 @@ from strategy import Stoploss, TradingSignals
 from tables import TotalTradesList, TradesTable
 from context import RunContext, SystemStats
 
-# for concat of empty dataframe 
+logger = logging.getLogger(__name__)
+
+# for concat of empty dataframe
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -95,10 +98,10 @@ def get_history_data(ticker, period=None, start=None, end=None):
 def get_quotes_data(quotes, conf, outfile, ctx):
     ''' download the quotes data '''
     config_str = '+++ downloading quotes (' + str(len(quotes)) + ')'
-    print(config_str)
+    logger.info(config_str)
     idx = 1
     for ticker, desc in quotes.items():
-        print(f'{idx} - {ticker}: {desc}\n', end='')
+        logger.info(f'{idx} - {ticker}: {desc}')
         idx += 1
 
         if conf.get("start") and conf.get("stop"):
@@ -584,13 +587,13 @@ def compute_position_size(conf, balance, stats):
     elif ps == "kelly":
         return conf['kelly_ratio'] * stats.kelly_crit * balance
     else:
-        print(f"The position sizing strategy [{conf['pos_sizing']}] does not exist!")
+        logger.critical(f"The position sizing strategy [{conf['pos_sizing']}] does not exist!")
         sys.exit(1)
 
 def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, stats):
     ''' simulates the virtual account balance for the trades list '''
 
-    print('+++ Trading simulation (backtest)')
+    logger.info('+++ Trading simulation (backtest)')
 
     dframe.sort_values(by='Date', ascending=True, inplace=True)
     dframe.reset_index(drop=True, inplace=True)
@@ -665,7 +668,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
             tmp_df = df_trades_table.loc[(df_trades_table['Ticker'] == key) & (df_trades_table['LastClose'] != '-'), :]
             closed_ret = float(tmp_df['LastClose'].iloc[0]) * float(value)
             balance += closed_ret
-            print("Closed: {} {:,.2f}".format(key, closed_ret))
+            logger.debug("Closed: {} {:,.2f}".format(key, closed_ret))
             tmp_row = {
                 'Date': last_close_date,
                 'Ticker': f"({key})",
@@ -698,18 +701,17 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     # store values for use by later pipeline steps
     stats.avg_risk = avg_risk_abs
     
-    print(f"\nAverage investment: {avg_invested:,.2f}")
-    print(f"Average balance   : {avg_balance:,.2f}")
-    print(f"Average risk ($)  : {avg_risk_abs:,.2f}")
-    print(f"Average risk (%)  : {avg_risk_per:.2f}")
+    logger.info(f"Average investment: {avg_invested:,.2f}")
+    logger.info(f"Average balance   : {avg_balance:,.2f}")
+    logger.info(f"Average risk ($)  : {avg_risk_abs:,.2f}")
+    logger.info(f"Average risk (%)  : {avg_risk_per:.2f}")
 
     # sanity check the sum of the invested colum (start balance + -(invested) = final balance)
     total_invested = dframe['Invested'].sum()
-    print(f"\nTotal invested: {total_invested:,.2f}")
-    print(f"Final balance : {balance:,.2f}\n")
+    logger.info(f"Total invested: {total_invested:,.2f}")
+    logger.info(f"Final balance : {balance:,.2f}")
 
-    if conf['verbose'] == True:
-        print('\n', dframe)
+    logger.debug("\n%s", dframe)
     dframe.to_csv(ctx.path("out/tables/", "trades_list.csv"), index=False)
 
     # save to pdf file
@@ -734,23 +736,23 @@ def do_monte_carlo_simulation_sampled(total_trades_list, conf, ctx, stats):
 def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk):
     ''' run a Monte Carlo balance simulation by sampling from the given R-multiple distribution (bag of marbles) '''
 
-    print(f"+++ Monte Carlo simulation (sampled) ({conf['iterations']} iterations)")
+    logger.info(f"+++ Monte Carlo simulation (sampled) ({conf['iterations']} iterations)")
 
-    print(f"+++ Trades total          : {len(Rmul_arr)}")
-    print(f"+++ Real Rmul average     : {np.mean(Rmul_arr):.2f}")
-    print(f"+++ Real Rmul maximum     : {Rmul_arr.max():.2f}")
-    print(f"+++ Real Rmul minimum     : {Rmul_arr.min():.2f}")
-    print(f"+++ System Quality Number : {stats.sqn:.2f}")
+    logger.info(f"+++ Trades total          : {len(Rmul_arr)}")
+    logger.info(f"+++ Real Rmul average     : {np.mean(Rmul_arr):.2f}")
+    logger.info(f"+++ Real Rmul maximum     : {Rmul_arr.max():.2f}")
+    logger.info(f"+++ Real Rmul minimum     : {Rmul_arr.min():.2f}")
+    logger.info(f"+++ System Quality Number : {stats.sqn:.2f}")
 
     # sample from the real distribution as measured by the closed trades
     multiset = Rmul_arr.tolist()
     sample_count = 10000
     Rmul_sample = np.random.choice(multiset, size=sample_count, replace=True)
 
-    print(f"+++ Sampled Rmul average  : {np.mean(Rmul_sample):.2f} (10000 samples)")
+    logger.info(f"+++ Sampled Rmul average  : {np.mean(Rmul_sample):.2f} (10000 samples)")
 
-    print(f"+++ Risk per trade ($)    : {risk*conf['balance']:.2f}")
-    print(f"+++ Risk per trade (%)    : {risk*100:.2f}")
+    logger.info(f"+++ Risk per trade ($)    : {risk*conf['balance']:.2f}")
+    logger.info(f"+++ Risk per trade (%)    : {risk*100:.2f}")
 
     sim_runs = conf['iterations']
     # array to hold balance values of all iterations (for visualisation)
@@ -793,15 +795,15 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk):
     stats.min_balance = min_balance
 
     last_row = mc_result_df.iloc[-1]
-    print ("+++ MONTE CARLO results")
-    print(f"+++ Median                : {last_row.median():,.0f}")
-    print(f"+++ Stdev                 : {last_row.std():,.0f}")
-    print(f"+++ Max                   : {last_row.max():,.0f}")
-    print(f"+++ Min                   : {last_row.min():,.0f}")
-    print(f"+++ Loss streak avg       : {avg_neg_run:.0f}")
-    print(f"+++ Loss streak max       : {max_neg_run:.0f}")
-    print(f"+++ Minimum balance       : {stats.min_balance:,.0f}")
-    print(f"+++ Max drawdown (%)      : {stats.max_drawdown:.1f}")
+    logger.info("+++ MONTE CARLO results")
+    logger.info(f"+++ Median                : {last_row.median():,.0f}")
+    logger.info(f"+++ Stdev                 : {last_row.std():,.0f}")
+    logger.info(f"+++ Max                   : {last_row.max():,.0f}")
+    logger.info(f"+++ Min                   : {last_row.min():,.0f}")
+    logger.info(f"+++ Loss streak avg       : {avg_neg_run:.0f}")
+    logger.info(f"+++ Loss streak max       : {max_neg_run:.0f}")
+    logger.info(f"+++ Minimum balance       : {stats.min_balance:,.0f}")
+    logger.info(f"+++ Max drawdown (%)      : {stats.max_drawdown:.1f}")
 
      # save the balances and plot the result (see simulation plot)
     plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, np.mean(Rmul_arr), np.mean(Rmul_sampled), avg_neg_run, max_neg_run)
@@ -935,7 +937,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
 def do_monte_carlo_simulation_shuffled(total_trades_list, conf, ctx, stats, last_close_date):
     ''' takes the trades tabel and randomly permutates the trades in the dataframe'''
 
-    print(f"+++ Monte Carlo simulation (shuffled) ({conf['iterations']} iterations)")
+    logger.info(f"+++ Monte Carlo simulation (shuffled) ({conf['iterations']} iterations)")
 
     # create new dataframe, keeping only relavant columns
     cols_to_keep = ['Enter','Exit','Ticker','PriceIn', 'PriceOut', 'Profit', 'Risk', 'Rmul','Length']
@@ -965,9 +967,9 @@ def do_monte_carlo_simulation_shuffled(total_trades_list, conf, ctx, stats, last
     end_date = monte_carlo_df['DateOut'].max()
     days_delta = (end_date - start_date).days
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
-    print(f"+++ simulation start: {start_date.date()}")
-    print(f"+++ simulation end  : {end_date.date()}")
-    print(f"+++ length (days)   : {days_delta}")
+    logger.info(f"+++ simulation start: {start_date.date()}")
+    logger.info(f"+++ simulation end  : {end_date.date()}")
+    logger.info(f"+++ length (days)   : {days_delta}")
 
     # dataframe to hold the simulation results
     df_results = pd.DataFrame(columns=['balance'])
@@ -1057,11 +1059,11 @@ def do_monte_carlo_simulation_shuffled(total_trades_list, conf, ctx, stats, last
             sys.stdout.write(". ")
             sys.stdout.flush()
 
-    print ("\n+++ MONTE CARLO results")
-    print(f"+++ Median          : {df_results['balance'].median():,.0f}")
-    print(f"+++ Stdev           : {df_results['balance'].std():,.0f}")
-    print(f"+++ Max             : {df_results['balance'].max():,.0f}")
-    print(f"+++ Min             : {df_results['balance'].min():,.0f}")
+    logger.info("+++ MONTE CARLO results")
+    logger.info(f"+++ Median          : {df_results['balance'].median():,.0f}")
+    logger.info(f"+++ Stdev           : {df_results['balance'].std():,.0f}")
+    logger.info(f"+++ Max             : {df_results['balance'].max():,.0f}")
+    logger.info(f"+++ Min             : {df_results['balance'].min():,.0f}")
     
     # plot results of the simulation
     plot_monte_carlo_results_shuffled(df_results, mc_result_df, conf, ctx)
@@ -1274,11 +1276,11 @@ def _get_capital_invested(row, conf, balance, stats):
 
     # do not enter trades where the invested amount is too low, and scale down if the investement requires > current balance
     if cap_invested < conf['min_invest']:
-        print(f"Investment amount too low, not entering trade! ({row.Ticker})")
+        logger.warning(f"Investment amount too low, not entering trade! ({row.Ticker})")
         units = 0
         cap_invested = 0
     elif balance < cap_invested:
-        print(f"Required balance to low for investment amount, scaling down... ({row.Ticker})")
+        logger.warning(f"Required balance to low for investment amount, scaling down... ({row.Ticker})")
         units = balance / row.Enter
         fee = units * row.Enter * float(conf["trading_fee"]) / 100
         cap_invested = units * row.Enter - fee
@@ -1304,7 +1306,7 @@ def load_ohlc_cache(tickers, ctx):
             df = pd.read_csv(file_path)
             cache[ticker] = df.set_index('Date')
         except Exception as e:
-            print(f"Error reading {file_path}: {e}")
+            logger.error(f"Error reading {file_path}: {e}")
             cache[ticker] = None
     return cache
 
@@ -1341,8 +1343,7 @@ def save_trades_table(dframe, conf, ctx):
     # to track system perfomance, add a rolling Rmul over the last 30 trades
     dframe['Rmul30'] = dframe['Rmul'].rolling(30).mean().round(2)
 
-    if conf['verbose'] == True:
-        print('\n', dframe)
+    logger.debug("\n%s", dframe)
     dframe.to_csv(ctx.path('out/tables', "trades_table.csv"), index=False)
 
     # save to pdf file

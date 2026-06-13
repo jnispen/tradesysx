@@ -4,6 +4,7 @@ import pandas as pd
 import json
 import asyncio
 import argparse
+import logging
 import sys
 import os
 
@@ -12,6 +13,9 @@ from datetime import datetime
 import utils as ut
 from tables import TotalTradesList, TradesTable
 from context import RunContext, SystemStats
+from logging_setup import setup_logging, add_logging_arguments
+
+logger = logging.getLogger(__name__)
 
 last_close_date = None
 
@@ -25,10 +29,10 @@ def update_quotes(conf, ctx):
     telegram_df = pd.DataFrame(columns=['Ticker', 'Close', 'Signal','STLoss'])
 
     config_str = '++- start: ' + str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    print(config_str)
+    logger.info(config_str)
 
     config_str = '+++ configuration:\n' + json.dumps(conf, indent=2)
-    print(config_str)
+    logger.debug(config_str)
     conf_str = json.dumps(conf, indent=2)
 
     quote_file = ctx.path(conf["quotefile"])
@@ -46,7 +50,7 @@ def update_quotes(conf, ctx):
     if conf['process_data'] == True:
         num_quotes = len(quotes)
         config_str = '+++ processing quotes (' + str(num_quotes) + ')'
-        print(config_str)
+        logger.info(config_str)
 
         trades_table_frames = []
         trades_list_frames = []
@@ -54,7 +58,7 @@ def update_quotes(conf, ctx):
 
         idx = 1
         for ticker, desc in quotes.items():
-            print(f'{idx} - {ticker}: {desc}\n', end='')
+            logger.info(f'{idx} - {ticker}: {desc}')
             idx += 1
 
             # 2. read data from disk
@@ -106,9 +110,9 @@ def update_quotes(conf, ctx):
         trading_period = (last_close_date - first_close_date).days
         system_stat = ut.generate_system_stats(total_trades_table.df, trading_period, ctx, stats)
         system_stats = system_stat.to_string(index=False)
-        print ("======= system statistics =========")
-        print (system_stats)
-        print ("===================================")
+        logger.info("======= system statistics =========")
+        logger.info(system_stats)
+        logger.info("===================================")
 
     # 10. virtual trading balance simulation
     balance_df = ut.do_balance_simulation(total_trades_list.df, total_trades_table.df, conf, last_close_date, ctx, stats)
@@ -125,7 +129,7 @@ def update_quotes(conf, ctx):
     # 11. generate a complete system summary report in a single pdf
     ut.generate_summary_report(system_stat, conf_str, quotes_str, ctx)
 
-    print('+++ processing finished')
+    logger.info('+++ processing finished')
 
     if conf['notify'] == True:
         # 12. send status updates to the Telegram bot
@@ -136,17 +140,17 @@ def update_quotes(conf, ctx):
         telegram_df[last_col] = telegram_df[last_col].apply(lambda x: f'({x})')
         telegram_df = telegram_df[['Ticker', 'Close', 'STLoss', 'Signal']]
         msg_text = telegram_df.to_string(index=True, justify='left', header=False)
-        print(msg_text)
+        logger.debug(msg_text)
 
         asyncio.run(ut.bot_signal_update(ctx, last_close_date, msg_text))
         response = ut.bot_summary_update(ctx, ctx.path("out", "system_summary.pdf"))
         if response.ok:
-            print('+++ telegram updates sent')
+            logger.info('+++ telegram updates sent')
         else:
-            print('+++ error sending update: ', response.text)
-        
+            logger.error(f'+++ error sending update: {response.text}')
+
     config_str = '++- stop: ' + str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    print(config_str + '\n')
+    logger.info(config_str + '\n')
 
 def main():
 
@@ -157,7 +161,9 @@ def main():
         default='',
         help='Base directory'
     )
+    add_logging_arguments(parser)
     args = parser.parse_args()
+    setup_logging(args.loglevel)
 
     # set base directory
     if args.basedir:
@@ -165,23 +171,23 @@ def main():
     else:
         base_dir = os.getcwd()
     ctx = RunContext(basedir=base_dir)
-    print("+++ base directory: " + str(ctx.basedir))
+    logger.info("+++ base directory: " + str(ctx.basedir))
 
     # load system confguration
     conf_file = ctx.path('config/system_conf.json')
     try:
         with open(conf_file) as f:
-            print(f"+++ configuration file: {conf_file}")
+            logger.info(f"+++ configuration file: {conf_file}")
             conf = json.loads(f.read())
     except Exception as e:
-        print(f"+++ failed to load configuration file: {e}")
+        logger.critical(f"+++ failed to load configuration file: {e}")
         sys.exit(1)
 
     # load telegram chat id and bot token if configured
     if conf['notify'] == True:
         ta_file = ctx.path('config/telegram_conf.json')
         with open(ta_file) as f:
-            print(f"+++ telegram configuration file: {ta_file}")
+            logger.info(f"+++ telegram configuration file: {ta_file}")
             ta_conf = json.loads(f.read())
         ctx.bot_token = ta_conf['bot_token']
         ctx.chat_id = ta_conf['chat_id']

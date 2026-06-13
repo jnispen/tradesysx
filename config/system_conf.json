@@ -5,7 +5,6 @@
     "process_data" : true,
     "gen_plots"    : true,
     "gen_ta_plots" : true,
-    "verbose"      : false,
     "position"     : "long",
     "stloss"       : "3atr",
     "enter"        : "3EMA",
