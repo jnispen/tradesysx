@@ -1,6 +1,6 @@
 ### Standalone Monte Carlo simulator
 
-`simulator.py` is a small tool used to explore how a given R-multiple
+`simulator.py` is a tool used to explore how a given R-multiple
 distribution plays out over many simulated trade sequences ("bag of
 marbles" resampling).
 
@@ -35,6 +35,6 @@ regardless of `--basedir`):
 
 #### Output
 
-A single plot is written to `<basedir>/out/reports/monte_carlo_plot.png`,
+The plotted output is written to `<basedir>/out/reports/monte_carlo_plot.png`,
 showing all simulated balance trajectories plus summary statistics (median,
 stdev, min/max, loss streaks, max drawdown, SQN).

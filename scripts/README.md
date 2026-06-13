@@ -1,5 +1,3 @@
-# scripts/
-
 ## export_package.sh
 
 Packages the current `HEAD` commit into a zip archive for sharing with a collaborator.

@@ -1,11 +1,11 @@
 ### GetQuotes
 
-GetQuotes is a small backtesting and paper-trading toolkit for mechanical
+GetQuotes is a backtesting and paper-trading toolkit for mechanical
 trading systems. It downloads historical stock data, applies a configurable
 entry/exit/stoploss strategy, simulates a trading account, and runs a Monte
 Carlo analysis on the resulting trades.
 
-The script was directly inspired by the various books on trading systems
+The toolkit was directly inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
 #### How it works
