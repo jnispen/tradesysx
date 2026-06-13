@@ -46,6 +46,8 @@ echo '{"AAPL": "Apple Inc."}' > /tmp/run_test/quotes/quotes_stocks.lst
 
 The import check doesn't cover runtime issues like yfinance network calls, WeasyPrint's system deps (Pango/Cairo), the TA-Lib C library (installed separately), or version-dependent breakage. Example of the latter: `requirements.txt` pins no `pandas` version, so it can resolve to pandas 3.x, which removed the implicit single-element-`Series`→scalar conversion via `float()`/`int()` (previously a `FutureWarning`, now a hard `TypeError`). Any `float(df['col'])`/`int(df['col'])` on a one-row selection must be `float(df['col'].iloc[0])` instead — fixed for this reason in the "close open trades" branch of `do_balance_simulation` in `utils.py`.
 
+Alternatively, `scripts/Dockerfile` builds an exported zip (from `scripts/export_package.sh`) in an isolated container with the TA-Lib C library and WeasyPrint system deps preinstalled — see `scripts/README.md`.
+
 ## Architecture
 
 ### Pipeline entry point — `getquotes.py`

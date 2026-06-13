@@ -12,3 +12,20 @@ scripts/export_package.sh <label>
 - If the working tree has uncommitted changes, the script prints a warning (via `git status --porcelain`) but still archives `HEAD` — commit first if those changes should be included.
 
 The recipient should unzip the archive and follow the setup steps in `getquotes/README.md` (`pip install -r requirements.txt`, etc.).
+
+## Dockerfile
+
+Tests an exported zip in isolation: builds the TA-Lib C library and
+WeasyPrint runtime deps, unzips the package, installs `requirements.txt`,
+and runs the pipeline.
+
+```sh
+scripts/export_package.sh test
+docker build -t getquotes-test -f scripts/Dockerfile \
+    --build-arg ZIP_FILE=getquotes-test.zip dist/
+docker run --rm -it getquotes-test
+```
+
+See the comments at the top of `scripts/Dockerfile` for variants: mounting
+`out/` to the host to inspect results, or dropping into a shell to edit
+config files and run manually.
