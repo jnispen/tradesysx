@@ -300,8 +300,8 @@ def main():
     config.basedir = base_dir
     logger.info("+++ base directory: " + str(config.basedir))
 
-    # load system confguration
-    conf_file = data_path(str(config.basedir), 'config/simulator_conf.json')
+    # load system confguration (relative to this script, not --basedir)
+    conf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'simulator_conf.json')
     try:
         with open(conf_file) as f:
             logger.info(f"+++ configuration file: {conf_file}")

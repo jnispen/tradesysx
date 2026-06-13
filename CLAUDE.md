@@ -27,7 +27,7 @@ python getquotes.py [--basedir <path>]
 Run the standalone Monte Carlo simulator:
 
 ```sh
-python simulator.py [--basedir <path>]
+python tst/simulator.py [--basedir <path>]
 ```
 
 `--basedir` defaults to the current working directory and is used to locate `config/`, `quotes/` and `out/`. There is no test suite, linter, or build step in this repo.
@@ -83,15 +83,15 @@ Single large module containing the whole pipeline implementation, roughly in pip
 
 Trivial wrapper classes (`TotalTradesList`, `TradesTable`) — each just holds a `self.df` DataFrame with a fixed column set, used as typed containers passed between `utils.py` functions.
 
-### `simulator.py` — intentionally separate
+### `tst/simulator.py` — intentionally separate
 
-A standalone Monte Carlo tool that reads `config/simulator_conf.json` and a hardcoded R-multiple list. It still uses the old global `config` namespace-package pattern (`import config`, `config.basedir`, `config.sqn`, etc.) and has its own duplicated copies of `do_monte_carlo_simulation`/`plot_monte_carlo_results_sampled`/`data_path`. This divergence from `getquotes.py`/`utils.py` (which use `RunContext`/`SystemStats`) is **intentional** — the user plans to move this tool into its own directory later, so don't refactor it to share code with `utils.py` unless asked.
+A standalone Monte Carlo tool, living in its own `tst/` directory with its own `tst/config/simulator_conf.json` and [tst/README.md](tst/README.md). It still uses the old global `config` namespace-package pattern (`import config`, `config.basedir`, `config.sqn`, etc., resolved via the sibling `tst/config/` namespace package) and has its own duplicated copies of `do_monte_carlo_simulation`/`plot_monte_carlo_results_sampled`/`data_path`. This divergence from `getquotes.py`/`utils.py` (which use `RunContext`/`SystemStats`) is **intentional** — don't refactor it to share code with `utils.py` unless asked.
 
 ### Configuration (`config/`)
 
 - `system_conf.json` — main config: data range, indicator periods, strategy selection (`enter`/`exit`/`stloss`), position sizing, account balance/risk, Monte Carlo params (`iterations`, `sim_len_max`, `outlier`).
 - `telegram_conf.json` — bot token/chat ID, only read when `notify` is true.
-- `simulator_conf.json` — config for the standalone `simulator.py`.
+- `tst/config/simulator_conf.json` — config for the standalone `tst/simulator.py`.
 - `quotes/quotes_stocks.lst` — JSON dict of `{ticker: description}`; `update_quotes` injects an extra `"URTH"` (MSCI World) entry as the buy-and-hold benchmark.
 
 ### Output (`out/`, gitignored)

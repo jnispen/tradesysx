@@ -82,7 +82,7 @@ All behaviour is controlled via JSON config files in `config/`:
    (default), `WARNING`, `ERROR` or `CRITICAL`. `INFO` shows section banners,
    per-ticker progress and final summaries; `DEBUG` additionally shows
    per-trade details and full configuration/table dumps. The same flag is
-   available on `simulator.py`.
+   available on `tst/simulator.py` (see [tst/README.md](tst/README.md)).
 
 #### Output
 
