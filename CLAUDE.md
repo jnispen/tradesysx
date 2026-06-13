@@ -70,7 +70,7 @@ Single large module containing the whole pipeline implementation, roughly in pip
 - System statistics (`generate_system_stats`): SQN, Kelly criterion, win rate, R-multiple stats, plus `trades_plot`.
 - Position sizing (`compute_position_size`): `core_equity_risk`, `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount`, `kelly` — selected by `conf['pos_sizing']`.
 - Balance simulation (`do_balance_simulation`): paper-trades the signals using the configured position sizing, tracks account balance/value over time. Pre-loads each ticker's OHLC CSV once via `load_ohlc_cache` (used by `get_total_invested_value`) rather than re-reading per row.
-- Monte Carlo simulation: `do_monte_carlo_simulation_sampled` → `run_monte_carlo_sampled` resamples the R-multiple distribution ("bag of marbles"); the per-trade balance update (`balance *= 1 + risk*Rmul`) is vectorized with `np.cumprod`. `do_monte_carlo_simulation_shuffled`/`plot_monte_carlo_results_shuffled` (permutation-based variant) exist but are currently unused/commented out in `getquotes.py`.
+- Monte Carlo simulation: `do_monte_carlo_simulation_sampled` → `run_monte_carlo_sampled` resamples the R-multiple distribution ("bag of marbles"); the per-trade balance update (`balance *= 1 + risk*Rmul`) is vectorized with `np.cumprod`. `do_monte_carlo_simulation_shuffled`/`plot_monte_carlo_results_shuffled` (permutation-based variant) exist but are currently unused/commented out in `getquotes.py`. `run_monte_carlo_sampled`/`plot_monte_carlo_results_sampled` take an `output_filename` and an optional `benchmark` (`(val_out, ann_ret_hodl)` tuple); `do_monte_carlo_simulation_sampled` passes the URTH buy-and-hold benchmark, while `tst/simulator.py` passes `benchmark=None` to omit it. The simulated-balance annualized-return annotation is only drawn when `stats.trades_len` is truthy.
 - Reporting: `generate_summary_report` builds the combined `out/system_summary.pdf` via WeasyPrint; `df_to_html` is the shared table→HTML/CSS helper for the PDF tables.
 - Plotting: `ticker_plot`, `ticker_plot_ta`, `balance_plot`, `trades_plot`, plus the Monte Carlo plot functions — all save PNGs under `ctx.path("out/...")`.
 
@@ -83,9 +83,9 @@ Single large module containing the whole pipeline implementation, roughly in pip
 
 Trivial wrapper classes (`TotalTradesList`, `TradesTable`) — each just holds a `self.df` DataFrame with a fixed column set, used as typed containers passed between `utils.py` functions.
 
-### `tst/simulator.py` — intentionally separate
+### `tst/simulator.py`
 
-A standalone Monte Carlo tool, living in its own `tst/` directory with its own `tst/config/simulator_conf.json` and [tst/README.md](tst/README.md). It still uses the old global `config` namespace-package pattern (`import config`, `config.basedir`, `config.sqn`, etc., resolved via the sibling `tst/config/` namespace package) and has its own duplicated copies of `do_monte_carlo_simulation`/`plot_monte_carlo_results_sampled`/`data_path`. This divergence from `getquotes.py`/`utils.py` (which use `RunContext`/`SystemStats`) is **intentional** — don't refactor it to share code with `utils.py` unless asked.
+A standalone Monte Carlo tool, living in its own `tst/` directory with its own `tst/config/simulator_conf.json` and [tst/README.md](tst/README.md). It uses `RunContext`/`SystemStats` (from `context.py`) like the main pipeline, and reuses `logging_setup.py` and `utils.run_monte_carlo_sampled` rather than keeping its own copies — so it has the same dependency set as `utils.py` (TA-Lib, yfinance, WeasyPrint, etc.) even though it only exercises a small part of it. Its hardcoded `rmul_list` and `simulator_conf.json` loading remain specific to this tool, and it calls `run_monte_carlo_sampled` with `benchmark=None` since the URTH buy-and-hold comparison has no meaning for a synthetic R-multiple distribution.
 
 ### Configuration (`config/`)
 

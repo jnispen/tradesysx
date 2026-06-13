@@ -171,8 +171,8 @@ def main():
     setup_logging(args.loglevel)
 
     logger.info('==== [0/8] Command line parameters ====')
-    logger.info(f"- basedir           : {args.basedir or os.getcwd()}")
-    logger.info(f"- loglevel          : {args.loglevel}")
+    logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
+    logger.info(f"Loglevel          : {args.loglevel}")
 
     # set base directory
     if args.basedir:
@@ -180,13 +180,12 @@ def main():
     else:
         base_dir = os.getcwd()
     ctx = RunContext(basedir=base_dir)
-    logger.info("- base directory    : " + str(ctx.basedir))
 
     # load system confguration
     conf_file = ctx.path('config/system_conf.json')
     try:
         with open(conf_file) as f:
-            logger.info(f"- configuration file: {conf_file}")
+            logger.info(f"Configuration file: {conf_file}")
             conf = json.loads(f.read())
     except Exception as e:
         logger.critical(f"failed to load configuration file: {e}")

@@ -1,4 +1,5 @@
 out/*
 __pycache__/*
+tst/__pycache__/*
 .claude/*
 .grill/*

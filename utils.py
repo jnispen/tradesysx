@@ -728,9 +728,15 @@ def do_monte_carlo_simulation_sampled(total_trades_list, conf, ctx, stats):
     # set fixed variables for simulation
     risk = stats.avg_risk / conf['balance'] if len(Rmul_arr) <= conf['sim_len_max'] else (stats.avg_risk/stats.trades_num) * conf['sim_len_max'] / conf['balance']
 
-    run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk)
+    # precompute the URTH buy-and-hold benchmark for the plot
+    val_out = _get_urth_benchmark_result(conf, ctx)
+    ann_ret_hodl = ann_return(conf['balance'], val_out, stats.trades_len/365)
 
-def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk):
+    run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk,
+                            output_filename="monte_carlo_sampled_plot.png",
+                            benchmark=(val_out, ann_ret_hodl))
+
+def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="monte_carlo_sampled_plot.png", benchmark=None):
     ''' run a Monte Carlo balance simulation by sampling from the given R-multiple distribution (bag of marbles) '''
 
     logger.info(f"Number of samples      : {conf['iterations']}")
@@ -802,7 +808,8 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk):
     logger.info(f"Max drawdown (%)       : {stats.max_drawdown:.1f}")
 
      # save the balances and plot the result (see simulation plot)
-    plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, np.mean(Rmul_arr), np.mean(Rmul_sampled), avg_neg_run, max_neg_run)
+    plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, np.mean(Rmul_arr), np.mean(Rmul_sampled), avg_neg_run, max_neg_run,
+                                      output_filename=output_filename, benchmark=benchmark)
 
 def longest_negative_streak(values):
     max_len = cur_len = 0
@@ -820,7 +827,8 @@ def ann_return(start_capital: float, end_capital: float, years: float) -> float:
     ratio = end_capital / start_capital
     return ratio ** (1.0 / years) - 1.0
 
-def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_avg, Rmul_avg_sampled, avg_neg_run, max_neg_run):
+def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_avg, Rmul_avg_sampled, avg_neg_run, max_neg_run,
+                                      output_filename="monte_carlo_sampled_plot.png", benchmark=None):
     ''' plot the results of the monte carlo simulation '''
 
     # plot all series of balances for all iterations
@@ -897,37 +905,40 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         fontfamily='Monospace'
     )
 
-    # annualized gain trading simulation (CAGR)
-    ann_ret_sim = ann_return(conf['balance'], mc_result_df.iloc[-1].median(), stats.trades_len/365)
-    
+    # annualized gain trading simulation (CAGR), if a real backtest period is known
     y_max = plt.ylim()[1]
     y_val = mc_result_df.iloc[-1].median() + 0.035 * y_max
+    if stats.trades_len:
+        ann_ret_sim = ann_return(conf['balance'], mc_result_df.iloc[-1].median(), stats.trades_len/365)
+        sim_label = f"${mc_result_df.iloc[-1].median():,.0f} ({ann_ret_sim:.1%})"
+    else:
+        sim_label = f"${mc_result_df.iloc[-1].median():,.0f}"
     plt.text(
-        -1.5, y_val, f"${mc_result_df.iloc[-1].median():,.0f} ({ann_ret_sim:.1%})",
+        -1.5, y_val, sim_label,
         fontsize=10,
         fontfamily='Monospace',
         verticalalignment='top'
     )
 
-    # retrieve the benchmark data (URTH) and compute annualized gain
-    val_out = _get_urth_benchmark_result(conf, ctx)
-    ann_ret_hodl = ann_return(conf['balance'], val_out, stats.trades_len/365)
+    # plot the buy-and-hold benchmark (e.g. URTH), if provided
+    if benchmark is not None:
+        val_out, ann_ret_hodl = benchmark
 
-    ax.axhline(val_out, color='black', linewidth=1.5, linestyle='-.', alpha=.7)
+        ax.axhline(val_out, color='black', linewidth=1.5, linestyle='-.', alpha=.7)
 
-    y_val = val_out + 0.035 * y_max
-    plt.text(
-        -1.5, y_val, f"${val_out:,.0f} ({ann_ret_hodl:.1%})",
-        fontsize=10,
-        fontfamily='Monospace',
-        verticalalignment='top'
-    )
+        y_val = val_out + 0.035 * y_max
+        plt.text(
+            -1.5, y_val, f"${val_out:,.0f} ({ann_ret_hodl:.1%})",
+            fontsize=10,
+            fontfamily='Monospace',
+            verticalalignment='top'
+        )
 
     ax.set_xlabel('Trade')
     ax.set_ylabel('Balance (USD)')
     ax.grid(True, which='both', linestyle='dotted', alpha=0.5)
 
-    plt.savefig(ctx.path("out/reports", "monte_carlo_sampled_plot.png"), dpi=150)
+    plt.savefig(ctx.path("out/reports", output_filename), dpi=150)
     plt.close()
 
 def do_monte_carlo_simulation_shuffled(total_trades_list, conf, ctx, stats, last_close_date):
