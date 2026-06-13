@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Commit messages
+
+Use a one-line commit message and do not add a `Co-Authored-By` trailer.
+
 ## What this is
 
 GetQuotes is a backtesting and paper-trading toolkit for mechanical trading systems, inspired by Van K. Tharp's trading systems books. It downloads historical OHLC data (yfinance), applies a configurable entry/exit/stoploss strategy, simulates a trading account, and runs Monte Carlo analysis on the resulting trades. See README.md for the full stepwise pipeline description.

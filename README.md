@@ -72,11 +72,17 @@ All behaviour is controlled via JSON config files in `config/`:
 4. Run the pipeline:
 
    ```sh
-   python getquotes.py [--basedir <path>]
+   python getquotes.py [--basedir <path>] [--loglevel <level>]
    ```
 
    `--basedir` defaults to the current working directory and is used to
    locate the `config/`, `quotes/` and `out/` directories.
+
+   `--loglevel` controls console verbosity and accepts `DEBUG`, `INFO`
+   (default), `WARNING`, `ERROR` or `CRITICAL`. `INFO` shows section banners,
+   per-ticker progress and final summaries; `DEBUG` additionally shows
+   per-trade details and full configuration/table dumps. The same flag is
+   available on `simulator.py`.
 
 #### Output
 
