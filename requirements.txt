@@ -20,3 +20,6 @@ weasyprint
 
 # Telegram bot integration
 python-telegram-bot   # provides the `telegram` package used in utils.py
+
+# Documentation generation (scripts/generate_docs.sh)
+pdoc

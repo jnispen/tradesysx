@@ -4,3 +4,4 @@ tst/__pycache__/*
 .claude/*
 .grill/*
 dist/*
+docs/*
