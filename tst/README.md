@@ -2,14 +2,7 @@
 
 `simulator.py` is a small tool used to explore how a given R-multiple
 distribution plays out over many simulated trade sequences ("bag of
-marbles" resampling). It reuses the logging setup (`logging_setup.py`) and
-the sampled Monte Carlo simulation/plotting code (`run_monte_carlo_sampled`
-in `utils.py`) from the main `getquotes.py` pipeline, so it has the same
-dependencies (TA-Lib, yfinance, WeasyPrint, etc.) even though it doesn't use
-most of them. Its own R-multiple list, configuration file, and SQN
-computation remain specific to this tool. Unlike the main pipeline, it does
-not download or plot the URTH buy-and-hold benchmark, since that comparison
-has no meaning for a synthetic R-multiple distribution.
+marbles" resampling).
 
 Currently the R-multiple distribution is a hardcoded list in `main()` —
 edit `simulator.py` directly to try different distributions.
