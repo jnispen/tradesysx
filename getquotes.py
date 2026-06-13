@@ -151,7 +151,7 @@ def update_quotes(conf, ctx):
         asyncio.run(ut.bot_signal_update(ctx, last_close_date, msg_text))
         response = ut.bot_summary_update(ctx, ctx.path("out", "system_summary.pdf"))
         if response.ok:
-            logger.info('- telegram updates sent')
+            logger.info('- response OK, updates sent successfully')
         else:
             logger.error(f'error sending update: {response.text}')
     else:
