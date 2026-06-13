@@ -28,10 +28,7 @@ def update_quotes(conf, ctx):
     stats = SystemStats()
     telegram_df = pd.DataFrame(columns=['Ticker', 'Close', 'Signal','STLoss'])
 
-    config_str = '++- start: ' + str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    logger.info(config_str)
-
-    config_str = '+++ configuration:\n' + json.dumps(conf, indent=2)
+    config_str = '==== System configuration ====\n' + json.dumps(conf, indent=2)
     logger.debug(config_str)
     conf_str = json.dumps(conf, indent=2)
 
@@ -45,12 +42,13 @@ def update_quotes(conf, ctx):
 
     # 1. read quotes from yfinance and save raw OHLC file
     if conf['update_data'] == True:
+        logger.info(f'==== [1/8] Downloading quote data ({len(quotes)}) ====')
         ut.get_quotes_data(quotes, conf, ohlc_filename, ctx)
+    else:
+        logger.info('==== [1/8] Downloading quote data: skipped (update_data=false) ====')
 
     if conf['process_data'] == True:
-        num_quotes = len(quotes)
-        config_str = '+++ processing quotes (' + str(num_quotes) + ')'
-        logger.info(config_str)
+        logger.info('==== [2/8] Processing tickers ====')
 
         trades_table_frames = []
         trades_list_frames = []
@@ -101,38 +99,46 @@ def update_quotes(conf, ctx):
         if telegram_frames:
             telegram_df = pd.concat([telegram_df] + telegram_frames, ignore_index=True)
             telegram_df[['Close', 'STLoss']] = telegram_df[['Close', 'STLoss']].round(2)
+    else:
+        logger.info('==== [2/8] Processing tickers: skipped (process_data=false) ====')
 
     # 8. save combined trades data to .csv
+    logger.info('==== [3/8] Saving trades table ====')
     ut.save_trades_table(total_trades_table.df, conf, ctx)
 
     # 9. generate some system statistics
     if conf['process_data'] == True:
+        logger.info('==== [4/8] Generating system statistics ====')
         trading_period = (last_close_date - first_close_date).days
         system_stat = ut.generate_system_stats(total_trades_table.df, trading_period, ctx, stats)
         system_stats = system_stat.to_string(index=False)
-        logger.info("======= system statistics =========")
         logger.info(system_stats)
-        logger.info("===================================")
+    else:
+        logger.info('==== [4/8] Generating system statistics: skipped (process_data=false) ====')
 
     # 10. virtual trading balance simulation
+    logger.info('==== [5/8] Running trading balance simulation (backtest) ====')
     balance_df = ut.do_balance_simulation(total_trades_list.df, total_trades_table.df, conf, last_close_date, ctx, stats)
     ut.balance_plot(balance_df, conf, ctx)
 
     # 12. monte carlo smulation to test position sizing strategy
     if conf['montecarlo'] == True:
+        logger.info('==== [6/8] Running Monte Carlo simulation ====')
         # run monte carlo simulation by shuffling the existing trades
         #ut.do_monte_carlo_simulation_shuffled(total_trades_table.df, conf, ctx, stats, last_close_date)
 
         # run monte carlo simulation by sampling from the fitted distribution
         ut.do_monte_carlo_simulation_sampled(total_trades_table.df, conf, ctx, stats)
+    else:
+        logger.info('==== [6/8] Running Monte Carlo simulation: skipped (montecarlo=false) ====')
 
     # 11. generate a complete system summary report in a single pdf
+    logger.info('==== [7/8] Generating summary report ====')
     ut.generate_summary_report(system_stat, conf_str, quotes_str, ctx)
-
-    logger.info('+++ processing finished')
 
     if conf['notify'] == True:
         # 12. send status updates to the Telegram bot
+        logger.info('==== [8/8] Sending Telegram notification ====')
         telegram_df = telegram_df.sort_values(by='Ticker', ascending=True)
         telegram_df = telegram_df.reset_index(drop=True)
         telegram_df.index = telegram_df.index + 1
@@ -145,12 +151,11 @@ def update_quotes(conf, ctx):
         asyncio.run(ut.bot_signal_update(ctx, last_close_date, msg_text))
         response = ut.bot_summary_update(ctx, ctx.path("out", "system_summary.pdf"))
         if response.ok:
-            logger.info('+++ telegram updates sent')
+            logger.info('- telegram updates sent')
         else:
-            logger.error(f'+++ error sending update: {response.text}')
-
-    config_str = '++- stop: ' + str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    logger.info(config_str + '\n')
+            logger.error(f'error sending update: {response.text}')
+    else:
+        logger.info('==== [8/8] Sending Telegram notification: skipped (notify=false) ====')
 
 def main():
 
@@ -165,29 +170,33 @@ def main():
     args = parser.parse_args()
     setup_logging(args.loglevel)
 
+    logger.info('==== [0/8] Command line parameters ====')
+    logger.info(f"- basedir           : {args.basedir or os.getcwd()}")
+    logger.info(f"- loglevel          : {args.loglevel}")
+
     # set base directory
     if args.basedir:
         base_dir = os.path.abspath(args.basedir)
     else:
         base_dir = os.getcwd()
     ctx = RunContext(basedir=base_dir)
-    logger.info("+++ base directory: " + str(ctx.basedir))
+    logger.info("- base directory    : " + str(ctx.basedir))
 
     # load system confguration
     conf_file = ctx.path('config/system_conf.json')
     try:
         with open(conf_file) as f:
-            logger.info(f"+++ configuration file: {conf_file}")
+            logger.info(f"- configuration file: {conf_file}")
             conf = json.loads(f.read())
     except Exception as e:
-        logger.critical(f"+++ failed to load configuration file: {e}")
+        logger.critical(f"failed to load configuration file: {e}")
         sys.exit(1)
 
     # load telegram chat id and bot token if configured
     if conf['notify'] == True:
         ta_file = ctx.path('config/telegram_conf.json')
         with open(ta_file) as f:
-            logger.info(f"+++ telegram configuration file: {ta_file}")
+            logger.info(f"- telegram conf file: {ta_file}")
             ta_conf = json.loads(f.read())
         ctx.bot_token = ta_conf['bot_token']
         ctx.chat_id = ta_conf['chat_id']

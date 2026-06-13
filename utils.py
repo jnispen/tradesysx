@@ -97,8 +97,6 @@ def get_history_data(ticker, period=None, start=None, end=None):
 
 def get_quotes_data(quotes, conf, outfile, ctx):
     ''' download the quotes data '''
-    config_str = '+++ downloading quotes (' + str(len(quotes)) + ')'
-    logger.info(config_str)
     idx = 1
     for ticker, desc in quotes.items():
         logger.info(f'{idx} - {ticker}: {desc}')
@@ -593,8 +591,6 @@ def compute_position_size(conf, balance, stats):
 def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, stats):
     ''' simulates the virtual account balance for the trades list '''
 
-    logger.info('+++ Trading simulation (backtest)')
-
     dframe.sort_values(by='Date', ascending=True, inplace=True)
     dframe.reset_index(drop=True, inplace=True)
 
@@ -613,6 +609,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     active_trades: Dict[str, float] = {}  # ticker -> units held
 
     balance = total_balance = float(conf['balance'])
+    logger.info(f"Starting balance  : {balance:,.2f}")
 
     ohlc_cache = load_ohlc_cache(dframe['Ticker'].unique(), ctx)
 
@@ -708,8 +705,8 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
 
     # sanity check the sum of the invested colum (start balance + -(invested) = final balance)
     total_invested = dframe['Invested'].sum()
-    logger.info(f"Total invested: {total_invested:,.2f}")
-    logger.info(f"Final balance : {balance:,.2f}")
+    logger.info(f"Total invested    : {total_invested:,.2f}")
+    logger.info(f"Final balance     : {balance:,.2f}")
 
     logger.debug("\n%s", dframe)
     dframe.to_csv(ctx.path("out/tables/", "trades_list.csv"), index=False)
@@ -736,23 +733,22 @@ def do_monte_carlo_simulation_sampled(total_trades_list, conf, ctx, stats):
 def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk):
     ''' run a Monte Carlo balance simulation by sampling from the given R-multiple distribution (bag of marbles) '''
 
-    logger.info(f"+++ Monte Carlo simulation (sampled) ({conf['iterations']} iterations)")
+    logger.info(f"Number of samples      : {conf['iterations']}")
 
-    logger.info(f"+++ Trades total          : {len(Rmul_arr)}")
-    logger.info(f"+++ Real Rmul average     : {np.mean(Rmul_arr):.2f}")
-    logger.info(f"+++ Real Rmul maximum     : {Rmul_arr.max():.2f}")
-    logger.info(f"+++ Real Rmul minimum     : {Rmul_arr.min():.2f}")
-    logger.info(f"+++ System Quality Number : {stats.sqn:.2f}")
+    logger.info(f"Trades total           : {len(Rmul_arr)}")
+    logger.info(f"Real Rmul average      : {np.mean(Rmul_arr):.2f}")
+    logger.info(f"Real Rmul maximum      : {Rmul_arr.max():.2f}")
+    logger.info(f"Real Rmul minimum      : {Rmul_arr.min():.2f}")
+    logger.info(f"System Quality Number  : {stats.sqn:.2f}")
 
     # sample from the real distribution as measured by the closed trades
     multiset = Rmul_arr.tolist()
     sample_count = 10000
     Rmul_sample = np.random.choice(multiset, size=sample_count, replace=True)
 
-    logger.info(f"+++ Sampled Rmul average  : {np.mean(Rmul_sample):.2f} (10000 samples)")
-
-    logger.info(f"+++ Risk per trade ($)    : {risk*conf['balance']:.2f}")
-    logger.info(f"+++ Risk per trade (%)    : {risk*100:.2f}")
+    logger.info(f"Sampled Rmul average   : {np.mean(Rmul_sample):.2f} (10000 samples)")
+    logger.info(f"Risk per trade ($)     : {risk*conf['balance']:.2f}")
+    logger.info(f"Risk per trade (%)     : {risk*100:.2f}")
 
     sim_runs = conf['iterations']
     # array to hold balance values of all iterations (for visualisation)
@@ -795,15 +791,15 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk):
     stats.min_balance = min_balance
 
     last_row = mc_result_df.iloc[-1]
-    logger.info("+++ MONTE CARLO results")
-    logger.info(f"+++ Median                : {last_row.median():,.0f}")
-    logger.info(f"+++ Stdev                 : {last_row.std():,.0f}")
-    logger.info(f"+++ Max                   : {last_row.max():,.0f}")
-    logger.info(f"+++ Min                   : {last_row.min():,.0f}")
-    logger.info(f"+++ Loss streak avg       : {avg_neg_run:.0f}")
-    logger.info(f"+++ Loss streak max       : {max_neg_run:.0f}")
-    logger.info(f"+++ Minimum balance       : {stats.min_balance:,.0f}")
-    logger.info(f"+++ Max drawdown (%)      : {stats.max_drawdown:.1f}")
+    logger.info("==== simulation results ====")
+    logger.info(f"Median                 : {last_row.median():,.0f}")
+    logger.info(f"Stdev                  : {last_row.std():,.0f}")
+    logger.info(f"Max                    : {last_row.max():,.0f}")
+    logger.info(f"Min                    : {last_row.min():,.0f}")
+    logger.info(f"Loss streak avg        : {avg_neg_run:.0f}")
+    logger.info(f"Loss streak max        : {max_neg_run:.0f}")
+    logger.info(f"Minimum balance        : {stats.min_balance:,.0f}")
+    logger.info(f"Max drawdown (%)       : {stats.max_drawdown:.1f}")
 
      # save the balances and plot the result (see simulation plot)
     plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, np.mean(Rmul_arr), np.mean(Rmul_sampled), avg_neg_run, max_neg_run)
