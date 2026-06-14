@@ -1,0 +1,5 @@
+CLAUDE.md export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
+scripts/ export-ignore
+getquotes.spec export-ignore
