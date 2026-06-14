@@ -10,10 +10,13 @@ import os
 
 from datetime import datetime
 
-import utils as ut
-from tables import TotalTradesList, TradesTable
-from context import RunContext, SystemStats
-from logging_setup import setup_logging, add_logging_arguments
+# make the repo root's parent directory importable as the `getquotes` package
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from getquotes import utils as ut
+from getquotes.tables import TotalTradesList, TradesTable
+from getquotes.context import RunContext, SystemStats
+from getquotes.logging_setup import setup_logging, add_logging_arguments
 
 logger = logging.getLogger(__name__)
 
