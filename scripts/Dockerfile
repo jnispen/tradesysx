@@ -12,7 +12,7 @@
 #
 # To inspect the generated out/ directory after the run, mount it to
 # the host (otherwise it's removed with the container on exit):
-#   docker run --rm -v /tmp/getquotes-out:/app/out getquotes-test
+#   docker run --rm -v /tmp/getquotes-out:/app/getquotes/out getquotes-test
 #
 # To edit config files, run the pipeline manually, and inspect files
 # from a shell inside the container:
@@ -51,9 +51,13 @@ WORKDIR /app
 
 ARG ZIP_FILE
 COPY ${ZIP_FILE} /tmp/getquotes.zip
-RUN unzip /tmp/getquotes.zip -d /tmp/extracted \
-    && mv /tmp/extracted/getquotes/* . \
-    && rm -rf /tmp/extracted /tmp/getquotes.zip
+# Unzips to /app/getquotes/ (the zip's getquotes/ prefix), kept as a
+# subdirectory so `getquotes.py`'s `from getquotes import utils` absolute
+# imports resolve `getquotes` to this package directory.
+RUN unzip /tmp/getquotes.zip -d . \
+    && rm -f /tmp/getquotes.zip
+
+WORKDIR /app/getquotes
 
 RUN pip install --no-cache-dir -r requirements.txt
 

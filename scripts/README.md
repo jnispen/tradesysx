@@ -30,14 +30,14 @@ To persist the generated plots and reports in the `out/` directory after the run
 host:
 
 ```sh
-docker run --rm -v /tmp/getquotes-out:/app/out getquotes-test
+docker run --rm -v /tmp/getquotes-out:/app/getquotes/out getquotes-test
 ```
 
 To edit config files inside the container, run the pipeline manually and to view the plots and
 reports from the host:
 
 ```sh
-docker run --rm -it -v /tmp/getquotes-out:/app/out --entrypoint bash getquotes-test
+docker run --rm -it -v /tmp/getquotes-out:/app/getquotes/out --entrypoint bash getquotes-test
 # edit config/system_conf.json, then:
 python getquotes.py
 ls out/
