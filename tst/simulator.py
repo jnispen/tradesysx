@@ -9,13 +9,12 @@ import numpy as np
 import math
 import statistics
 
-# make the repo root's parent directory importable as the `getquotes` package
-# when running as `python tst/simulator.py`
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# make the repo root importable when running as `python tst/simulator.py`
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from getquotes.context import RunContext, SystemStats
-from getquotes.logging_setup import setup_logging, add_logging_arguments
-from getquotes.utils import run_monte_carlo_sampled
+from context import RunContext, SystemStats
+from logging_setup import setup_logging, add_logging_arguments
+from utils import run_monte_carlo_sampled
 
 logger = logging.getLogger(__name__)
 
