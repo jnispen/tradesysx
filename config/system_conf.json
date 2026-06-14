@@ -17,10 +17,10 @@
     "intrade_wait" : 10,
     "trading_fee"  : 0.2,
     "min_invest"   : 20,
-    "risk_percent" : 0.02,
+    "risk_percent" : 0.01,
     "risk_amount"  : 250,
-    "balance"      : 20000,
-    "pos_sizing"   : "kelly",
+    "balance"      : 10000,
+    "pos_sizing"   : "core_equity_risk",
     "pos_ratio"    : 5,
     "pos_amount"   : 3000,
     "kelly_ratio"  : 0.5,
@@ -34,6 +34,6 @@
     "sma_slow"     : 200,
     "montecarlo"   : true,
     "sim_len_max"  : 100,
-    "iterations"   : 100,
+    "iterations"   : 500,
     "outlier"      : 4
 }

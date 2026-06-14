@@ -127,7 +127,7 @@ def update_quotes(conf, ctx):
     # 12. monte carlo smulation to test position sizing strategy
     if conf['montecarlo'] == True:
         logger.info('==== [6/8] Running Monte Carlo simulation ====')
-        # run monte carlo simulation by sampling from the fitted distribution
+        # run monte carlo simulation by sampling from the trade distribution ('bag of marbles' simulation)
         ut.do_monte_carlo_simulation_sampled(total_trades_table.df, conf, ctx, stats)
     else:
         logger.info('==== [6/8] Running Monte Carlo simulation: skipped (montecarlo=false) ====')

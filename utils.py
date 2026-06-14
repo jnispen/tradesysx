@@ -16,6 +16,7 @@ from typing import Dict, List
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import matplotlib.transforms as mtransforms
 from matplotlib.ticker import MaxNLocator
 
 import talib as ta
@@ -897,26 +898,32 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     y_vals = a * x_vals + b
     ax.plot(x_vals, y_vals, color='blue', linewidth=2.0, linestyle='--')
 
-    # add label for the last average value
+    # shift labels up by a fixed pixel amount so they sit just above their line
+    label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=0, y=2, units='points')
+
+    # add label for the last average value, just above the trend line's endpoint
     y_last = a * x_last + b
-    plt.text(x_last + 0.5, y_last, f"${y_last:,.0f}", 
+    plt.text(x_last + 0.5, y_last, f"${y_last:,.0f}",
         fontsize=10,
-        fontfamily='Monospace'
+        fontfamily='Monospace',
+        verticalalignment='bottom',
+        transform=label_offset
     )
 
     # annualized gain trading simulation (CAGR), if a real backtest period is known
-    y_max = plt.ylim()[1]
-    y_val = mc_result_df.iloc[-1].median() + 0.035 * y_max
+    # label sits just above the median axhline so it always lines up with it
+    median_balance = mc_result_df.iloc[-1].median()
     if stats.trades_len:
-        ann_ret_sim = ann_return(conf['balance'], mc_result_df.iloc[-1].median(), stats.trades_len/365)
-        sim_label = f"${mc_result_df.iloc[-1].median():,.0f} ({ann_ret_sim:.1%})"
+        ann_ret_sim = ann_return(conf['balance'], median_balance, stats.trades_len/365)
+        sim_label = f"${median_balance:,.0f} ({ann_ret_sim:.1%})"
     else:
-        sim_label = f"${mc_result_df.iloc[-1].median():,.0f}"
+        sim_label = f"${median_balance:,.0f}"
     plt.text(
-        -1.5, y_val, sim_label,
+        -1.5, median_balance, sim_label,
         fontsize=10,
         fontfamily='Monospace',
-        verticalalignment='top'
+        verticalalignment='bottom',
+        transform=label_offset
     )
 
     # plot the buy-and-hold benchmark (e.g. URTH), if provided
@@ -925,12 +932,13 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
 
         ax.axhline(val_out, color='black', linewidth=1.5, linestyle='-.', alpha=.7)
 
-        y_val = val_out + 0.035 * y_max
+        # label sits just above the benchmark axhline so it always lines up with it
         plt.text(
-            -1.5, y_val, f"${val_out:,.0f} ({ann_ret_hodl:.1%})",
+            -1.5, val_out, f"${val_out:,.0f} ({ann_ret_hodl:.1%})",
             fontsize=10,
             fontfamily='Monospace',
-            verticalalignment='top'
+            verticalalignment='bottom',
+            transform=label_offset
         )
 
     ax.set_xlabel('Trade')
