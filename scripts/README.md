@@ -13,18 +13,6 @@ scripts/export_package.sh <label>
 
 The recipient should unzip the archive and follow the setup steps in `getquotes/README.md` (`pip install -r requirements.txt`, etc.).
 
-## generate_docs.sh
-
-Generates browsable API documentation from the Python source using `pdoc`.
-
-```sh
-scripts/generate_docs.sh
-```
-
-- Regenerates `docs/` from scratch.
-- Open `docs/index.html` directly in a browser (e.g. Firefox).
-- Rerun the script to refresh the docs after code changes.
-
 ## Dockerfile
 
 Tests an exported zip in isolation: builds the TA-Lib C library and
@@ -54,3 +42,15 @@ docker run --rm -it --entrypoint bash getquotes-test
 python getquotes.py
 ls out/
 ```
+
+## generate_docs.sh
+
+Generates browsable API documentation from the Python source using `pdoc`.
+
+```sh
+scripts/generate_docs.sh
+```
+
+- Regenerates `docs/` from scratch.
+- Open `docs/index.html` directly in a browser (e.g. Firefox).
+- Rerun the script to refresh the docs after code changes.
