@@ -38,8 +38,8 @@ docker build -t getquotes-test -f scripts/Dockerfile \
 docker run --rm -it getquotes-test
 ```
 
-To inspect the generated `out/` directory after the run, mount it to the
-host (otherwise it's removed with the container on exit):
+To persist the generated plots and reports in the `out/` directory after the run, mount it to the
+host:
 
 ```sh
 docker run --rm -v /tmp/getquotes-out:/app/out getquotes-test
