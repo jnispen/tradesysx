@@ -446,9 +446,9 @@ def generate_system_stats(trades_df, trading_period, ctx, stats):
         neg_mean_len = neg_sum_len / len(neg_lst)
 
     # calculate the Kelly criterion
-    win_perc  = float(100 * len(pos_lst) / num_trades)
+    win_frac  = float(len(pos_lst) / num_trades)
     b = abs(pos_mean_r/neg_mean_r)
-    kelly_criterion = (win_perc - ((1 - win_perc) / b)) / 100
+    kelly_criterion = win_frac - ((1 - win_frac) / b)
     stats.kelly_crit = kelly_criterion
 
     # store stats for use by later pipeline steps

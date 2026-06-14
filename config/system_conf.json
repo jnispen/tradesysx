@@ -20,7 +20,7 @@
     "risk_percent" : 0.01,
     "risk_amount"  : 250,
     "balance"      : 10000,
-    "pos_sizing"   : "core_equity_risk",
+    "pos_sizing"   : "kelly",
     "pos_ratio"    : 5,
     "pos_amount"   : 3000,
     "kelly_ratio"  : 0.5,
