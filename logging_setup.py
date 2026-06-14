@@ -3,7 +3,7 @@
 import logging
 
 # loggers created by this app's own modules (getquotes.py runs as "__main__")
-APP_LOGGER_NAMES = ("__main__", "utils", "strategy")
+APP_LOGGER_NAMES = ("__main__", "getquotes.utils", "getquotes.strategy")
 
 RESET = "\033[0m"
 LEVEL_COLORS = {

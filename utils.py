@@ -102,12 +102,12 @@ def get_quotes_data(quotes, conf, outfile, ctx):
         logger.info(f'{idx} - {ticker}: {desc}')
         idx += 1
 
-        if conf.get("start") and conf.get("stop"):
+        if conf.get("start") and conf.get("end"):
             dfr = get_history_data(ticker, start=conf["start"], end=conf["end"])
         elif conf.get("start"):
             dfr = get_history_data(ticker, start=conf["start"])
         else:
-            dfr = get_history_data(ticker, conf["interval"])
+            dfr = get_history_data(ticker, conf["period"])
 
         dfr.to_csv(ctx.path('out/data',f"{ticker}_{outfile}"))
 
