@@ -30,9 +30,9 @@ from weasyprint import HTML
 from telegram import Bot
 from telegram.constants import ParseMode
 
-from strategy import Stoploss, TradingSignals
-from tables import TotalTradesList, TradesTable
-from context import RunContext, SystemStats
+from getquotes.strategy import Stoploss, TradingSignals
+from getquotes.tables import TotalTradesList, TradesTable
+from getquotes.context import RunContext, SystemStats
 
 logger = logging.getLogger(__name__)
 
