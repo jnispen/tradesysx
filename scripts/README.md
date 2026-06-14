@@ -43,6 +43,21 @@ python getquotes.py
 ls out/
 ```
 
+## build_binary.sh
+
+Builds a standalone executable with [PyInstaller](https://pyinstaller.org/).
+
+```sh
+scripts/build_binary.sh
+```
+
+- Runs `pyinstaller --clean --noconfirm getquotes.spec`.
+- Copies `config/`, `quotes/` and an empty `out/` into `dist/` alongside the
+  binary, since the app reads these relative to its working directory
+  (`--basedir`) rather than from the PyInstaller bundle.
+- Run it from `dist/` (`./getquotes [--basedir <path>] [--loglevel <level>]`),
+  or copy the whole `dist/` directory elsewhere first.
+
 ## generate_docs.sh
 
 Generates browsable API documentation from the Python source using `pdoc`.
