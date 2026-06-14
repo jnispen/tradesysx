@@ -38,6 +38,19 @@ docker build -t getquotes-test -f scripts/Dockerfile \
 docker run --rm -it getquotes-test
 ```
 
-See the comments at the top of `scripts/Dockerfile` for variants: mounting
-`out/` to the host to inspect results, or dropping into a shell to edit
-config files and run manually.
+To inspect the generated `out/` directory after the run, mount it to the
+host (otherwise it's removed with the container on exit):
+
+```sh
+docker run --rm -v /tmp/getquotes-out:/app/out getquotes-test
+```
+
+To edit config files, run the pipeline manually, and inspect files from a
+shell inside the container:
+
+```sh
+docker run --rm -it --entrypoint bash getquotes-test
+# edit config/system_conf.json, then:
+python getquotes.py
+ls out/
+```
