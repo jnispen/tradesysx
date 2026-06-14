@@ -20,8 +20,6 @@ from getquotes.logging_setup import setup_logging, add_logging_arguments
 
 logger = logging.getLogger(__name__)
 
-last_close_date = None
-
 def update_quotes(conf, ctx):
 
     ohlc_filename = 'ohlc_raw.csv'
@@ -30,6 +28,7 @@ def update_quotes(conf, ctx):
     total_trades_list = TotalTradesList()
     stats = SystemStats()
     telegram_df = pd.DataFrame(columns=['Ticker', 'Close', 'Signal','STLoss'])
+    last_close_date = pd.Timestamp("1900-01-01")
 
     config_str = '==== System configuration ====\n' + json.dumps(conf, indent=2)
     logger.debug(config_str)
@@ -109,34 +108,39 @@ def update_quotes(conf, ctx):
     logger.info('==== [3/8] Saving trades table ====')
     ut.save_trades_table(total_trades_table.df, conf, ctx)
 
-    # 9. generate some system statistics
+    # 9-12. system statistics, balance simulation, monte carlo and report all
+    # require the per-ticker data processed in step 2, so skip them together
     if conf['process_data'] == True:
+        # 9. generate some system statistics
         logger.info('==== [4/8] Generating system statistics ====')
         trading_period = (last_close_date - first_close_date).days
         system_stat = ut.generate_system_stats(total_trades_table.df, trading_period, ctx, stats)
         system_stats = system_stat.to_string(index=False)
         logger.info(system_stats)
+
+        # 10. virtual trading balance simulation
+        logger.info('==== [5/8] Running trading balance simulation (backtest) ====')
+        balance_df = ut.do_balance_simulation(total_trades_list.df, total_trades_table.df, conf, last_close_date, ctx, stats)
+        ut.balance_plot(balance_df, conf, ctx)
+
+        # 12. monte carlo smulation to test position sizing strategy
+        if conf['montecarlo'] == True:
+            logger.info('==== [6/8] Running Monte Carlo simulation ====')
+            # run monte carlo simulation by sampling from the trade distribution ('bag of marbles' simulation)
+            ut.do_monte_carlo_simulation_sampled(total_trades_table.df, conf, ctx, stats)
+        else:
+            logger.info('==== [6/8] Running Monte Carlo simulation: skipped (montecarlo=false) ====')
+
+        # 11. generate a complete system summary report in a single pdf
+        logger.info('==== [7/8] Generating summary report ====')
+        ut.generate_summary_report(system_stat, conf_str, quotes_str, ctx)
     else:
         logger.info('==== [4/8] Generating system statistics: skipped (process_data=false) ====')
+        logger.info('==== [5/8] Running trading balance simulation (backtest): skipped (process_data=false) ====')
+        logger.info('==== [6/8] Running Monte Carlo simulation: skipped (process_data=false) ====')
+        logger.info('==== [7/8] Generating summary report: skipped (process_data=false) ====')
 
-    # 10. virtual trading balance simulation
-    logger.info('==== [5/8] Running trading balance simulation (backtest) ====')
-    balance_df = ut.do_balance_simulation(total_trades_list.df, total_trades_table.df, conf, last_close_date, ctx, stats)
-    ut.balance_plot(balance_df, conf, ctx)
-
-    # 12. monte carlo smulation to test position sizing strategy
-    if conf['montecarlo'] == True:
-        logger.info('==== [6/8] Running Monte Carlo simulation ====')
-        # run monte carlo simulation by sampling from the trade distribution ('bag of marbles' simulation)
-        ut.do_monte_carlo_simulation_sampled(total_trades_table.df, conf, ctx, stats)
-    else:
-        logger.info('==== [6/8] Running Monte Carlo simulation: skipped (montecarlo=false) ====')
-
-    # 11. generate a complete system summary report in a single pdf
-    logger.info('==== [7/8] Generating summary report ====')
-    ut.generate_summary_report(system_stat, conf_str, quotes_str, ctx)
-
-    if conf['notify'] == True:
+    if conf['notify'] == True and conf['process_data'] == True:
         # 12. send status updates to the Telegram bot
         logger.info('==== [8/8] Sending Telegram notification ====')
         telegram_df = telegram_df.sort_values(by='Ticker', ascending=True)
@@ -154,6 +158,8 @@ def update_quotes(conf, ctx):
             logger.info('- response OK, updates sent successfully')
         else:
             logger.error(f'error sending update: {response.text}')
+    elif conf['notify'] == True:
+        logger.info('==== [8/8] Sending Telegram notification: skipped (process_data=false) ====')
     else:
         logger.info('==== [8/8] Sending Telegram notification: skipped (notify=false) ====')
 
