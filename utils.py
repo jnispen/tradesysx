@@ -121,7 +121,7 @@ def add_technical_indicators(dframe, conf):
     dframe['ATR'] = ta.ATR(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=conf['atr_time'])
 
     # Moving Average Convergence Devergence (MACD)
-    #dframe['MACD'], dframe['MACDsig'], hist = ta.MACD(dframe['Close'], fastperiod=12, slowperiod=26, signalperiod=9)
+    dframe['MACD'], dframe['MACDsig'], hist = ta.MACD(dframe['Close'], fastperiod=12, slowperiod=26, signalperiod=9)
 
     # Average Directional Movement Index (ADX)
     dframe['ADX'] = ta.ADX(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
@@ -131,7 +131,7 @@ def add_technical_indicators(dframe, conf):
     dframe['M_DI'] = ta.MINUS_DI(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
 
     # On Balance Volume (OBV)
-    #dframe['OBV'] = ta.OBV(dframe['Close'], dframe['Volume'])
+    dframe['OBV'] = ta.OBV(dframe['Close'], dframe['Volume'])
 
     # Simple Moving Average (SMA)
     dframe['SMA50'] = ta.SMA(dframe['Close'], timeperiod=conf['sma_fast'])
@@ -157,7 +157,7 @@ def add_technical_indicators(dframe, conf):
     dframe.drop(['CEHigh'], axis=1, inplace=True)
 
     # Force Index (FI)
-    #dframe['FI'] = dframe['Close'].diff(13) * dframe['Volume']
+    dframe['FI'] = dframe['Close'].diff(13) * dframe['Volume']
 
     return dframe
 
@@ -583,7 +583,7 @@ def compute_position_size(conf, balance, stats):
     elif ps == "fixed_amount":
         return conf["pos_amount"]             # position size as a fixed_amount
     elif ps == "kelly":
-        return conf['kelly_ratio'] * stats.kelly_crit * balance
+        return conf['kelly_ratio'] * stats.kelly_crit * balance # position size as a per the kelly criterion
     else:
         logger.critical(f"The position sizing strategy [{conf['pos_sizing']}] does not exist!")
         sys.exit(1)
@@ -901,7 +901,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     # shift labels up by a fixed pixel amount so they sit just above their line
     label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=0, y=2, units='points')
 
-    # add label for the last average value, just above the trend line's endpoint
+    # add label for the last average value
     y_last = a * x_last + b
     plt.text(x_last + 0.5, y_last, f"${y_last:,.0f}",
         fontsize=10,
@@ -910,8 +910,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         transform=label_offset
     )
 
-    # annualized gain trading simulation (CAGR), if a real backtest period is known
-    # label sits just above the median axhline so it always lines up with it
+    # annualized gain trading simulation (CAGR)
     median_balance = mc_result_df.iloc[-1].median()
     if stats.trades_len:
         ann_ret_sim = ann_return(conf['balance'], median_balance, stats.trades_len/365)
@@ -1194,7 +1193,6 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
     neg_cnt = sum(1 for value in trades_lst if value < 0)
 
     Ravg = st.mean(trades_lst)
-    #SysQ = (st.mean(trades_lst) / st.stdev(trades_lst)) * math.sqrt(len(trades_lst)) if len(trades_lst) < 100 else (st.mean(trades_lst) / st.stdev(trades_lst)) * math.sqrt(100)
     SysQ = stats.sqn
 
     xs = np.arange(len(trades_lst))
