@@ -40,10 +40,54 @@ logger = logging.getLogger(__name__)
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-async def bot_signal_update(ctx, lastclose, snd_message):
+async def bot_signal_update(ctx, lastclose, telegram_df):
+    ''' send daily signal overview to bot, one line per ticker with an emoji signal marker '''
+
     bot = Bot(token=ctx.bot_token)
-    lastclose = lastclose.strftime('%a %d-%m-%Y')
-    msg = f"<b>{lastclose}</b>\n<b>No. Ticker Close (Stoploss) Signal</b>\n<b>============================</b>\n{snd_message}"
+    lastclose_str = lastclose.strftime('%a %d-%m-%Y')
+
+    signal_emoji = {
+        'ENTER':    '\U0001F7E2',  # green circle
+        'EXIT':     '\U0001F535',  # blue circle
+        'STOPLOSS': '\U0001F534',  # red circle
+    }
+
+    lines = []
+    for _, row in telegram_df.iterrows():
+        if row['Signal'] in signal_emoji:
+            emoji = signal_emoji[row['Signal']]
+        elif row['STLoss'] == 0:
+            emoji = '⚫'  # black circle = not in a trade
+        else:
+            emoji = '⚪'  # white circle = in a trade, no signal today
+        line = f"{emoji} <b>{row['Ticker']}</b> — Close {row['Close']:.2f} (SL {row['STLoss']:.2f})"
+        lines.append(line)
+
+    msg = f"<b>{lastclose_str}</b>\n=============\n" + "\n".join(lines)
+    await bot.send_message(chat_id=ctx.chat_id, text=msg, parse_mode=ParseMode.HTML)
+
+async def bot_signal_alert(ctx, lastclose, telegram_df):
+    ''' send a summary message for tickers that have an active signal today, if any '''
+
+    signal_emoji = {
+        'ENTER':    '\U0001F7E2',  # green circle
+        'EXIT':     '\U0001F535',  # blue circle
+        'STOPLOSS': '\U0001F534',  # red circle
+    }
+
+    signal_rows = telegram_df[telegram_df['Signal'].isin(signal_emoji)]
+    if signal_rows.empty:
+        return
+
+    bot = Bot(token=ctx.bot_token)
+    lastclose_str = lastclose.strftime('%a %d-%m-%Y')
+
+    lines = []
+    for _, row in signal_rows.iterrows():
+        emoji = signal_emoji.get(row['Signal'], '⚪')
+        lines.append(f"{emoji} <b>{row['Ticker']}</b> {row['Signal']} @ {row['Close']:.2f}")
+
+    msg = f"\U0001F514 <b>Signal Alert</b>\n" + "\n".join(lines)
     await bot.send_message(chat_id=ctx.chat_id, text=msg, parse_mode=ParseMode.HTML)
 
 def bot_summary_update(ctx, file_path):

@@ -151,14 +151,11 @@ def update_quotes(conf, ctx):
         logger.info('==== [8/8] Sending Telegram notification ====')
         telegram_df = telegram_df.sort_values(by='Ticker', ascending=True)
         telegram_df = telegram_df.reset_index(drop=True)
-        telegram_df.index = telegram_df.index + 1
-        last_col = telegram_df.columns[-1]
-        telegram_df[last_col] = telegram_df[last_col].apply(lambda x: f'({x})')
         telegram_df = telegram_df[['Ticker', 'Close', 'STLoss', 'Signal']]
-        msg_text = telegram_df.to_string(index=True, justify='left', header=False)
-        logger.debug(msg_text)
+        logger.debug(telegram_df.to_string(index=False))
 
-        asyncio.run(ut.bot_signal_update(ctx, last_close_date, msg_text))
+        asyncio.run(ut.bot_signal_update(ctx, last_close_date, telegram_df))
+        asyncio.run(ut.bot_signal_alert(ctx, last_close_date, telegram_df))
         response = ut.bot_summary_update(ctx, ctx.path("out", "system_summary.pdf"))
         if response.ok:
             logger.info('- response OK, updates sent successfully')
@@ -207,7 +204,7 @@ def main():
     if conf['notify'] == True:
         ta_file = ctx.path('config/telegram_conf.json')
         with open(ta_file) as f:
-            logger.info(f"- telegram conf file: {ta_file}")
+            logger.info(f"Telegram conf file: {ta_file}")
             ta_conf = json.loads(f.read())
         ctx.bot_token = ta_conf['bot_token']
         ctx.chat_id = ta_conf['chat_id']
