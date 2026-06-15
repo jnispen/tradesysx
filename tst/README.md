@@ -6,17 +6,17 @@ marbles" resampling).
 
 The R-multiple distribution is read from a CSV file with a `Rmul` column
 (e.g. `out/tables/Rmul_trades.csv`, produced by the main pipeline), passed
-via `--rmul-file`.
+via `--rmul-dist`.
 
 #### Running it
 
 From the repository root:
 
 ```sh
-python tst/simulator.py --rmul-file <path> [--basedir <path>] [--loglevel <level>]
+python tst/simulator.py --rmul-dist <path> [--basedir <path>] [--loglevel <level>]
 ```
 
-- `--rmul-file` is the path to a CSV file containing the R-multiple values
+- `--rmul-dist` is the path to a CSV file containing the R-multiple values
   to resample, in a column named `Rmul`.
 - `--basedir` defaults to the current working directory and controls where
   output is written (see below). It does **not** affect where the
