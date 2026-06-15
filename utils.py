@@ -1036,6 +1036,9 @@ def save_trades_table(dframe, conf, ctx):
     logger.debug("\n%s", dframe)
     dframe.to_csv(ctx.path('out/tables', "trades_table.csv"), index=False)
 
+    # save the R-multiples of all trades for later reuse (e.g. tst/simulator.py)
+    dframe['Rmul'].to_csv(ctx.path('out/tables', "Rmul_trades.csv"), index=False)
+
     # save to pdf file
     dframe.index = dframe.index + 1
     dframe['Enter'] = pd.to_datetime(dframe['Enter'], errors='coerce').dt.strftime('%d-%m-%Y')
