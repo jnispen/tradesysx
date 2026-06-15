@@ -59,8 +59,8 @@ def bot_summary_update(ctx, file_path):
         response = requests.post(url, data=data, files=files)
     return response
 
-def get_history_data(ticker, period=None, start=None, end=None):
-    ''' 
+def get_history_data(ticker, period=None, start=None, end=None, interval='1d'):
+    '''
     Available paramaters for the history() method are:
     period: data period to download (Either Use period parameter or use start and end) Valid periods are: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
     interval: data interval (intraday data cannot extend last 60 days) Valid intervals are: 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo
@@ -69,11 +69,14 @@ def get_history_data(ticker, period=None, start=None, end=None):
     prepost: Include Pre and Post market data in results? (Default is False)
     auto_adjust: Adjust all OHLC automatically? (Default is True)
     actions: Download stock dividends and stock splits events? (Default is True)
+
+    For intraday data, use `period` and `interval` together (relative to the
+    current date); `start`/`end` are not meaningful for intraday intervals.
     '''
 
     download_kwargs = {
         "tickers": ticker,
-        "interval": '1d',
+        "interval": interval,
         "auto_adjust": True,
         "multi_level_index": False,
     }
@@ -90,8 +93,9 @@ def get_history_data(ticker, period=None, start=None, end=None):
     if raw_df is None or raw_df.empty:
         raise RuntimeError("Download succeeded but returned an empty DataFrame")
 
-    df = pd.DataFrame(raw_df, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
-    df.set_index('Date', inplace=True)
+    # intraday intervals are indexed as 'Datetime' rather than 'Date';
+    # normalize so downstream code can always rely on a 'Date' column/index
+    raw_df.index.name = 'Date'
 
     return raw_df
 
@@ -102,12 +106,13 @@ def get_quotes_data(quotes, conf, outfile, ctx):
         logger.info(f'{idx} - {ticker}: {desc}')
         idx += 1
 
+        interval = conf.get("interval", "1d")
         if conf.get("start") and conf.get("end"):
-            dfr = get_history_data(ticker, start=conf["start"], end=conf["end"])
+            dfr = get_history_data(ticker, start=conf["start"], end=conf["end"], interval=interval)
         elif conf.get("start"):
-            dfr = get_history_data(ticker, start=conf["start"])
+            dfr = get_history_data(ticker, start=conf["start"], interval=interval)
         else:
-            dfr = get_history_data(ticker, conf["period"])
+            dfr = get_history_data(ticker, conf["period"], interval=interval)
 
         dfr.to_csv(ctx.path('out/data',f"{ticker}_{outfile}"))
 
@@ -667,7 +672,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
             balance += closed_ret
             logger.debug("Closed: {} {:,.2f}".format(key, closed_ret))
             tmp_row = {
-                'Date': last_close_date,
+                'Date': last_close_date.strftime('%Y-%m-%d'),
                 'Ticker': f"({key})",
                 'Enter': tmp_df['PriceIn'].iloc[0],
                 'Risk': tmp_df['Risk'].iloc[0],

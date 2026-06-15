@@ -110,7 +110,13 @@ def update_quotes(conf, ctx):
 
     # 9-12. system statistics, balance simulation, monte carlo and report all
     # require the per-ticker data processed in step 2, so skip them together
-    if conf['process_data'] == True:
+    if conf['process_data'] == True and total_trades_table.df.empty:
+        logger.info('==== No trades found for the current parameter set - stopping ====')
+        logger.info('==== [4/8] Generating system statistics: skipped (no trades) ====')
+        logger.info('==== [5/8] Running trading balance simulation (backtest): skipped (no trades) ====')
+        logger.info('==== [6/8] Running Monte Carlo simulation: skipped (no trades) ====')
+        logger.info('==== [7/8] Generating summary report: skipped (no trades) ====')
+    elif conf['process_data'] == True:
         # 9. generate some system statistics
         logger.info('==== [4/8] Generating system statistics ====')
         trading_period = (last_close_date - first_close_date).days
