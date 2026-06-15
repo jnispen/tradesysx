@@ -6,6 +6,7 @@ import logging
 import sys
 import os
 import numpy as np
+import pandas as pd
 import math
 import statistics
 
@@ -29,6 +30,12 @@ def main():
         default='',
         help='Base directory'
     )
+    parser.add_argument(
+        '--rmul-dist',
+        type=str,
+        required=True,
+        help='CSV file containing R-multiple distribution values in a single column (Rmul)'
+    )
     add_logging_arguments(parser)
     args = parser.parse_args()
     setup_logging(args.loglevel)
@@ -51,20 +58,14 @@ def main():
         logger.critical(f"failed to load configuration file: {e}")
         sys.exit(1)
 
-    rmul_list = [
-            20, 20,                         # 2 × 20
-            10, 10, 10,                     # 3 × 10
-            2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-            2, 2, 2, 2, 2, 2, 2, 2, 2, 2,   # 20 × 2
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1,   # 30 × 1
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, # 40 × ‑1
-            -5, -5, -5, -5, -5              # 5 × ‑5
-    ]
+    rmul_dist = os.path.abspath(args.rmul_dist)
+    try:
+        rmul_df = pd.read_csv(rmul_dist)
+        rmul_list = rmul_df['Rmul'].dropna().tolist()
+        logger.info(f"R-multiple file        : {rmul_dist}")
+    except Exception as e:
+        logger.critical(f"failed to load R-multiple file: {e}")
+        sys.exit(1)
 
     Ravg = statistics.mean(rmul_list)
     Rstd = statistics.stdev(rmul_list)
