@@ -921,12 +921,21 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         f"Ravg (real) : {Rmul_avg:.2f}\n"
         f"SQN         : {stats.sqn:.2f}"
     )
+    # place the box top-left by default; if any horizontal line label falls in the
+    # top 30% of the chart (where the box sits), flip to top-right to avoid overlap
+    _label_ys = [conf['balance'], mc_result_df.iloc[-1].median()]
+    if benchmark is not None:
+        _label_ys.append(benchmark[0])
+    _top_left_clear = y_max > 0 and all(v / y_max < 0.70 for v in _label_ys)
+    box_x  = 0.03 if _top_left_clear else 0.97
+    box_ha = 'left' if _top_left_clear else 'right'
     ax.text(
-        0.03, 0.95, sim_str,
+        box_x, 0.95, sim_str,
         transform=plt.gca().transAxes,
         fontsize=8,
-        fontfamily='Monospace', 
+        fontfamily='Monospace',
         verticalalignment='top',
+        horizontalalignment=box_ha,
         bbox=dict(
             facecolor='white',
             alpha=0.7,
@@ -935,10 +944,28 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         )
     )
 
+    x_first = mc_result_df.index[0]
+
     ax.set_title(f"Monte Carlo simulation [{conf['iterations']}x] (${conf['balance']:,.0f})", fontsize=16, pad=25)
-    ax.axhline(conf['balance'], color='green', linestyle='--', label='Balance', linewidth=1, alpha=.7)
-    ax.axhline(mc_result_df.iloc[-1].median(), color='brown', linestyle='dotted', linewidth=1.5, alpha=.7)
-    
+    ax.plot([x_first, x_last], [conf['balance'], conf['balance']], color='green', linestyle='--', linewidth=1, alpha=.7)
+    ax.plot([x_first, x_last], [mc_result_df.iloc[-1].median(), mc_result_df.iloc[-1].median()], color='brown', linestyle='dotted', linewidth=1.5, alpha=.7)
+
+    # shift labels up by a fixed pixel amount so they sit just above their line
+    label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=0, y=2, units='points')
+
+    # 5th and 95th percentile markers (middle 90% of outcomes)
+    p5  = mc_result_df.iloc[-1].quantile(0.05)
+    p95 = mc_result_df.iloc[-1].quantile(0.95)
+    p_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=8, y=0, units='points')
+    ax.scatter(x_last, p95, marker='o', s=7**2, color='black', zorder=5)
+    ax.scatter(x_last, p5,  marker='o', s=7**2, color='black', zorder=5)
+    ax.text(x_last, p95, f"95% (${p95:,.0f})",
+        fontsize=9, fontfamily='Monospace', verticalalignment='center',
+        color='brown', transform=p_offset)
+    ax.text(x_last, p5, f"5% (${p5:,.0f})",
+        fontsize=9, fontfamily='Monospace', verticalalignment='center',
+        color='brown', transform=p_offset)
+
     # from the startbalance and the Rmul average draw a straight line (y = ax + b)
     risk_per_trade = risk * conf['balance']
     a = float(risk_per_trade * Rmul_avg)
@@ -947,17 +974,15 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     y_vals = a * x_vals + b
     ax.plot(x_vals, y_vals, color='blue', linewidth=2.0, linestyle='--')
 
-    # shift labels up by a fixed pixel amount so they sit just above their line
-    label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=0, y=2, units='points')
-
     # add label for the last average value
-    y_last = a * x_last + b
-    plt.text(x_last + 0.5, y_last, f"${y_last:,.0f}",
-        fontsize=10,
-        fontfamily='Monospace',
-        verticalalignment='bottom',
-        transform=label_offset
-    )
+    # y_last = a * x_last + b
+    # plt.text(x_last, y_last, f"${y_last:,.0f}",
+    #     fontsize=10,
+    #     fontfamily='Monospace',
+    #     verticalalignment='center',
+    #     color='blue',
+    #     transform=p_offset
+    # )
 
     # annualized gain trading simulation (CAGR)
     median_balance = mc_result_df.iloc[-1].median()
@@ -978,9 +1003,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     if benchmark is not None:
         val_out, ann_ret_hodl = benchmark
 
-        ax.axhline(val_out, color='black', linewidth=1.5, linestyle='-.', alpha=.7)
-
-        # label sits just above the benchmark axhline so it always lines up with it
+        ax.plot([x_first, x_last], [val_out, val_out], color='black', linewidth=1.5, linestyle='-.', alpha=.7)
         plt.text(
             -1.5, val_out, f"${val_out:,.0f} ({ann_ret_hodl:.1%})",
             fontsize=10,
