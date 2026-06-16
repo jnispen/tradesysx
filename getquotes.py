@@ -195,6 +195,7 @@ def main():
 
     logger.info('==== [0/8] Command line parameters ====')
     logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
+    logger.info(f"Configuration file: {args.config}")
     logger.info(f"Loglevel          : {args.loglevel}")
 
     # set base directory
@@ -208,7 +209,6 @@ def main():
     conf_file = os.path.join(base_dir, args.config) if not os.path.isabs(args.config) else args.config
     try:
         with open(conf_file) as f:
-            logger.info(f"Configuration file: {conf_file}")
             conf = json.loads(f.read())
     except Exception as e:
         logger.critical(f"failed to load configuration file: {e}")

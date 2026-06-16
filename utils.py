@@ -921,24 +921,36 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         f"Ravg (real) : {Rmul_avg:.2f}\n"
         f"SQN         : {stats.sqn:.2f}"
     )
-    # place the box top-left by default; if any horizontal line label falls in the
-    # top 30% of the chart (where the box sits), flip to top-right to avoid overlap
-    _label_ys = [conf['balance'], mc_result_df.iloc[-1].median()]
-    if benchmark is not None:
-        _label_ys.append(benchmark[0])
-    _top_left_clear = y_max > 0 and all(v / y_max < 0.70 for v in _label_ys)
-    box_x  = 0.03 if _top_left_clear else 0.97
-    box_ha = 'left' if _top_left_clear else 'right'
+    # Pick the corner with the fewest simulation paths passing through it.
+    # Each candidate defines a region (row slice × y-fraction band); we count
+    # how many (row, sim) data points fall inside and choose the emptiest corner.
+    if y_max > 0:
+        _n  = len(mc_result_df)
+        _q  = max(1, int(_n * 0.25))
+        _d  = mc_result_df.values
+        _candidates = [
+            # (box_x, box_y, ha, va, row_slice, y_lo_frac, y_hi_frac)
+            (0.03, 0.97, 'left',  'top',    slice(0, _q),        0.70, 1.00),  # upper-left
+            (0.97, 0.97, 'right', 'top',    slice(_n - _q, _n),  0.70, 1.00),  # upper-right
+            (0.03, 0.03, 'left',  'bottom', slice(0, _q),        0.00, 0.30),  # lower-left
+            (0.97, 0.03, 'right', 'bottom', slice(_n - _q, _n),  0.00, 0.30),  # lower-right
+        ]
+        box_x, box_y, box_ha, box_va, *_ = min(
+            _candidates,
+            key=lambda c: np.sum((_d[c[4]] >= c[5] * y_max) & (_d[c[4]] <= c[6] * y_max))
+        )
+    else:
+        box_x, box_y, box_ha, box_va = 0.03, 0.97, 'left', 'top'
     ax.text(
-        box_x, 0.95, sim_str,
+        box_x, box_y, sim_str,
         transform=plt.gca().transAxes,
         fontsize=8,
         fontfamily='Monospace',
-        verticalalignment='top',
+        verticalalignment=box_va,
         horizontalalignment=box_ha,
         bbox=dict(
             facecolor='white',
-            alpha=0.7,
+            alpha=1.0,
             boxstyle='round,pad=0.5',
             edgecolor='black'
         )
@@ -948,10 +960,10 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
 
     ax.set_title(f"Monte Carlo simulation [{conf['iterations']}x] (${conf['balance']:,.0f})", fontsize=16, pad=25)
     ax.plot([x_first, x_last], [conf['balance'], conf['balance']], color='green', linestyle='--', linewidth=1, alpha=.7)
-    ax.plot([x_first, x_last], [mc_result_df.iloc[-1].median(), mc_result_df.iloc[-1].median()], color='brown', linestyle='dotted', linewidth=1.5, alpha=.7)
+    ax.plot([x_first, x_last], [mc_result_df.iloc[-1].median(), mc_result_df.iloc[-1].median()], color='brown', linestyle='dotted', linewidth=1.5, alpha=.7, label='Median')
 
-    # shift labels up by a fixed pixel amount so they sit just above their line
-    label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=0, y=2, units='points')
+    # shift labels left and up so they sit just inside the right edge of their line
+    label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=-8, y=2, units='points')
 
     # 5th and 95th percentile markers (middle 90% of outcomes)
     p5  = mc_result_df.iloc[-1].quantile(0.05)
@@ -967,12 +979,12 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         color='brown', transform=p_offset)
 
     # from the startbalance and the Rmul average draw a straight line (y = ax + b)
-    risk_per_trade = risk * conf['balance']
-    a = float(risk_per_trade * Rmul_avg)
-    b = float(conf['balance'])
-    x_vals = np.array(mc_result_df.index)
-    y_vals = a * x_vals + b
-    ax.plot(x_vals, y_vals, color='blue', linewidth=2.0, linestyle='--')
+    #risk_per_trade = risk * conf['balance']
+    #a = float(risk_per_trade * Rmul_avg)
+    #b = float(conf['balance'])
+    #x_vals = np.array(mc_result_df.index)
+    #y_vals = a * x_vals + b
+    #ax.plot(x_vals, y_vals, color='blue', linewidth=1.0, linestyle='--', alpha=0.5)
 
     # add label for the last average value
     # y_last = a * x_last + b
@@ -992,10 +1004,11 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     else:
         sim_label = f"${median_balance:,.0f}"
     plt.text(
-        -1.5, median_balance, sim_label,
+        x_last, median_balance, sim_label,
         fontsize=10,
         fontfamily='Monospace',
         verticalalignment='bottom',
+        horizontalalignment='right',
         transform=label_offset
     )
 
@@ -1003,15 +1016,22 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     if benchmark is not None:
         val_out, ann_ret_hodl = benchmark
 
-        ax.plot([x_first, x_last], [val_out, val_out], color='black', linewidth=1.5, linestyle='-.', alpha=.7)
+        ax.plot([x_first, x_last], [val_out, val_out], color='black', linewidth=1.5, linestyle='-.', alpha=.7, label='HODL (URTH)')
         plt.text(
-            -1.5, val_out, f"${val_out:,.0f} ({ann_ret_hodl:.1%})",
+            x_last, val_out, f"${val_out:,.0f} ({ann_ret_hodl:.1%})",
             fontsize=10,
             fontfamily='Monospace',
             verticalalignment='bottom',
+            horizontalalignment='right',
             transform=label_offset
         )
 
+    _legend_names = {'Median', 'HODL (URTH)'}
+    _handles, _labels = ax.get_legend_handles_labels()
+    _named = [(h, l) for h, l in zip(_handles, _labels) if l in _legend_names]
+    if _named:
+        ax.legend(*zip(*_named), loc='upper right', fontsize=9,
+                  facecolor='white', edgecolor='black', framealpha=1.0)
     ax.set_xlabel('Trade')
     ax.set_ylabel('Balance (USD)')
     ax.grid(True, which='both', linestyle='dotted', alpha=0.5)
