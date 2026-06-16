@@ -65,6 +65,11 @@ def update_quotes(conf, ctx):
             dff = pd.read_csv(ctx.path('out/data',f"{ticker}_{ohlc_filename}"))
             dff.set_index('Date', inplace=True)
 
+            last_row = dff.iloc[-1]
+            if pd.isna(last_row[['Open', 'High', 'Low', 'Close']]).all():
+                logger.warning(f"{ticker}: last row ({dff.index[-1]}) has NaN Open/High/Low/Close - dropping row and continuing")
+                dff = dff.iloc[:-1]
+
             # 3. add TA indicators
             dft = ut.add_technical_indicators(dff, conf)
 

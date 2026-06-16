@@ -1153,6 +1153,7 @@ def _get_urth_benchmark_result(conf, ctx):
 
     # get benchmarkdata (from MSCI World ETF)
     urth_df = pd.read_csv(ctx.path('out/data', "URTH_ohlc_raw.csv"))
+    urth_df = urth_df.dropna(subset=['Open', 'High', 'Low', 'Close'], how='all')
     urth_in = urth_df['Close'].iloc[0]
     urth_out = urth_df['Close'].iloc[-1]
     shares = conf['balance']/urth_in
