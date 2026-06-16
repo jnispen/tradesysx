@@ -180,6 +180,12 @@ def main():
         default='',
         help='Base directory'
     )
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='config/system_conf.json',
+        help='System configuration file (relative to basedir or absolute)'
+    )
     add_logging_arguments(parser)
     args = parser.parse_args()
     setup_logging(args.loglevel)
@@ -199,7 +205,7 @@ def main():
     ctx = RunContext(basedir=base_dir)
 
     # load system confguration
-    conf_file = ctx.path('config/system_conf.json')
+    conf_file = os.path.join(base_dir, args.config) if not os.path.isabs(args.config) else args.config
     try:
         with open(conf_file) as f:
             logger.info(f"Configuration file: {conf_file}")

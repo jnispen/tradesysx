@@ -72,11 +72,15 @@ All behaviour is controlled via JSON config files in `config/`:
 4. Run the pipeline:
 
    ```sh
-   python getquotes.py [--basedir <path>] [--loglevel <level>]
+   python getquotes.py [--basedir <path>] [--config <file>] [--loglevel <level>]
    ```
 
    `--basedir` defaults to the current working directory and is used to
    locate the `config/`, `quotes/` and `out/` directories.
+
+   `--config` selects the system configuration file. Relative paths are
+   resolved against `basedir`; absolute paths are used as-is. Defaults to
+   `config/system_conf.json`.
 
    `--loglevel` controls console verbosity and accepts `DEBUG`, `INFO`
    (default), `WARNING`, `ERROR` or `CRITICAL`. `INFO` shows section banners,
