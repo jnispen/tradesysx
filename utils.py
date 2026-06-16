@@ -36,6 +36,9 @@ from getquotes.context import RunContext, SystemStats
 
 logger = logging.getLogger(__name__)
 
+def _plain(text):
+    return re.sub(r'<[^>]+>', '', text).encode('ascii', 'ignore').decode()
+
 # for concat of empty dataframe
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -64,6 +67,7 @@ async def bot_signal_update(ctx, lastclose, telegram_df):
         lines.append(line)
 
     msg = f"<b>{lastclose_str}</b>\n=============\n" + "\n".join(lines)
+    logger.info("Telegram update:\n%s", _plain(msg))
     await bot.send_message(chat_id=ctx.chat_id, text=msg, parse_mode=ParseMode.HTML)
 
 async def bot_signal_alert(ctx, lastclose, telegram_df):
@@ -88,6 +92,7 @@ async def bot_signal_alert(ctx, lastclose, telegram_df):
         lines.append(f"{emoji} <b>{row['Ticker']}</b> {row['Signal']} @ {row['Close']:.2f}")
 
     msg = f"\U0001F514 <b>Signal Alert</b>\n" + "\n".join(lines)
+    logger.info("Telegram alert:\n%s", _plain(msg))
     await bot.send_message(chat_id=ctx.chat_id, text=msg, parse_mode=ParseMode.HTML)
 
 def bot_summary_update(ctx, file_path):

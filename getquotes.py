@@ -191,7 +191,7 @@ def main():
     setup_logging(args.loglevel)
 
     start_time = datetime.now()
-    logger.info(f'==== {start_time.strftime("%Y-%m-%d %H:%M:%S")} ====')
+    logger.info(f'==== Start: {start_time.strftime("%Y-%m-%d %H:%M:%S")} ====')
 
     logger.info('==== [0/8] Command line parameters ====')
     logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
