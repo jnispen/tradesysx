@@ -184,6 +184,9 @@ def main():
     args = parser.parse_args()
     setup_logging(args.loglevel)
 
+    start_time = datetime.now()
+    logger.info(f'==== {start_time.strftime("%Y-%m-%d %H:%M:%S")} ====')
+
     logger.info('==== [0/8] Command line parameters ====')
     logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
     logger.info(f"Loglevel          : {args.loglevel}")
@@ -215,6 +218,9 @@ def main():
         ctx.chat_id = ta_conf['chat_id']
 
     update_quotes(conf, ctx)
+
+    elapsed = datetime.now() - start_time
+    logger.info(f'==== Total execution time {str(elapsed).split(".")[0]} ====')
 
 if __name__ == "__main__":
     main()
