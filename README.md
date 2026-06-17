@@ -43,6 +43,26 @@ configured quotes file:
 10. **Notify via Telegram** *(optional)* — post the daily ENTER/EXIT/stoploss
     signals and the summary PDF to a configured Telegram chat.
 
+#### Ticker plot indicators
+
+The price chart (`<outdir>/plots/<TICKER>_plot.png`) and the price panel of
+the TA chart (`<outdir>/plots/TA/<TICKER>_plot_ta.png`) always show the same
+overlays, picked from three tiers:
+
+- **Fixed** — the close price, ENTER/EXIT markers and trade annotations are
+  always shown.
+- **Strategy-driven** — an indicator set is shown automatically when it
+  matches the configured `enter` strategy: EMA20/50/100 for `3EMA`, the
+  fast/slow SMA pair for `SMA`, Bollinger Bands for `BBRSI`. The Chandelier
+  Exit levels are likewise shown automatically based on the `exit` strategy
+  (`CE` or `CEE`). These aren't configurable — they follow whatever
+  `enter`/`exit` is set to.
+- **User-selectable** — the `plot_indicators` list in `system_conf.json` adds
+  indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
+  Bands) and `"SMA225"` (225-day SMA, a simple bull/bear market reference).
+  An empty or missing list shows none of these. An unrecognized name causes
+  the pipeline to exit with an error before any data is processed.
+
 #### Configuration
 
 All behaviour is controlled via JSON config files in `config/`:

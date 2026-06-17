@@ -222,6 +222,9 @@ def main():
         logger.critical(f"failed to load configuration file: {e}")
         sys.exit(1)
 
+    ut.validate_strategy_conf(conf)
+    ut.validate_plot_indicators(conf)
+
     # load telegram chat id and bot token if configured
     if conf['notify'] == True:
         ta_file = ctx.path('config/telegram_conf.json')

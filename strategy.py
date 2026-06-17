@@ -68,8 +68,8 @@ class TradingSignals(object):
 
     def _SMA_Enter(self, row):
         signal = False
-        if row['Close'] > row['SMA50']   and  \
-           row['SMA50'] > row['SMA200']  and  \
+        if row['Close'] > row['SMAfast']    and  \
+           row['SMAfast'] > row['SMAslow']  and  \
            row['P_DI']  > row['M_DI']    and  \
            row['ADX']   > float(self.conf['adx_trend']):
             signal = True
@@ -87,8 +87,8 @@ class TradingSignals(object):
 
     def _SMA_Exit(self, row, intrade):
         signal = False
-        if row['Close'] < row['SMA50']   and  \
-           row['SMA50'] < row['SMA200']  and  \
+        if row['Close'] < row['SMAfast']    and  \
+           row['SMAfast'] < row['SMAslow']  and  \
            row['M_DI']  > row['P_DI']    and  \
            row['ADX']   > float(self.conf['adx_trend']):
             signal = True

@@ -5,6 +5,7 @@
     "process_data" : true,
     "gen_plots"    : true,
     "gen_ta_plots" : true,
+    "plot_indicators" : ["SMA225"],
     "position"     : "long",
     "stloss"       : "percent",
     "enter"        : "3EMA",
@@ -36,5 +37,5 @@
     "montecarlo"   : true,
     "sim_len_max"  : 100,
     "iterations"   : 1000,
-    "outlier"      : 3
+    "outlier"      : 4
 }

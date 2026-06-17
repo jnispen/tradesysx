@@ -165,6 +165,24 @@ def get_quotes_data(quotes, conf, outfile, ctx):
 
         dfr.to_csv(ctx.outpath('data',f"{ticker}_{outfile}"))
 
+VALID_PLOT_INDICATORS = {'BB', 'SMA225'}
+
+def validate_plot_indicators(conf):
+    ''' validates the conf['plot_indicators'] list against the known indicator names '''
+    for name in conf.get('plot_indicators', []):
+        if name not in VALID_PLOT_INDICATORS:
+            logger.critical("The plot indicator '{}' does not exist! Valid options: {}".format(name, sorted(VALID_PLOT_INDICATORS)))
+            sys.exit(1)
+
+def validate_strategy_conf(conf):
+    ''' validates conf['enter']/conf['exit'] against the known strategies, up front '''
+    if conf['enter'] not in TradingSignals.enter_str:
+        logger.critical("The Enter strategy '{}' does not exist! Valid options: {}".format(conf['enter'], sorted(TradingSignals.enter_str)))
+        sys.exit(1)
+    if conf['exit'] not in TradingSignals.exit_str:
+        logger.critical("The Exit strategy '{}' does not exist! Valid options: {}".format(conf['exit'], sorted(TradingSignals.exit_str)))
+        sys.exit(1)
+
 def add_technical_indicators(dframe, conf):
     ''' adds technical indicators as columns to the dataframe '''
     
@@ -188,8 +206,8 @@ def add_technical_indicators(dframe, conf):
     dframe['OBV'] = ta.OBV(dframe['Close'], dframe['Volume'])
 
     # Simple Moving Average (SMA)
-    dframe['SMA50'] = ta.SMA(dframe['Close'], timeperiod=conf['sma_fast'])
-    dframe['SMA200'] = ta.SMA(dframe['Close'], timeperiod=conf['sma_slow'])
+    dframe['SMAfast'] = ta.SMA(dframe['Close'], timeperiod=conf['sma_fast'])
+    dframe['SMAslow'] = ta.SMA(dframe['Close'], timeperiod=conf['sma_slow'])
    
     # Bear/Bull indcator (stock above = Bull, Stock below = Bear)
     dframe['SMA225'] = ta.SMA(dframe['Close'], timeperiod=225)
@@ -1033,11 +1051,23 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
             transform=hodl_offset
         )
 
+    # choose between upper-right and lower-right for the trend-line legend,
+    # based on which has fewer simulation paths passing through it
+    if y_max > 0:
+        _n = len(mc_result_df)
+        _q = max(1, int(_n * 0.25))
+        _d_right = mc_result_df.values[_n - _q:_n]
+        _upper_density = np.sum((_d_right >= 0.70 * y_max) & (_d_right <= 1.00 * y_max))
+        _lower_density = np.sum((_d_right >= 0.00 * y_max) & (_d_right <= 0.30 * y_max))
+        _legend_loc = 'lower right' if _lower_density < _upper_density else 'upper right'
+    else:
+        _legend_loc = 'upper right'
+
     _legend_names = {'Median', 'HODL (URTH)'}
     _handles, _labels = ax.get_legend_handles_labels()
     _named = [(h, l) for h, l in zip(_handles, _labels) if l in _legend_names]
     if _named:
-        ax.legend(*zip(*_named), loc='upper right', fontsize=9,
+        ax.legend(*zip(*_named), loc=_legend_loc, fontsize=9,
                   facecolor='white', edgecolor='black', framealpha=1.0)
     ax.set_xlabel('Trade')
     ax.set_ylabel('Balance (USD)')
@@ -1371,6 +1401,42 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
     plt.savefig(ctx.outpath("reports", "system_trades_dist_plot.png"), dpi=150)
     plt.close(fig)
 
+def _plot_price_overlays(ax, df, conf):
+    ''' draws the price-panel TA overlays (BB/SMA225/EMA/SMA/CE) + Close + Enter/Exit markers.
+        Shared by ticker_plot and ticker_plot_ta so the two stay in sync. '''
+    plot_indicators = conf.get('plot_indicators', [])
+
+    if conf['enter'] == 'BBRSI' or 'BB' in plot_indicators:
+        ax.plot(df.index, df[['BBu', 'BBl','BBm']], color='black', linewidth=.1)
+        ax.fill_between(df.index, df['BBl'], df['BBu'], color='grey', alpha=.05)
+
+    if 'SMA225' in plot_indicators:
+        # SMA 45wk indicator of bear/bull stock market
+        ax.plot(df.index, df['SMA225'], color='orange', linewidth=2, linestyle='-.', label='SMA225')
+
+    if conf['enter'] == '3EMA':
+        ax.plot(df.index, df['EMA20'], color='green', linewidth=.5, label='EMA20')
+        ax.plot(df.index, df['EMA50'], color='brown', linewidth=.5, label='EMA50')
+        ax.plot(df.index, df['EMA100'], color='black', linewidth=.5, label='EMA100')
+
+    if conf['enter'] == 'SMA':
+        ax.plot(df.index, df['SMAfast'], color='green', linewidth=.5, label=f"SMA{conf['sma_fast']}")
+        ax.plot(df.index, df['SMAslow'], color='brown', linewidth=.5, label=f"SMA{conf['sma_slow']}")
+
+    if conf['exit'] == 'CE':
+        ax.plot(df.index, df['CE'], color='black', linewidth=.5, linestyle='--', label='CEexit')
+    if conf['exit'] == 'CEE':
+        ax.plot(df.index, df['CE'], color='black', linewidth=.5, linestyle='--', label='CEexit')
+        ax.plot(df.index, df['CE2'], color='brown', linewidth=.5, linestyle='--', label='CE2exit')
+        ax.plot(df.index, df['CE15'], color='yellow', linewidth=.5, linestyle='--', label='CE15exit')
+
+    ax.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')
+
+    if df['Enter'].value_counts().any():
+        ax.scatter(df.index, df['Enter'], color='green', label='Enter', marker='^', alpha=1)
+    if df['Exit'].value_counts().any():
+        ax.scatter(df.index, df['Exit'], color='darkred', label='Exit', marker='v', alpha=1)
+
 def ticker_plot(df, ticker, description, conf, ctx):
     ''' plot ticker + enter and exits points '''
 
@@ -1388,31 +1454,7 @@ def ticker_plot(df, ticker, description, conf, ctx):
     plt.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))
     #plt.text(df.tail(1).index.item(), df.iloc[-1]['CE'], '{:,.2f}'.format(df.iloc[-1]['CE']), alpha=.5)
 
-    plt.plot(df.index, df[['BBu', 'BBl','BBm']], color='black', linewidth=.1)
-    plt.fill_between(df.index, df['BBl'], df['BBu'], color='grey', alpha=.05)
-
-    #plt.plot(df.index, df['SMA50'], color='green', linewidth=.5, label='SMA50')
-
-    # SMA 45wk indicator of bear/bull stock market
-    plt.plot(df.index, df['SMA225'], color='orange', linewidth=2, linestyle='-.', label='SMA225')
-    
-    plt.plot(df.index, df['EMA20'], color='green', linewidth=.5, label='EMA20')
-    plt.plot(df.index, df['EMA50'], color='brown', linewidth=.5, label='EMA50')
-    plt.plot(df.index, df['EMA100'], color='black', linewidth=.5, label='EMA100')
-        
-    if conf['exit'] == 'CE':
-        plt.plot(df.index, df['CE'], color='black', linewidth=.5, linestyle='--', label='CEexit')
-    if conf['exit'] == 'CEE':
-        plt.plot(df.index, df['CE'], color='black', linewidth=.5, linestyle='--', label='CEexit')
-        plt.plot(df.index, df['CE2'], color='brown', linewidth=.5, linestyle='--', label='CE2exit')
-        plt.plot(df.index, df['CE15'], color='yellow', linewidth=.5, linestyle='--', label='CE15exit')
-
-    plt.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')
-
-    if df['Enter'].value_counts().any():
-        plt.scatter(df.index, df['Enter'], color='green', label='Enter', marker='^', alpha = 1)
-    if df['Exit'].value_counts().any():
-        plt.scatter(df.index, df['Exit'], color='darkred', label='Exit', marker='v', alpha = 1)
+    _plot_price_overlays(ax, df, conf)
 
     col = 'gray'
     Rstr = ""
@@ -1476,18 +1518,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
     ax1.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))
     #ax1.text(df.tail(1).index.item(), df.iloc[-1]['CE'], '{:,.2f}'.format(df.iloc[-1]['CE']), alpha=.5)
 
-    ax1.plot(df.index, df[['BBu', 'BBl','BBm']], color='black', linewidth=.1)
-    ax1.fill_between(df.index, df['BBl'], df['BBu'], color='grey', alpha=.05)
-
-    #ax1.plot(df.index, df['SMA50'], color='green', linewidth=.5, label='SMA50')
-    #ax1.plot(df.index, df['SMA200'], color='orange', linewidth=.5, label='SMA200')
-
-    ax1.plot(df.index, df['EMA20'], color='green', linewidth=.5, label='EMA20')
-    ax1.plot(df.index, df['EMA50'], color='brown', linewidth=.5, label='EMA50')
-    ax1.plot(df.index, df['EMA100'], color='black', linewidth=.5, label='EMA100')
-
-    #ax1.plot(df.index, df['CE'], color='black', linewidth=.5, linestyle='--', label='CEexit')
-    ax1.plot(df.index, df['Close'], color='red', linewidth=.9, label='Close')
+    _plot_price_overlays(ax1, df, conf)
 
     col = 'gray'
     Rstr = ""
@@ -1538,11 +1569,6 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
     #ax3.axhline(y=0, color='red', linewidth=1, linestyle='-.')
     #ax3.fill_between(df.index, df['FI'], 0, color='grey', alpha=.1)
     #ax3.set_ylabel('FI')
-
-    if df['Enter'].value_counts().any():
-        ax1.scatter(df.index, df['Enter'], color='green', label='Enter', marker='^', alpha = 1)
-    if df['Exit'].value_counts().any():
-        ax1.scatter(df.index, df['Exit'], color='darkred', label='Exit', marker='v', alpha = 1)
 
     enter = df.iloc[-1]['PriceIn']
     stoploss = df.iloc[-1]['STLoss']
