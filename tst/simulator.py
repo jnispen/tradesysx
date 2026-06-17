@@ -31,6 +31,12 @@ def main():
         help='Base directory'
     )
     parser.add_argument(
+        '--outdir',
+        type=str,
+        default='out',
+        help='Output directory (relative to basedir or absolute)'
+    )
+    parser.add_argument(
         '--rmul-dist',
         type=str,
         required=True,
@@ -45,8 +51,10 @@ def main():
         base_dir = os.path.abspath(args.basedir)
     else:
         base_dir = os.getcwd()
-    ctx = RunContext(basedir=base_dir)
+    outdir = os.path.abspath(os.path.join(base_dir, args.outdir)) if not os.path.isabs(args.outdir) else args.outdir
+    ctx = RunContext(basedir=base_dir, outdir=outdir)
     logger.info("Base directory         : " + str(ctx.basedir))
+    logger.info("Output directory       : " + str(ctx.outdir))
 
     # load system confguration (relative to this script, not --basedir)
     conf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'simulator_conf.json')
@@ -80,7 +88,7 @@ def main():
     run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk,
                             output_filename=output_filename, benchmark=None)
     logger.info("================================")
-    logger.info(f"Simulation plot saved  : {ctx.path('out/reports', output_filename)}")
+    logger.info(f"Simulation plot saved  : {ctx.outpath('reports', output_filename)}")
 
 if __name__ == "__main__":
     main()

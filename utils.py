@@ -163,7 +163,7 @@ def get_quotes_data(quotes, conf, outfile, ctx):
         else:
             dfr = get_history_data(ticker, conf["period"], interval=interval)
 
-        dfr.to_csv(ctx.path('out/data',f"{ticker}_{outfile}"))
+        dfr.to_csv(ctx.outpath('data',f"{ticker}_{outfile}"))
 
 def add_technical_indicators(dframe, conf):
     ''' adds technical indicators as columns to the dataframe '''
@@ -572,11 +572,11 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx):
 
     stat_df = stat_df.to_string(index=False)
 
-    fig_a = ctx.path("out/reports/system_trades_plot.png")
-    fig_b = ctx.path("out/reports/system_trades_dist_plot.png")
-    fig_c = ctx.path("out/reports/balance_plot.png")
-    fig_d = ctx.path("out/reports/monte_carlo_sampled_plot.png")
-    fig_e = ctx.path("out/plots/URTH_plot.png")
+    fig_a = ctx.outpath("reports/system_trades_plot.png")
+    fig_b = ctx.outpath("reports/system_trades_dist_plot.png")
+    fig_c = ctx.outpath("reports/balance_plot.png")
+    fig_d = ctx.outpath("reports/monte_carlo_sampled_plot.png")
+    fig_e = ctx.outpath("plots/URTH_plot.png")
 
     fig_width = 650
 
@@ -615,7 +615,7 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx):
     </html>
     """
 
-    HTML(string=html_content).write_pdf(ctx.path("out", "system_summary.pdf"))
+    HTML(string=html_content).write_pdf(ctx.outpath("system_summary.pdf"))
 
 def format_to_2_decimals(x):
     # Matches numbers, including negatives and decimals
@@ -763,13 +763,13 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     logger.info(f"Final balance     : {balance:,.2f}")
 
     logger.debug("\n%s", dframe)
-    dframe.to_csv(ctx.path("out/tables/", "trades_list.csv"), index=False)
+    dframe.to_csv(ctx.outpath("tables/", "trades_list.csv"), index=False)
 
     # save to pdf file
     dframe.index = dframe.index + 1
     dframe['Date'] = pd.to_datetime(dframe['Date'], errors='coerce').dt.strftime('%d-%m-%Y')
     html = df_to_html(dframe)
-    HTML(string=html).write_pdf(ctx.path("out", "trades_list.pdf"))
+    HTML(string=html).write_pdf(ctx.outpath("trades_list.pdf"))
 
     return dframe
 
@@ -1041,7 +1041,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     ax.set_ylabel('Balance (USD)')
     ax.grid(True, which='both', linestyle='dotted', alpha=0.5)
 
-    plt.savefig(ctx.path("out/reports", output_filename), dpi=150)
+    plt.savefig(ctx.outpath("reports", output_filename), dpi=150)
     plt.close()
 
 def _get_capital_invested(row, conf, balance, stats):
@@ -1087,7 +1087,7 @@ def load_ohlc_cache(tickers, ctx):
     """
     cache = {}
     for ticker in tickers:
-        file_path = ctx.path(f"out/data/{ticker}_ohlc_raw.csv")
+        file_path = ctx.outpath(f"data/{ticker}_ohlc_raw.csv")
         try:
             df = pd.read_csv(file_path)
             cache[ticker] = df.set_index('Date')
@@ -1130,10 +1130,10 @@ def save_trades_table(dframe, conf, ctx):
     dframe['Rmul30'] = dframe['Rmul'].rolling(30).mean().round(2)
 
     logger.debug("\n%s", dframe)
-    dframe.to_csv(ctx.path('out/tables', "trades_table.csv"), index=False)
+    dframe.to_csv(ctx.outpath('tables', "trades_table.csv"), index=False)
 
     # save the R-multiples of all trades for later reuse (e.g. tst/simulator.py)
-    dframe['Rmul'].to_csv(ctx.path('out/tables', "Rmul_trades.csv"), index=False)
+    dframe['Rmul'].to_csv(ctx.outpath('tables', "Rmul_trades.csv"), index=False)
 
     # save to pdf file
     dframe.index = dframe.index + 1
@@ -1141,7 +1141,7 @@ def save_trades_table(dframe, conf, ctx):
     dframe['Exit'] = pd.to_datetime(dframe['Exit'], format='%Y-%m-%d', errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = dframe['Exit'].where(dframe['Exit'].notna(), "-")
     html = df_to_html(dframe)
-    HTML(string=html).write_pdf(ctx.path('out', "trades_table.pdf"))
+    HTML(string=html).write_pdf(ctx.outpath("trades_table.pdf"))
 
 def df_to_html(df,
                font_px: int = 10,
@@ -1200,7 +1200,7 @@ def df_to_html(df,
 def _get_urth_benchmark_result(conf, ctx):
 
     # get benchmarkdata (from MSCI World ETF)
-    urth_df = pd.read_csv(ctx.path('out/data', "URTH_ohlc_raw.csv"))
+    urth_df = pd.read_csv(ctx.outpath('data', "URTH_ohlc_raw.csv"))
     urth_df = urth_df.dropna(subset=['Open', 'High', 'Low', 'Close'], how='all')
     urth_in = urth_df['Close'].iloc[0]
     urth_out = urth_df['Close'].iloc[-1]
@@ -1280,7 +1280,7 @@ def balance_plot(df, conf, ctx):
     plt.grid(linestyle='--')
     plt.ylabel('Balance (USD)')
     plt.legend(loc='upper left')
-    plt.savefig(ctx.path("out/reports", "balance_plot.png"), dpi=150)
+    plt.savefig(ctx.outpath("reports", "balance_plot.png"), dpi=150)
     plt.close(fig)
 
 def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
@@ -1311,7 +1311,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
         bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.5')
     )
 
-    plt.savefig(ctx.path("out/reports", "system_trades_plot.png"), dpi=150)
+    plt.savefig(ctx.outpath("reports", "system_trades_plot.png"), dpi=150)
     plt.close(fig)
 
     sns.set_style("white")
@@ -1366,7 +1366,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
         )
     )
 
-    plt.savefig(ctx.path("out/reports", "system_trades_dist_plot.png"), dpi=150)
+    plt.savefig(ctx.outpath("reports", "system_trades_dist_plot.png"), dpi=150)
     plt.close(fig)
 
 def ticker_plot(df, ticker, description, conf, ctx):
@@ -1457,7 +1457,7 @@ def ticker_plot(df, ticker, description, conf, ctx):
     plt.xlabel('Date')
     plt.ylabel('Price (USD)')
     plt.legend(loc='lower right')
-    plt.savefig(ctx.path("out/plots", f"{ticker}_plot.png"), dpi=150)
+    plt.savefig(ctx.outpath("plots", f"{ticker}_plot.png"), dpi=150)
     plt.close(fig)
 
 def ticker_plot_ta(df, ticker, description, conf, ctx):
@@ -1567,5 +1567,5 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
     ax1.set_ylabel('Price(USD)')
     ax1.legend(loc='lower right')
     ax3.legend(loc='lower right')
-    plt.savefig(ctx.path("out/plots/TA", f"{ticker}_plot_ta.png"), dpi=150)
+    plt.savefig(ctx.outpath("plots/TA", f"{ticker}_plot_ta.png"), dpi=150)
     plt.close(fig)

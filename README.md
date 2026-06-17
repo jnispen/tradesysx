@@ -14,7 +14,7 @@ Running `getquotes.py` performs the following steps for every ticker in the
 configured quotes file:
 
 1. **Download data** — fetch daily OHLC price history from Yahoo Finance
-   (`yfinance`) and store it as `out/data/<TICKER>_ohlc_raw.csv`.
+   (`yfinance`) and store it as `<outdir>/data/<TICKER>_ohlc_raw.csv`.
 2. **Add technical indicators** — compute RSI, ATR, ADX, ±DI, SMA/EMA
    moving averages, Bollinger Bands and Chandelier Exit levels (`TA-Lib`).
 3. **Generate ENTER/EXIT signals** — apply the configured entry strategy
@@ -22,8 +22,8 @@ configured quotes file:
    `3EMA`, `SMA` or `BBRSI`) and stoploss method (`3atr` or `percent`) to
    produce per-day trading signals.
 4. **Plot ticker charts** — save a price/indicator chart per ticker
-   (`out/plots/`), optionally with a separate technical-analysis panel
-   (`out/plots/TA/`).
+   (`<outdir>/plots/`), optionally with a separate technical-analysis panel
+   (`<outdir>/plots/TA/`).
 5. **Build the trades table** — collect every completed (and any still-open)
    trade into a combined trades table and trades list, including R-multiples,
    MAE/MFE and E-Ratio.
@@ -38,7 +38,7 @@ configured quotes file:
    loss streaks, and compare against a buy-and-hold benchmark (MSCI World /
    URTH).
 9. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
-   `out/system_summary.pdf` report covering configuration, statistics and
+   `<outdir>/system_summary.pdf` report covering configuration, statistics and
    charts.
 10. **Notify via Telegram** *(optional)* — post the daily ENTER/EXIT/stoploss
     signals and the summary PDF to a configured Telegram chat.
@@ -72,15 +72,19 @@ All behaviour is controlled via JSON config files in `config/`:
 4. Run the pipeline:
 
    ```sh
-   python getquotes.py [--basedir <path>] [--config <file>] [--loglevel <level>]
+   python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--loglevel <level>]
    ```
 
    `--basedir` defaults to the current working directory and is used to
-   locate the `config/`, `quotes/` and `out/` directories.
+   locate the `config/` and `quotes/` directories.
 
    `--config` selects the system configuration file. Relative paths are
    resolved against `basedir`; absolute paths are used as-is. Defaults to
    `config/system_conf.json`.
+
+   `--outdir` sets the output directory where all generated data, plots,
+   tables and reports are written. Relative paths are resolved against
+   `basedir`; absolute paths are used as-is. Defaults to `out`.
 
    `--loglevel` controls console verbosity and accepts `DEBUG`, `INFO`
    (default), `WARNING`, `ERROR` or `CRITICAL`. `INFO` shows section banners,
@@ -90,13 +94,14 @@ All behaviour is controlled via JSON config files in `config/`:
 
 #### Output
 
-All generated data, plots, tables and reports are written under `out/`:
+All generated data, plots, tables and reports are written under the output
+directory (default `out/`, configurable via `--outdir`):
 
-- `out/data/` — raw and processed OHLC data per ticker
-- `out/plots/` — per-ticker price charts (and `out/plots/TA/` for indicator
-  panels)
-- `out/reports/` — system-level plots (trades distribution, balance,
+- `<outdir>/data/` — raw and processed OHLC data per ticker
+- `<outdir>/plots/` — per-ticker price charts (and `<outdir>/plots/TA/` for
+  indicator panels)
+- `<outdir>/reports/` — system-level plots (trades distribution, balance,
   Monte Carlo)
-- `out/tables/` — trades table and trades list as CSV
-- `out/system_summary.pdf`, `out/trades_table.pdf`, `out/trades_list.pdf` —
-  combined PDF reports
+- `<outdir>/tables/` — trades table and trades list as CSV
+- `<outdir>/system_summary.pdf`, `<outdir>/trades_table.pdf`,
+  `<outdir>/trades_list.pdf` — combined PDF reports

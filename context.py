@@ -10,12 +10,17 @@ class RunContext:
     basedir: str
     bot_token: str = ""
     chat_id: str = ""
+    outdir: str = "out"
 
     def path(self, *parts):
-        """Return a string path inside the root output directory."""
+        """Return a string path inside basedir."""
         p = os.path.join(self.basedir, *parts)
         os.makedirs(os.path.dirname(p), exist_ok=True)
         return p
+
+    def outpath(self, *parts):
+        """Return a string path inside the configured output directory."""
+        return self.path(self.outdir, *parts)
 
 
 @dataclass

@@ -62,7 +62,7 @@ def update_quotes(conf, ctx):
             idx += 1
 
             # 2. read data from disk
-            dff = pd.read_csv(ctx.path('out/data',f"{ticker}_{ohlc_filename}"))
+            dff = pd.read_csv(ctx.outpath('data',f"{ticker}_{ohlc_filename}"))
             dff.set_index('Date', inplace=True)
 
             last_row = dff.iloc[-1]
@@ -96,7 +96,7 @@ def update_quotes(conf, ctx):
             telegram_frames.append(last_rec)
 
             # 7. save processed data to .csv
-            dft.to_csv(ctx.path('out/data',f"{ticker}_{outp_filename}"))
+            dft.to_csv(ctx.outpath('data',f"{ticker}_{outp_filename}"))
 
         # combine the per-ticker frames collected above into the totals
         if trades_table_frames:
@@ -161,7 +161,7 @@ def update_quotes(conf, ctx):
 
         asyncio.run(ut.bot_signal_update(ctx, last_close_date, telegram_df))
         asyncio.run(ut.bot_signal_alert(ctx, last_close_date, telegram_df))
-        response = ut.bot_summary_update(ctx, ctx.path("out", "system_summary.pdf"))
+        response = ut.bot_summary_update(ctx, ctx.outpath("system_summary.pdf"))
         if response.ok:
             logger.info('- response OK, updates sent successfully')
         else:
@@ -186,6 +186,12 @@ def main():
         default='config/system_conf.json',
         help='System configuration file (relative to basedir or absolute)'
     )
+    parser.add_argument(
+        '--outdir',
+        type=str,
+        default='out',
+        help='Output directory (relative to basedir or absolute)'
+    )
     add_logging_arguments(parser)
     args = parser.parse_args()
     setup_logging(args.loglevel)
@@ -196,6 +202,7 @@ def main():
     logger.info('==== [0/8] Command line parameters ====')
     logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
     logger.info(f"Configuration file: {args.config}")
+    logger.info(f"Output directory  : {args.outdir}")
     logger.info(f"Loglevel          : {args.loglevel}")
 
     # set base directory
@@ -203,7 +210,8 @@ def main():
         base_dir = os.path.abspath(args.basedir)
     else:
         base_dir = os.getcwd()
-    ctx = RunContext(basedir=base_dir)
+    outdir = os.path.abspath(os.path.join(base_dir, args.outdir)) if not os.path.isabs(args.outdir) else args.outdir
+    ctx = RunContext(basedir=base_dir, outdir=outdir)
 
     # load system confguration
     conf_file = os.path.join(base_dir, args.config) if not os.path.isabs(args.config) else args.config
