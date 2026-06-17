@@ -37,5 +37,5 @@
     "montecarlo"   : true,
     "sim_len_max"  : 100,
     "iterations"   : 1000,
-    "outlier"      : 4
+    "outlier"      : 3
 }
