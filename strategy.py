@@ -52,8 +52,7 @@ class TradingSignals(object):
     
     def _BB_RSI_Enter(self, row):
         signal = False
-        #if row['Close'] < row['BBl'] and row['RSI'] < float(self.conf['rsi_low']):
-        if row['Low'] < row['BBl'] and row['Close'] > row['BBl'] and row['RSI'] < float(self.conf['rsi_low']):
+        if row['Close'] < row['BBl'] and row['RSI'] < float(self.conf['rsi_low']):
             signal = True
         return signal
 
@@ -97,7 +96,6 @@ class TradingSignals(object):
 
     def _BB_RSI_Exit(self, row, intrade):
         signal = False
-        #if row['High'] > row['BBu'] and row['Close'] < row['BBu'] and row['RSI'] > float(self.conf['rsi_high']):
         if row['Close'] < row['BBu'] and row['RSI'] > float(self.conf['rsi_high']):
             signal = True
         return signal

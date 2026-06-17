@@ -1391,8 +1391,6 @@ def ticker_plot(df, ticker, description, conf, ctx):
     plt.plot(df.index, df[['BBu', 'BBl','BBm']], color='black', linewidth=.1)
     plt.fill_between(df.index, df['BBl'], df['BBu'], color='grey', alpha=.05)
 
-    #plt.plot(df.index, df[['DONu', 'DONl','DONm']], color='black', linewidth=.1)
-    #plt.fill_between(df.index, df['DONl'], df['DONu'], color='grey', alpha=.05)
     #plt.plot(df.index, df['SMA50'], color='green', linewidth=.5, label='SMA50')
 
     # SMA 45wk indicator of bear/bull stock market
