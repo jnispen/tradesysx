@@ -1491,7 +1491,7 @@ def ticker_plot(df, ticker, description, conf, ctx):
                  textcoords='offset points', ha='right', va='top')
 
     if 'Rmul' in df.columns:
-        plt.annotate('R-average: {:,.1f} ({} trades)'.format(df['Rmul'].sum()/df['Rmul'].count(), df['Rmul'].count()), 
+        plt.annotate('R-average: {:,.2f} ({} trades)'.format(df['Rmul'].sum()/df['Rmul'].count(), df['Rmul'].count()), 
                      xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35), 
                      bbox={'facecolor':'0.9', 'boxstyle':'square', 'alpha':0.2}, textcoords='offset points', ha='left', va='top')
 
