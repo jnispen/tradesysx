@@ -13,14 +13,15 @@ via `--rmul-dist`.
 From the repository root:
 
 ```sh
-python tst/simulator.py --rmul-dist <path> [--basedir <path>] [--loglevel <level>]
+python tst/simulator.py --rmul-dist <path> [--basedir <path>] [--outdir <path>] [--loglevel <level>]
 ```
 
 - `--rmul-dist` is the path to a CSV file containing the R-multiple values
   to resample, in a column named `Rmul`.
-- `--basedir` defaults to the current working directory and controls where
-  output is written (see below). It does **not** affect where the
-  configuration file is loaded from.
+- `--basedir` defaults to the current working directory. It does **not**
+  affect where the configuration file is loaded from.
+- `--outdir` sets the output directory. Relative paths are resolved against
+  `basedir`; absolute paths are used as-is. Defaults to `out`.
 - `--loglevel` accepts `DEBUG`, `INFO` (default), `WARNING`, `ERROR` or
   `CRITICAL`.
 
@@ -38,6 +39,6 @@ regardless of `--basedir`):
 
 #### Output
 
-The plotted output is written to `<basedir>/out/reports/monte_carlo_plot.png`,
+The plotted output is written to `<outdir>/reports/monte_carlo_plot.png`,
 showing all simulated balance trajectories plus summary statistics (median,
 stdev, min/max, loss streaks, max drawdown, SQN).
