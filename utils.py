@@ -1022,13 +1022,15 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         val_out, ann_ret_hodl = benchmark
 
         ax.plot([x_first, x_last], [val_out, val_out], color='black', linewidth=1.5, linestyle='-.', alpha=.7, label='HODL (URTH)')
+        # Shift the HODL label to the left so its text never overlaps with the median label
+        hodl_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=-110, y=2, units='points')
         plt.text(
             x_last, val_out, f"${val_out:,.0f} ({ann_ret_hodl:.1%})",
             fontsize=10,
             fontfamily='Monospace',
             verticalalignment='bottom',
             horizontalalignment='right',
-            transform=label_offset
+            transform=hodl_offset
         )
 
     _legend_names = {'Median', 'HODL (URTH)'}
