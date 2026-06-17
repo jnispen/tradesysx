@@ -1,12 +1,12 @@
 {
     "quotefile"    : "quotes/quotes_stocks.lst",
     "notify"       : false,
-    "update_data"  : true,
+    "update_data"  : false,
     "process_data" : true,
     "gen_plots"    : true,
     "gen_ta_plots" : true,
     "position"     : "long",
-    "stloss"       : "percent",
+    "stloss"       : "3atr",
     "enter"        : "3EMA",
     "exit"         : "3EMA",
     "start"        : "2020-01-01",
@@ -35,6 +35,6 @@
     "sma_slow"     : 200,
     "montecarlo"   : true,
     "sim_len_max"  : 100,
-    "iterations"   : 500,
-    "outlier"      : 4
+    "iterations"   : 1000,
+    "outlier"      : 3
 }
