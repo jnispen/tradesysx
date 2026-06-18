@@ -1562,7 +1562,11 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
     ''' plot ticker +ta indicators + enter and exits points '''
 
     bbrsi = conf['enter'] == 'BBRSI'
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize = (28, 15))
+    macd = conf['enter'] == 'MACD'
+    if bbrsi or macd:
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize = (28, 10))
+    else:
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize = (28, 15))
     fig.suptitle('{} - {}'.format(description, ticker), fontsize=20)
 
     # Ensure index is datetime
@@ -1606,13 +1610,13 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
         ax2.axhline(y=conf['rsi_high'], color='red', linewidth=1, linestyle='-.')
         ax2.fill_between(df.index, conf['rsi_low'], df['RSI'], color='grey', alpha=.1)
         ax2.set_ylabel('RSI')
-
+    elif macd:
         hist_colors = np.where(df['MACDhist'] >= 0, 'green', 'red')
-        ax3.bar(df.index, df['MACDhist'], color=hist_colors, alpha=.6, label='Histogram')
-        ax3.plot(df.index, df['MACD'], color='blue', linewidth=.8, label='MACD')
-        ax3.plot(df.index, df['MACDsig'], color='orange', linewidth=.8, label='Signal')
-        ax3.axhline(y=0, color='black', linewidth=1, linestyle='--')
-        ax3.set_ylabel('MACD')
+        ax2.bar(df.index, df['MACDhist'], color=hist_colors, alpha=.6, label='Histogram')
+        ax2.plot(df.index, df['MACD'], color='blue', linewidth=.8, label='MACD')
+        ax2.plot(df.index, df['MACDsig'], color='orange', linewidth=.8, label='Signal')
+        ax2.axhline(y=0, color='black', linewidth=1, linestyle='--')
+        ax2.set_ylabel('MACD')
     else:
         ax2.plot(df.index, df['ADX'], color='blue', linewidth=.8, label='ADX')
         ax2.axhline(y=conf['adx_trend'], color='red', linewidth=1, linestyle='-.')
@@ -1640,11 +1644,12 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
 
     ax1.grid(linestyle='--')
     ax2.grid(linestyle='--')
-    ax3.grid(linestyle='--')
     plt.xlabel('Date')
     ax1.set_ylabel('Price(USD)')
     ax1.legend(loc='lower right')
     ax2.legend(loc='lower right')
-    ax3.legend(loc='lower right')
+    if not (bbrsi or macd):
+        ax3.grid(linestyle='--')
+        ax3.legend(loc='lower right')
     plt.savefig(ctx.outpath("plots/TA", f"{ticker}_plot_ta.png"), dpi=150)
     plt.close(fig)

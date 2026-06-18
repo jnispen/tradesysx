@@ -31,7 +31,8 @@ class TradingSignals(object):
 
     enter_str = {"BBRSI": "_BB_RSI_Enter",
                  "3EMA":  "_3_EMA_Enter",
-                 "SMA": "_SMA_Enter"}
+                 "SMA": "_SMA_Enter",
+                 "MACD": "_MACD_Enter"}
     
     exit_str  = {"CE": "_CE_Exit",
                  "CEE": "_CEE_Exit",
@@ -39,6 +40,7 @@ class TradingSignals(object):
                  "XR": "_XR_Exit",
                  "3EMA": "_3_EMA_Exit",
                  "SMA": "_SMA_Exit",
+                 "MACD": "_MACD_Exit",
                  "BBRSI": "_BB_RSI_Exit"}
 
     def __init__(self, conf):
@@ -74,6 +76,13 @@ class TradingSignals(object):
            row['ADX']   > float(self.conf['adx_trend']):
             signal = True
         return signal
+    
+    def _MACD_Enter(self, row):
+        signal = False
+        if row['MACD'] > row['MACDsig'] and \
+           row['MACDhist'] > 0.0:
+            signal = True
+        return signal
 
     def _3_EMA_Exit(self, row, intrade):
         signal = False
@@ -91,6 +100,13 @@ class TradingSignals(object):
            row['SMAfast'] < row['SMAslow']  and  \
            row['M_DI']  > row['P_DI']    and  \
            row['ADX']   > float(self.conf['adx_trend']):
+            signal = True
+        return signal
+
+    def _MACD_Exit(self, row, intrade):
+        signal = False
+        if row['MACD'] < row['MACDsig'] and \
+           row['MACDhist'] < 0.0:
             signal = True
         return signal
 
