@@ -32,7 +32,6 @@ def update_quotes(conf, ctx, report='summary'):
 
     config_str = '==== System configuration ====\n' + json.dumps(conf, indent=2)
     logger.debug(config_str)
-    conf_str = json.dumps(conf, indent=2)
 
     quote_file = ctx.path(conf["quotefile"])
     with open(quote_file) as f:
@@ -40,7 +39,6 @@ def update_quotes(conf, ctx, report='summary'):
 
     # add benchmark to dict
     quotes["URTH"] = "MSCI World (US4642863926)"
-    quotes_str = json.dumps(quotes, indent=2)
 
     # 1. read quotes from yfinance and save raw OHLC file
     if conf['update_data'] == True:
@@ -144,10 +142,7 @@ def update_quotes(conf, ctx, report='summary'):
 
         # 11. generate a complete system summary report in a single pdf
         logger.info('==== [7/8] Generating summary report ====')
-        if report == 'full':
-            ut.generate_summary_report(system_stat, conf_str, quotes_str, ctx, quotes=quotes)
-        else:
-            ut.generate_summary_report(system_stat, conf_str, quotes_str, ctx)
+        ut.generate_summary_report(system_stat, conf, quotes, ctx, full=(report == 'full'))
     else:
         logger.info('==== [4/8] Generating system statistics: skipped (process_data=false) ====')
         logger.info('==== [5/8] Running trading balance simulation (backtest): skipped (process_data=false) ====')

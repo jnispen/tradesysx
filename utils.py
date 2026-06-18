@@ -585,14 +585,37 @@ def generate_system_stats(trades_df, trading_period, ctx, stats):
 
     return stats_df
 
-def generate_summary_report(stat_df, conf_str, quotes_str, ctx, quotes=None):
+def _multi_column_table(items, columns, n_cols):
+    ''' lay `items` (a list of row-tuples) out as `n_cols` side-by-side
+    repetitions of `columns`, so a long list reads wide and short instead
+    of a single tall column. '''
+
+    chunk_size = math.ceil(len(items) / n_cols)
+    parts = [
+        pd.DataFrame(items[i:i + chunk_size], columns=columns)
+        for i in range(0, len(items), chunk_size)
+    ]
+    max_len = max(len(part) for part in parts)
+    parts = [part.reindex(range(max_len)).fillna("") for part in parts]
+    return pd.concat(parts, axis=1)
+
+def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
     ''' generate a pdf report with system summary, configuration and figures.
 
-    If `quotes` (the ticker -> description dict) is given, the report also
-    includes every ticker's plot, at the same size as the other figures
-    ("full" report). '''
+    `conf` is the system config dict and `quotes` is the ticker -> description
+    dict (rendered as tables). If `full` is True, the report also includes
+    every ticker's plot, at the same size as the other figures. '''
 
-    stat_df = stat_df.to_string(index=False)
+    stat_html = stat_df.to_html(border=0, index=False, classes="compact-table")
+
+    conf_values = [", ".join(v) if isinstance(v, list) else v for v in conf.values()]
+    conf_items = list(zip(conf.keys(), conf_values))
+    conf_table = _multi_column_table(conf_items, ["Key", "Value"], n_cols=2)
+    conf_html = conf_table.to_html(border=0, index=False, classes="full-table")
+
+    quotes_items = [(ticker, desc) for ticker, desc in quotes.items() if ticker != "URTH"]
+    quotes_table = _multi_column_table(quotes_items, ["Ticker", "Description"], n_cols=2)
+    quotes_html = quotes_table.to_html(border=0, index=False, classes="compact-table")
 
     fig_a = ctx.outpath("reports/system_trades_plot.png")
     fig_b = ctx.outpath("reports/system_trades_dist_plot.png")
@@ -603,7 +626,7 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx, quotes=None):
     fig_width = 650
 
     ticker_section = ""
-    if quotes:
+    if full:
         rows = "".join(
             f"""<img src="file://{ctx.outpath('plots', f'{ticker}_plot.png')}" style="width:{fig_width}px">"""
             for ticker in quotes if ticker != "URTH"
@@ -626,18 +649,19 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx, quotes=None):
                 font-size: 12px;
                 line-height: 1.4;
             }}
-            pre {{
-                white-space: pre-wrap; /* Preserve whitespace and wrap as needed */
-            }}
+            {table_style_css(14)}
+            th, td {{ text-align: left; }}
+            table.compact-table {{ width: auto; table-layout: auto; }}
+            table.full-table {{ width: 100%; table-layout: auto; }}
         </style>
     </head>
     <body>
-        <h3>System Configuration</h3>
-        <pre style="font-size: 10px;">{conf_str}</pre>
-        <h3>Quotes List</h3>
-        <pre style="font-size: 10px;">{quotes_str}</pre>
+        <h2>System Configuration Parameters</h2>
+        {conf_html}
+        <h2>Quotes List</h2>
+        {quotes_html}
         <h2>System Summary</h2>
-        <pre style="font-size: 14px;">{stat_df}</pre>
+        {stat_html}
 
         <img src="file://{fig_a}" style="width:{fig_width}px">
         <img src="file://{fig_b}" style="width:{fig_width}px">
@@ -650,11 +674,11 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx, quotes=None):
     </html>
     """
 
-    output_filename = "full_system_summary.pdf" if quotes else "system_summary.pdf"
+    output_filename = "full_system_summary.pdf" if full else "system_summary.pdf"
     output_path = ctx.outpath(output_filename)
     HTML(string=html_content).write_pdf(output_path)
 
-    if quotes:
+    if full:
         logger.info(f"Report saved: {output_path}")
 
 def format_to_2_decimals(x):
@@ -1197,11 +1221,47 @@ def save_trades_table(dframe, conf, ctx):
     html = df_to_html(dframe)
     HTML(string=html).write_pdf(ctx.outpath("trades_table.pdf"))
 
+def table_style_css(font_px: int = 10) -> str:
+    ''' shared table look (borders, striping, header shading, monospace) used
+    by every table rendered into a PDF report, so they stay visually consistent. '''
+
+    return f"""
+        table {{
+            border-collapse: collapse;
+            width: 100%;                 /* fill the printable width */
+            table-layout: fixed;         /* forces columns to share space */
+            word-wrap: break-word;       /* long words break */
+            overflow-wrap: anywhere;    /* newer spec – works in WeasyPrint */
+            font-family: Courier New;
+            font-size: {font_px}px;
+        }}
+
+        th, td {{
+            border: 1px solid #dddddd;
+            padding: 6px;                /* tighter padding for dense tables */
+            text-align: right;
+            vertical-align: top;
+        }}
+
+        th {{
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }}
+
+        tbody tr:nth-child(odd) {{background-color:#fafafa;}}
+
+        td {{
+            white-space: normal;
+            word-break: break-all;
+        }}
+    """
+
 def df_to_html(df,
                font_px: int = 10,
                page_width_mm: int = 297,   # A4 landscape width
                page_height_mm: int = 210,  # A4 landscape height
-               margin_mm: int = 10) -> str:    
+               margin_mm: int = 10,
+               index: bool = True) -> str:
     css = f"""
         <style>
             @page {{
@@ -1219,36 +1279,10 @@ def df_to_html(df,
                 overflow-x: hidden;
             }}
 
-            table {{
-                border-collapse: collapse;
-                width: 100%;                 /* fill the printable width */
-                table-layout: fixed;         /* forces columns to share space */
-                word-wrap: break-word;       /* long words break */
-                overflow-wrap: anywhere;    /* newer spec – works in WeasyPrint */
-                font-size: {font_px}px;
-            }}
-
-            th, td {{
-                border: 1px solid #dddddd;
-                padding: 6px;                /* tighter padding for dense tables */
-                text-align: right;
-                vertical-align: top;
-            }}
-
-            th {{
-                background-color: #f2f2f2;
-                font-weight: bold;
-            }}
-
-            tbody tr:nth-child(odd) {{background-color:#fafafa;}}
-
-            td {{ 
-                white-space: normal; 
-                word-break: break-all; 
-            }}
+            {table_style_css(font_px)}
         </style>
-    """    
-    html_table = df.to_html(border=0)
+    """
+    html_table = df.to_html(border=0, index=index)
     return f"<html><head>{css}</head><body>{html_table}</body></html>"
 
 def _get_urth_benchmark_result(conf, ctx):
