@@ -1561,7 +1561,11 @@ def ticker_plot(df, ticker, description, conf, ctx):
 def ticker_plot_ta(df, ticker, description, conf, ctx):
     ''' plot ticker +ta indicators + enter and exits points '''
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize = (28, 15))
+    bbrsi = conf['enter'] == 'BBRSI'
+    if bbrsi:
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize = (28, 10))
+    else:
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize = (28, 15))
     fig.suptitle('{} - {}'.format(description, ticker), fontsize=20)
 
     # Ensure index is datetime
@@ -1599,32 +1603,20 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
         ha='center', va='top'
     )
 
-    #ax2.plot(df.index, df['RSI'], color='blue', linewidth=.8, label='RSI')
-    #ax2.axhline(y=conf['rsi_low'], color='red', linewidth=1, linestyle='-.')
-    #ax2.axhline(y=conf['rsi_high'], color='red', linewidth=1, linestyle='-.')
-    #ax2.fill_between(df.index, 30, df['RSI'], color='grey', alpha=.1)
-    #ax2.set_ylabel('RSI')
+    if bbrsi:
+        ax2.plot(df.index, df['RSI'], color='blue', linewidth=.8, label='RSI')
+        ax2.axhline(y=conf['rsi_low'], color='red', linewidth=1, linestyle='-.')
+        ax2.axhline(y=conf['rsi_high'], color='red', linewidth=1, linestyle='-.')
+        ax2.fill_between(df.index, conf['rsi_low'], df['RSI'], color='grey', alpha=.1)
+        ax2.set_ylabel('RSI')
+    else:
+        ax2.plot(df.index, df['ADX'], color='blue', linewidth=.8, label='ADX')
+        ax2.axhline(y=conf['adx_trend'], color='red', linewidth=1, linestyle='-.')
+        ax2.set_ylabel('ADX')
 
-    ax2.plot(df.index, df['ADX'], color='blue', linewidth=.8, label='ADX')
-    ax2.axhline(y=conf['adx_trend'], color='red', linewidth=1, linestyle='-.')
-    ax2.set_ylabel('ADX')
-
-    # Directional Indicators (+DI and -DI)
-    #dframe['P_DI']
-    #dframe['M_DI'] 
-
-    ax3.plot(df.index, df['P_DI'], color='green', linewidth=.8, label='POS_DI')
-    ax3.plot(df.index, df['M_DI'], color='brown', linewidth=.8, label='NEG_DI')
-
-    #ax3.plot(df.index, df['OBV'], color='blue', linewidth=.8, label='OBV')
-    #ax3.fill_between(df.index, df['OBV'], 0, color='grey', alpha=.1)
-    #ax3.axhline(y=0, color='red', linewidth=1, linestyle='-.')
-    #ax3.set_ylabel('OBV')
-
-    #ax3.plot(df.index, df['FI'], color='blue', linewidth=.8, label='FI')
-    #ax3.axhline(y=0, color='red', linewidth=1, linestyle='-.')
-    #ax3.fill_between(df.index, df['FI'], 0, color='grey', alpha=.1)
-    #ax3.set_ylabel('FI')
+        # Directional Indicators (+DI and -DI)
+        ax3.plot(df.index, df['P_DI'], color='green', linewidth=.8, label='POS_DI')
+        ax3.plot(df.index, df['M_DI'], color='brown', linewidth=.8, label='NEG_DI')
 
     enter = df.iloc[-1]['PriceIn']
     stoploss = df.iloc[-1]['STLoss']
@@ -1644,10 +1636,13 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
 
     ax1.grid(linestyle='--')
     ax2.grid(linestyle='--')
-    ax3.grid(linestyle='--')
     plt.xlabel('Date')
     ax1.set_ylabel('Price(USD)')
     ax1.legend(loc='lower right')
-    ax3.legend(loc='lower right')
+    if bbrsi:
+        ax2.legend(loc='lower right')
+    else:
+        ax3.grid(linestyle='--')
+        ax3.legend(loc='lower right')
     plt.savefig(ctx.outpath("plots/TA", f"{ticker}_plot_ta.png"), dpi=150)
     plt.close(fig)
