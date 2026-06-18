@@ -109,7 +109,7 @@ All behaviour is controlled via JSON config files in `config/`:
    `--report` selects the summary report type: `summary` (default) writes
    `<outdir>/system_summary.pdf` with the system-level figures only; `full`
    additionally appends every ticker's plot and writes
-   `<outdir>/system_summary_full.pdf` instead.
+   `<outdir>/full_system_summary.pdf` instead.
 
    `--loglevel` controls console verbosity and accepts `DEBUG`, `INFO`
    (default), `WARNING`, `ERROR` or `CRITICAL`. `INFO` shows section banners,
@@ -128,6 +128,6 @@ directory (default `out/`, configurable via `--outdir`):
 - `<outdir>/reports/` — system-level plots (trades distribution, balance,
   Monte Carlo)
 - `<outdir>/tables/` — trades table and trades list as CSV
-- `<outdir>/system_summary.pdf` (or `<outdir>/system_summary_full.pdf` with
+- `<outdir>/system_summary.pdf` (or `<outdir>/full_system_summary.pdf` with
   `--report full`), `<outdir>/trades_table.pdf`, `<outdir>/trades_list.pdf` —
   combined PDF reports
