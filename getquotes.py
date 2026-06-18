@@ -20,7 +20,7 @@ from getquotes.logging_setup import setup_logging, add_logging_arguments
 
 logger = logging.getLogger(__name__)
 
-def update_quotes(conf, ctx):
+def update_quotes(conf, ctx, report='summary'):
 
     ohlc_filename = 'ohlc_raw.csv'
     outp_filename = 'data_out.csv'
@@ -144,7 +144,10 @@ def update_quotes(conf, ctx):
 
         # 11. generate a complete system summary report in a single pdf
         logger.info('==== [7/8] Generating summary report ====')
-        ut.generate_summary_report(system_stat, conf_str, quotes_str, ctx)
+        if report == 'full':
+            ut.generate_summary_report(system_stat, conf_str, quotes_str, ctx, quotes=quotes)
+        else:
+            ut.generate_summary_report(system_stat, conf_str, quotes_str, ctx)
     else:
         logger.info('==== [4/8] Generating system statistics: skipped (process_data=false) ====')
         logger.info('==== [5/8] Running trading balance simulation (backtest): skipped (process_data=false) ====')
@@ -192,6 +195,13 @@ def main():
         default='out',
         help='Output directory (relative to basedir or absolute)'
     )
+    parser.add_argument(
+        '--report',
+        type=str,
+        choices=['summary', 'full'],
+        default='summary',
+        help='Report type: "summary" (default) or "full" (adds every ticker plot next to the URTH benchmark plot)'
+    )
     add_logging_arguments(parser)
     args = parser.parse_args()
     setup_logging(args.loglevel)
@@ -203,6 +213,7 @@ def main():
     logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
     logger.info(f"Configuration file: {args.config}")
     logger.info(f"Output directory  : {args.outdir}")
+    logger.info(f"Report type       : {args.report}")
     logger.info(f"Loglevel          : {args.loglevel}")
 
     # set base directory
@@ -234,7 +245,7 @@ def main():
         ctx.bot_token = ta_conf['bot_token']
         ctx.chat_id = ta_conf['chat_id']
 
-    update_quotes(conf, ctx)
+    update_quotes(conf, ctx, report=args.report)
 
     elapsed = datetime.now() - start_time
     logger.info(f'==== Total execution time {str(elapsed).split(".")[0]} ====')

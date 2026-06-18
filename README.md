@@ -92,7 +92,7 @@ All behaviour is controlled via JSON config files in `config/`:
 4. Run the pipeline:
 
    ```sh
-   python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--loglevel <level>]
+   python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--report <summary|full>] [--loglevel <level>]
    ```
 
    `--basedir` defaults to the current working directory and is used to
@@ -105,6 +105,11 @@ All behaviour is controlled via JSON config files in `config/`:
    `--outdir` sets the output directory where all generated data, plots,
    tables and reports are written. Relative paths are resolved against
    `basedir`; absolute paths are used as-is. Defaults to `out`.
+
+   `--report` selects the summary report type: `summary` (default) writes
+   `<outdir>/system_summary.pdf` with the system-level figures only; `full`
+   additionally appends every ticker's plot and writes
+   `<outdir>/system_summary_full.pdf` instead.
 
    `--loglevel` controls console verbosity and accepts `DEBUG`, `INFO`
    (default), `WARNING`, `ERROR` or `CRITICAL`. `INFO` shows section banners,
@@ -123,5 +128,6 @@ directory (default `out/`, configurable via `--outdir`):
 - `<outdir>/reports/` — system-level plots (trades distribution, balance,
   Monte Carlo)
 - `<outdir>/tables/` — trades table and trades list as CSV
-- `<outdir>/system_summary.pdf`, `<outdir>/trades_table.pdf`,
-  `<outdir>/trades_list.pdf` — combined PDF reports
+- `<outdir>/system_summary.pdf` (or `<outdir>/system_summary_full.pdf` with
+  `--report full`), `<outdir>/trades_table.pdf`, `<outdir>/trades_list.pdf` —
+  combined PDF reports

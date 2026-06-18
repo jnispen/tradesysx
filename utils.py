@@ -585,8 +585,12 @@ def generate_system_stats(trades_df, trading_period, ctx, stats):
 
     return stats_df
 
-def generate_summary_report(stat_df, conf_str, quotes_str, ctx):
-    ''' generate a pdf report with system summary, configuration and figures'''
+def generate_summary_report(stat_df, conf_str, quotes_str, ctx, quotes=None):
+    ''' generate a pdf report with system summary, configuration and figures.
+
+    If `quotes` (the ticker -> description dict) is given, the report also
+    includes every ticker's plot, at the same size as the other figures
+    ("full" report). '''
 
     stat_df = stat_df.to_string(index=False)
 
@@ -597,6 +601,17 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx):
     fig_e = ctx.outpath("plots/URTH_plot.png")
 
     fig_width = 650
+
+    ticker_section = ""
+    if quotes:
+        rows = "".join(
+            f"""<img src="file://{ctx.outpath('plots', f'{ticker}_plot.png')}" style="width:{fig_width}px">"""
+            for ticker in quotes if ticker != "URTH"
+        )
+        ticker_section = f"""
+        <h2>Quote Plots</h2>
+        {rows}
+        """
 
     html_content = f"""
     <html>
@@ -623,17 +638,24 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx):
         <pre style="font-size: 14px;">{quotes_str}</pre>
         <h2>System Summary</h2>
         <pre style="font-size: 14px;">{stat_df}</pre>
-        
+
         <img src="file://{fig_a}" style="width:{fig_width}px">
         <img src="file://{fig_b}" style="width:{fig_width}px">
         <img src="file://{fig_c}" style="width:{fig_width}px">
         <img src="file://{fig_d}" style="width:{fig_width}px">
         <img src="file://{fig_e}" style="width:{fig_width}px">
+
+        {ticker_section}
     </body>
     </html>
     """
 
-    HTML(string=html_content).write_pdf(ctx.outpath("system_summary.pdf"))
+    output_filename = "system_summary_full.pdf" if quotes else "system_summary.pdf"
+    output_path = ctx.outpath(output_filename)
+    HTML(string=html_content).write_pdf(output_path)
+
+    if quotes:
+        logger.info(f"Report saved: {output_path}")
 
 def format_to_2_decimals(x):
     # Matches numbers, including negatives and decimals
