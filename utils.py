@@ -564,21 +564,21 @@ def generate_system_stats(trades_df, trading_period, ctx, stats):
     stats_df = pd.DataFrame(data)
 
     stat_str = "\n".join([
-        "+++ SYSTEM SUMMARY",
-        f"+++ Length (days)     : {len_trades}",
-        f"+++ Trades total      : {num_trades}",
-        f"+++ Trades/yr         : {num_trades / (len_trades/365):.2f}",
-        f"+++ R maximum         : {Rmax:,.2f}",
-        f"+++ R minimum         : {Rmin:,.2f}",
-        f"+++ R stdev           : {Rstd:,.2f}",
-        f"+++ R mean            : {Ravg:,.2f} {get_rmean_qlabel(Ravg)}",
-        f"+++ System Quality    : {SysQ:,.2f} {get_system_qlabel(SysQ)}",
-        f"+++ R mean (win)      : {pos_mean_r:,.2f}",
-        f"+++ R mean (loss)     : {neg_mean_r:,.2f}",
-        f"+++ Length mean (win) : {int(pos_mean_len)}",
-        f"+++ Length mean (loss): {int(neg_mean_len)}",
-        f"+++ Win Rate (%)      : {stats.win_rate:.0f}",
-        f"+++ Kelly criterion   : {kelly_criterion:,.2f}",
+        "=========== SYSTEM SUMMARY ===========",
+        f"- Length (days)     : {len_trades}",
+        f"- Trades total      : {num_trades}",
+        f"- Trades/yr         : {num_trades / (len_trades/365):.2f}",
+        f"- R maximum         : {Rmax:,.2f}",
+        f"- R minimum         : {Rmin:,.2f}",
+        f"- R stdev           : {Rstd:,.2f}",
+        f"- R mean            : {Ravg:,.2f} {get_rmean_qlabel(Ravg)}",
+        f"- System Quality    : {SysQ:,.2f} {get_system_qlabel(SysQ)}",
+        f"- R mean (win)      : {pos_mean_r:,.2f}",
+        f"- R mean (loss)     : {neg_mean_r:,.2f}",
+        f"- Length mean (win) : {int(pos_mean_len)}",
+        f"- Length mean (loss): {int(neg_mean_len)}",
+        f"- Win Rate (%)      : {stats.win_rate:.0f}",
+        f"- Kelly criterion   : {kelly_criterion:,.2f}",
     ])
 
     trades_plot(trades_lst, trades_df['Rmul30'].tolist(), stat_str, ctx, stats)
@@ -609,7 +609,7 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx, quotes=None):
             for ticker in quotes if ticker != "URTH"
         )
         ticker_section = f"""
-        <h2>Quote Plots</h2>
+        <h2>Ticker Plots</h2>
         {rows}
         """
 
@@ -635,7 +635,7 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx, quotes=None):
         <h3>System Configuration</h3>
         <pre style="font-size: 10px;">{conf_str}</pre>
         <h3>Quotes List</h3>
-        <pre style="font-size: 14px;">{quotes_str}</pre>
+        <pre style="font-size: 10px;">{quotes_str}</pre>
         <h2>System Summary</h2>
         <pre style="font-size: 14px;">{stat_df}</pre>
 
@@ -650,7 +650,7 @@ def generate_summary_report(stat_df, conf_str, quotes_str, ctx, quotes=None):
     </html>
     """
 
-    output_filename = "system_summary_full.pdf" if quotes else "system_summary.pdf"
+    output_filename = "full_system_summary.pdf" if quotes else "system_summary.pdf"
     output_path = ctx.outpath(output_filename)
     HTML(string=html_content).write_pdf(output_path)
 
@@ -1362,7 +1362,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
         fontsize=7,
         fontfamily='Monospace', 
         verticalalignment='top',
-        bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.5')
+        bbox=dict(facecolor='white', alpha=0.9, boxstyle='round,pad=0.5')
     )
 
     plt.savefig(ctx.outpath("reports", "system_trades_plot.png"), dpi=150)
