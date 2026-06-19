@@ -39,6 +39,6 @@ regardless of `--basedir`):
 
 #### Output
 
-The plotted output is written to `<outdir>/reports/monte_carlo_plot.png`,
+The plotted output is written to `<outdir>/images/monte_carlo_plot.png`,
 showing all simulated balance trajectories plus summary statistics (median,
 stdev, min/max, loss streaks, max drawdown, SQN).

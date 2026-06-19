@@ -102,4 +102,4 @@ A standalone Monte Carlo tool, living in its own `tst/` directory with its own `
 
 ### Output (`out/`, gitignored)
 
-`out/data/` (raw + processed OHLC per ticker), `out/plots/` (+ `out/plots/TA/`), `out/reports/` (system-level plots), `out/tables/` (trades CSVs), and combined PDFs at `out/system_summary.pdf`, `out/trades_table.pdf`, `out/trades_list.pdf`.
+`out/data/` (raw + processed OHLC per ticker), `out/plots/` (+ `out/plots/TA/`), `out/images/` (system-level plots), `out/tables/` (trades CSVs), and combined PDFs at `out/system_summary.pdf`, `out/trades_table.pdf`, `out/trades_list.pdf`.

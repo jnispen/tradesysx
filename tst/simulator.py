@@ -88,7 +88,7 @@ def main():
     run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk,
                             output_filename=output_filename, benchmark=None)
     logger.info("================================")
-    logger.info(f"Simulation plot saved  : {ctx.outpath('reports', output_filename)}")
+    logger.info(f"Simulation plot saved  : {ctx.outpath('images', output_filename)}")
 
 if __name__ == "__main__":
     main()
