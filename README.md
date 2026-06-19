@@ -69,7 +69,8 @@ All behaviour is controlled via JSON config files in `config/`:
 
 - `config/system_conf.json` — main configuration: data range, indicator
   settings, strategy selection (enter/exit/stoploss), position sizing,
-  account balance, risk per trade, and Monte Carlo parameters.
+  account balance, risk per trade, Monte Carlo parameters, and the
+  `ta_custom` panel list used by `--custom-ta`.
 - `config/telegram_conf.json` — bot token and chat ID, only required when
   `notify` is `true`.
 - `quotes/quotes_stocks.lst` — the list of tickers (with descriptions) to
@@ -92,7 +93,7 @@ All behaviour is controlled via JSON config files in `config/`:
 4. Run the pipeline:
 
    ```sh
-   python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--report <summary|full>] [--loglevel <level>]
+   python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--report <summary|full>] [--custom-ta] [--loglevel <level>]
    ```
 
    `--basedir` defaults to the current working directory and is used to
@@ -117,14 +118,22 @@ All behaviour is controlled via JSON config files in `config/`:
    per-trade details and full configuration/table dumps. The same flag is
    available on `tst/simulator.py` (see [tst/README.md](tst/README.md)).
 
+   `--custom-ta` is off by default and generates an extra ad-hoc diagnostic
+   plot per ticker (`<outdir>/plots/TA-custom/<TICKER>_plot_ta_custom.png`):
+   the price panel plus one stacked panel per entry in the `ta_custom` list
+   in `system_conf.json` (valid entries: `RSI`, `ADX`, `DI`, `MACD`, `ATR`,
+   `OBV`, `FI`). Passing `--custom-ta` with an empty or missing `ta_custom`
+   list is an error.
+
 #### Output
 
 All generated data, plots, tables and reports are written under the output
 directory (default `out/`, configurable via `--outdir`):
 
 - `<outdir>/data/` — raw and processed OHLC data per ticker
-- `<outdir>/plots/` — per-ticker price charts (and `<outdir>/plots/TA/` for
-  indicator panels)
+- `<outdir>/plots/` — per-ticker price charts (`<outdir>/plots/TA/` for
+  indicator panels, and `<outdir>/plots/TA-custom/` when `--custom-ta` is
+  passed)
 - `<outdir>/images/` — system-level plots (trades distribution, balance,
   Monte Carlo)
 - `<outdir>/tables/` — trades table and trades list as CSV
