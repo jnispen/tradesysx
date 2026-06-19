@@ -652,7 +652,9 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
             {table_style_css(14)}
             th, td {{ text-align: left; }}
             table.compact-table {{ width: auto; table-layout: auto; }}
-            table.full-table {{ width: 100%; table-layout: auto; }}
+            table.full-table {{ width: 92%; table-layout: fixed; }}
+            table.full-table th:nth-child(odd), table.full-table td:nth-child(odd) {{ width: 20%; }}
+            table.full-table th:nth-child(even), table.full-table td:nth-child(even) {{ width: 30%; }}
         </style>
     </head>
     <body>
