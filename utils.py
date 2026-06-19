@@ -617,10 +617,10 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
     quotes_table = _multi_column_table(quotes_items, ["Ticker", "Description"], n_cols=2)
     quotes_html = quotes_table.to_html(border=0, index=False, classes="compact-table")
 
-    fig_a = ctx.outpath("reports/system_trades_plot.png")
-    fig_b = ctx.outpath("reports/system_trades_dist_plot.png")
-    fig_c = ctx.outpath("reports/balance_plot.png")
-    fig_d = ctx.outpath("reports/monte_carlo_sampled_plot.png")
+    fig_a = ctx.outpath("images/system_trades_plot.png")
+    fig_b = ctx.outpath("images/system_trades_dist_plot.png")
+    fig_c = ctx.outpath("images/balance_plot.png")
+    fig_d = ctx.outpath("images/monte_carlo_sampled_plot.png")
     fig_e = ctx.outpath("plots/URTH_plot.png")
 
     fig_width = 650
@@ -1121,7 +1121,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     ax.set_ylabel('Balance (USD)')
     ax.grid(True, which='both', linestyle='dotted', alpha=0.5)
 
-    plt.savefig(ctx.outpath("reports", output_filename), dpi=150)
+    plt.savefig(ctx.outpath("images", output_filename), dpi=150)
     plt.close()
 
 def _get_capital_invested(row, conf, balance, stats):
@@ -1370,7 +1370,7 @@ def balance_plot(df, conf, ctx):
     plt.grid(linestyle='--')
     plt.ylabel('Balance (USD)')
     plt.legend(loc='upper left')
-    plt.savefig(ctx.outpath("reports", "balance_plot.png"), dpi=150)
+    plt.savefig(ctx.outpath("images", "balance_plot.png"), dpi=150)
     plt.close(fig)
 
 def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
@@ -1401,7 +1401,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
         bbox=dict(facecolor='white', alpha=0.9, boxstyle='round,pad=0.5')
     )
 
-    plt.savefig(ctx.outpath("reports", "system_trades_plot.png"), dpi=150)
+    plt.savefig(ctx.outpath("images", "system_trades_plot.png"), dpi=150)
     plt.close(fig)
 
     sns.set_style("white")
@@ -1456,7 +1456,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
         )
     )
 
-    plt.savefig(ctx.outpath("reports", "system_trades_dist_plot.png"), dpi=150)
+    plt.savefig(ctx.outpath("images", "system_trades_dist_plot.png"), dpi=150)
     plt.close(fig)
 
 def _plot_price_overlays(ax, df, conf):

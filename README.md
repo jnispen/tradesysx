@@ -125,7 +125,7 @@ directory (default `out/`, configurable via `--outdir`):
 - `<outdir>/data/` — raw and processed OHLC data per ticker
 - `<outdir>/plots/` — per-ticker price charts (and `<outdir>/plots/TA/` for
   indicator panels)
-- `<outdir>/reports/` — system-level plots (trades distribution, balance,
+- `<outdir>/images/` — system-level plots (trades distribution, balance,
   Monte Carlo)
 - `<outdir>/tables/` — trades table and trades list as CSV
 - `<outdir>/system_summary.pdf` (or `<outdir>/full_system_summary.pdf` with
