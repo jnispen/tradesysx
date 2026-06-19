@@ -61,18 +61,18 @@ class TradingSignals(object):
     def _3_EMA_Enter(self, row):
         signal = False
         if row['Close'] > row['EMA20']  and  \
-           row['EMA20']  > row['EMA50'] and  \
+           row['EMA20'] > row['EMA50']  and  \
            row['EMA50'] > row['EMA100'] and  \
-           row['P_DI']  > row['M_DI']  and  \
+           row['P_DI']  > row['M_DI']   and  \
            row['ADX']   > float(self.conf['adx_trend']):
             signal = True
         return signal
 
     def _SMA_Enter(self, row):
         signal = False
-        if row['Close'] > row['SMAfast']    and  \
-           row['SMAfast'] > row['SMAslow']  and  \
-           row['P_DI']  > row['M_DI']    and  \
+        if row['Close'] > row['SMAfast']   and  \
+           row['SMAfast'] > row['SMAslow'] and  \
+           row['P_DI']  > row['M_DI']      and  \
            row['ADX']   > float(self.conf['adx_trend']):
             signal = True
         return signal
@@ -80,25 +80,27 @@ class TradingSignals(object):
     def _MACD_Enter(self, row):
         signal = False
         if row['MACD'] > row['MACDsig'] and \
-           row['MACDhist'] > 0.0:
+           row['MACDhist'] > 0.0        and \
+           row['P_DI']  > row['M_DI']   and \
+           row['ADX']   > float(self.conf['adx_trend']):
             signal = True
         return signal
 
     def _3_EMA_Exit(self, row, intrade):
         signal = False
-        if row['Close'] < row['EMA20']  and  \
-           row['EMA20']  < row['EMA50'] and  \
-           row['EMA50'] < row['EMA100'] and  \
-           row['M_DI']  > row['P_DI']  and  \
+        if row['Close'] < row['EMA20']  and \
+           row['EMA20'] < row['EMA50']  and \
+           row['EMA50'] < row['EMA100'] and \
+           row['M_DI']  > row['P_DI']   and \
            row['ADX']   > float(self.conf['adx_trend']):
             signal = True
         return signal
 
     def _SMA_Exit(self, row, intrade):
         signal = False
-        if row['Close'] < row['SMAfast']    and  \
-           row['SMAfast'] < row['SMAslow']  and  \
-           row['M_DI']  > row['P_DI']    and  \
+        if row['Close'] < row['SMAfast']   and \
+           row['SMAfast'] < row['SMAslow'] and \
+           row['M_DI']  > row['P_DI']      and \
            row['ADX']   > float(self.conf['adx_trend']):
             signal = True
         return signal
@@ -106,7 +108,9 @@ class TradingSignals(object):
     def _MACD_Exit(self, row, intrade):
         signal = False
         if row['MACD'] < row['MACDsig'] and \
-           row['MACDhist'] < 0.0:
+           row['MACDhist'] < 0.0        and \
+           row['M_DI']  > row['P_DI']   and \
+           row['ADX']   > float(self.conf['adx_trend']):
             signal = True
         return signal
 

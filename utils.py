@@ -193,7 +193,7 @@ def add_technical_indicators(dframe, conf):
     dframe['ATR'] = ta.ATR(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=conf['atr_time'])
 
     # Moving Average Convergence Devergence (MACD)
-    dframe['MACD'], dframe['MACDsig'], dframe['MACDhist'] = ta.MACD(dframe['Close'], fastperiod=12, slowperiod=26, signalperiod=9)
+    dframe['MACD'], dframe['MACDsig'], dframe['MACDhist'] = ta.MACD(dframe['Close'], fastperiod=conf['macd_fast'], slowperiod=conf['macd_slow'], signalperiod=conf['macd_signal'])
 
     # Average Directional Movement Index (ADX)
     dframe['ADX'] = ta.ADX(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
@@ -1612,7 +1612,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
         ax2.set_ylabel('RSI')
     elif macd:
         hist_colors = np.where(df['MACDhist'] >= 0, 'green', 'red')
-        ax2.bar(df.index, df['MACDhist'], color=hist_colors, alpha=.6, label='Histogram')
+        ax2.bar(df.index, df['MACDhist'], color=hist_colors, width=1, alpha=.6, label='Histogram')
         ax2.plot(df.index, df['MACD'], color='blue', linewidth=.8, label='MACD')
         ax2.plot(df.index, df['MACDsig'], color='orange', linewidth=.8, label='Signal')
         ax2.axhline(y=0, color='black', linewidth=1, linestyle='--')
