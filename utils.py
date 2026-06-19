@@ -174,6 +174,15 @@ def validate_plot_indicators(conf):
             logger.critical("The plot indicator '{}' does not exist! Valid options: {}".format(name, sorted(VALID_PLOT_INDICATORS)))
             sys.exit(1)
 
+VALID_TA_CUSTOM = {'RSI', 'ADX', 'FI', 'OBV', 'MACD', 'DI', 'ATR'}
+
+def validate_ta_custom(conf):
+    ''' validates the conf['ta_custom'] list against the known indicator names '''
+    for name in conf.get('ta_custom', []):
+        if name not in VALID_TA_CUSTOM:
+            logger.critical("The ta_custom indicator '{}' does not exist! Valid options: {}".format(name, sorted(VALID_TA_CUSTOM)))
+            sys.exit(1)
+
 def validate_strategy_conf(conf):
     ''' validates conf['enter']/conf['exit'] against the known strategies, up front '''
     if conf['enter'] not in TradingSignals.enter_str:
@@ -1654,4 +1663,106 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
         ax3.grid(linestyle='--')
         ax3.legend(loc='lower right')
     plt.savefig(ctx.outpath("plots/TA", f"{ticker}_plot_ta.png"), dpi=150)
+    plt.close(fig)
+
+def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
+    ''' ad-hoc plot: price panel + one stacked panel per conf['ta_custom'] entry '''
+
+    panels = conf['ta_custom']
+    num_axes = 1 + len(panels)
+    fig, axes = plt.subplots(num_axes, 1, sharex=True, figsize=(28, 5 * num_axes))
+    fig.suptitle('{} - {}'.format(description, ticker), fontsize=20)
+
+    # Ensure index is datetime
+    if not pd.api.types.is_datetime64_any_dtype(df.index):
+        df.index = pd.to_datetime(df.index)
+
+    axes[-1].xaxis.set_major_locator(mdates.DayLocator(interval=conf['date_int']))
+    axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+
+    ax1 = axes[0]
+    ax1.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))
+
+    _plot_price_overlays(ax1, df, conf)
+
+    col = 'gray'
+    Rstr = ""
+    if df.iloc[-1]['Signal'] == 'ENTER':
+        col = 'green'
+    elif (df.iloc[-1]['Signal'] == 'STOPLOSS') or (df.iloc[-1]['Signal'] == 'EXIT' and df.iloc[-1]['Rmul'] <= 0):
+        col = 'red'
+        Rstr = '({:,.1f}R)'.format(df.iloc[-1]['Rmul'])
+    elif df.iloc[-1]['Signal'] == 'EXIT':
+        col = 'green'
+        Rstr = '({:,.1f}R)'.format(df.iloc[-1]['Rmul'])
+    ax1.annotate('Signal: {} {}'.format(df.iloc[-1]['Signal'], Rstr), xy=(0.01, 1), xycoords='axes fraction', fontsize=22, xytext=(0,-20),
+                     bbox={'facecolor':col, 'boxstyle':'square', 'alpha':0.1}, textcoords='offset points', ha='left', va='top')
+
+    # floating date
+    ax1.annotate(
+        df.tail(1).index.item().strftime('%a %d %b %Y'),
+        xy=(0.94, 1.0), xycoords='axes fraction',
+        xytext=(0, 35),
+        textcoords='offset points',
+        fontsize=20,
+        ha='center', va='top'
+    )
+
+    enter = df.iloc[-1]['PriceIn']
+    stoploss = df.iloc[-1]['STLoss']
+    risk = df.iloc[-1]['Risk']
+    profit = df.iloc[-1]['Profit']
+    Rmul = 0.0
+    if (risk != 0):
+        Rmul = profit/risk
+    ax1.annotate('{} days, enter: {:,.2f}, stoploss: {:,.2f}, risk: {:,.2f}, profit: {:,.2f} ({:,.1f}R)'.format(int(df.iloc[-1]['InTrade']),
+                 enter, stoploss, risk, profit, Rmul), xy=(0.93, 0), xycoords='axes fraction', fontsize=16, xytext=(0, 25),
+                 textcoords='offset points', ha='right', va='top')
+
+    if 'Rmul' in df.columns:
+        ax1.annotate('R-average: {:,.2f} ({} trades)'.format(df['Rmul'].sum()/df['Rmul'].count(), df['Rmul'].count()),
+                     xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35),
+                     bbox={'facecolor':'0.9', 'boxstyle':'square', 'alpha':0.2}, textcoords='offset points', ha='left', va='top')
+
+    ax1.set_ylabel('Price(USD)')
+
+    for ax, name in zip(axes[1:], panels):
+        if name == 'RSI':
+            ax.plot(df.index, df['RSI'], color='blue', linewidth=.8, label='RSI')
+            ax.axhline(y=conf['rsi_low'], color='red', linewidth=1, linestyle='-.')
+            ax.axhline(y=conf['rsi_high'], color='red', linewidth=1, linestyle='-.')
+            ax.fill_between(df.index, conf['rsi_low'], df['RSI'], color='grey', alpha=.1)
+            ax.set_ylabel('RSI')
+        elif name == 'ADX':
+            ax.plot(df.index, df['ADX'], color='blue', linewidth=.8, label='ADX')
+            ax.axhline(y=conf['adx_trend'], color='red', linewidth=1, linestyle='-.')
+            ax.set_ylabel('ADX')
+        elif name == 'DI':
+            ax.plot(df.index, df['P_DI'], color='green', linewidth=.8, label='POS_DI')
+            ax.plot(df.index, df['M_DI'], color='brown', linewidth=.8, label='NEG_DI')
+            ax.set_ylabel('DI')
+        elif name == 'MACD':
+            hist_colors = np.where(df['MACDhist'] >= 0, 'green', 'red')
+            ax.bar(df.index, df['MACDhist'], color=hist_colors, width=1, alpha=.6, label='Histogram')
+            ax.plot(df.index, df['MACD'], color='blue', linewidth=.8, label='MACD')
+            ax.plot(df.index, df['MACDsig'], color='orange', linewidth=.8, label='Signal')
+            ax.axhline(y=0, color='black', linewidth=1, linestyle='--')
+            ax.set_ylabel('MACD')
+        elif name == 'ATR':
+            ax.plot(df.index, df['ATR'], color='blue', linewidth=.8, label='ATR')
+            ax.set_ylabel('ATR')
+        elif name == 'OBV':
+            ax.plot(df.index, df['OBV'], color='blue', linewidth=.8, label='OBV')
+            ax.set_ylabel('OBV')
+        elif name == 'FI':
+            ax.plot(df.index, df['FI'], color='blue', linewidth=.8, label='FI')
+            ax.axhline(y=0, color='black', linewidth=1, linestyle='--')
+            ax.set_ylabel('FI')
+
+    for ax in axes:
+        ax.grid(linestyle='--')
+        ax.legend(loc='lower right')
+
+    plt.xlabel('Date')
+    plt.savefig(ctx.outpath("plots/TA-custom", f"{ticker}_plot_ta_custom.png"), dpi=150)
     plt.close(fig)
