@@ -35,7 +35,7 @@
     "sma_fast"     : 50,
     "sma_slow"     : 200,
     "montecarlo"   : true,
-    "sim_len_max"  : 100,
+    "sim_len_max"  : 300,
     "iterations"   : 1000,
     "outlier"      : 4
 }
