@@ -57,15 +57,3 @@ scripts/build_binary.sh
   (`--basedir`) rather than from the PyInstaller bundle.
 - Run it from `dist/` (`./getquotes [--basedir <path>] [--loglevel <level>]`),
   or copy the whole `dist/` directory elsewhere first.
-
-## generate_docs.sh
-
-Generates browsable API documentation from the Python source using `pdoc`.
-
-```sh
-scripts/generate_docs.sh
-```
-
-- Regenerates `docs/` from scratch.
-- Open `docs/index.html` directly in a browser (e.g. Firefox).
-- Rerun the script to refresh the docs after code changes.
