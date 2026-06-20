@@ -1,6 +1,7 @@
 out/*
 __pycache__/*
 tst/__pycache__/*
+quotes/tst/*
 CLAUDE.md
 .claude/*
 .grill/*
