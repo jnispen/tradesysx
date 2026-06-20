@@ -69,7 +69,7 @@ All behaviour is controlled via JSON config files in `config/`:
   `ta_custom` panel list used by `gen_ta_custom`.
 - `config/telegram_conf.json` — bot token and chat ID, only required when
   `notify` is `true`.
-- `quotes/quotes_stocks.lst` — the list of tickers (with descriptions) to
+- `quotes/quotes_sp500.lst` — the list of tickers (with descriptions) to
   process.
 
 #### Setup
@@ -82,8 +82,8 @@ All behaviour is controlled via JSON config files in `config/`:
 
    Note: `TA-Lib` requires the underlying TA-Lib C library to be installed
    separately before the Python bindings can be built.
-2. Adjust `config/system_conf.json` (and `quotes/quotes_stocks.lst`) to match
-   your desired tickers, strategy and account settings.
+2. Adjust `config/system_conf.json` (and `quotes/quotes_sp500.lst`) to
+   match your desired tickers, strategy and account settings.
 3. (Optional) Fill in `config/telegram_conf.json` and set `"notify": true` to
    receive daily updates on Telegram.
 4. Run the pipeline:

@@ -1,5 +1,5 @@
 {
-    "quotefile"    : "quotes/quotes_stocks.lst",
+    "quotefile"    : "quotes/quotes_sp500.lst",
     "notify"       : false,
     "update_data"  : true,
     "process_data" : true,

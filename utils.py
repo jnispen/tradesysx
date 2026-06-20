@@ -827,11 +827,13 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     avg_invested = sum(pos_inv_lst)/pos_inv_cnt
 
     # close all open trades to get the total balance
+    closed_open_trades = 0
     for key, value in active_trades.items():
         if value != 0:
             tmp_df = df_trades_table.loc[(df_trades_table['Ticker'] == key) & (df_trades_table['LastClose'] != '-'), :]
             closed_ret = float(tmp_df['LastClose'].iloc[0]) * float(value)
             balance += closed_ret
+            closed_open_trades += 1
             logger.debug("Closed: {} {:,.2f}".format(key, closed_ret))
             tmp_row = {
                 'Date': last_close_date.strftime('%Y-%m-%d'),
@@ -865,6 +867,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     # store values for use by later pipeline steps
     stats.avg_risk = avg_risk_abs
     
+    logger.info(f"Open trades closed: {closed_open_trades}")
     logger.info(f"Average investment: {avg_invested:,.2f}")
     logger.info(f"Average balance   : {avg_balance:,.2f}")
     logger.info(f"Average risk ($)  : {avg_risk_abs:,.2f}")
