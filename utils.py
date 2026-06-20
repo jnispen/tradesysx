@@ -1148,7 +1148,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     _named = [(h, l) for h, l in zip(_handles, _labels) if l in _legend_names]
     if _named:
         ax.legend(*zip(*_named), loc=_legend_loc, fontsize=9,
-                  facecolor='white', edgecolor='black', framealpha=1.0)
+                  facecolor='white', framealpha=1.0)
     ax.set_xlabel('Trade')
     ax.set_ylabel('Balance (USD)')
     ax.grid(True, which='both', linestyle='dotted', alpha=0.5)
@@ -1420,7 +1420,8 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
     fig.suptitle('Trades vs. R-multiple', fontsize=16)
     plt.bar(xs, trades_lst, color='brown', width=0.75)
     plt.plot(xs, Rmul30_lst, color='blue', linewidth=1.5, alpha=.7, linestyle='-', label='Rmul30')
-    
+    plt.legend(loc='upper left')
+
     plt.ylabel('R-multiple')
     plt.grid(True, color='grey', linewidth=.5, linestyle='dashed')
 
@@ -1438,7 +1439,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
 
     sns.set_style("white")
     fig = plt.figure(figsize = (10, 5))
-    fig.suptitle(f"Trades distribution [{trades_tot} trades (+{pos_cnt}:-{neg_cnt})]", fontsize=16)
+    fig.suptitle(f"Trades distribution [{trades_tot} trades (+{pos_cnt}|-{neg_cnt})]", fontsize=16)
 
     df = pd.DataFrame(trades_lst, columns=['Trades'])
 
