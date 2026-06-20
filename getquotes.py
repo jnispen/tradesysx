@@ -217,7 +217,7 @@ def main():
     logger.info(f"Configuration file: {args.config}")
     logger.info(f"Output directory  : {args.outdir}")
     logger.info(f"Report type       : {args.report}")
-    logger.info(f"Custom TA plot    : {args.custom_ta}")
+    logger.info(f"Custom TA plots   : {args.custom_ta}")
     logger.info(f"Loglevel          : {args.loglevel}")
 
     # set base directory

@@ -174,7 +174,7 @@ def validate_plot_indicators(conf):
             logger.critical("The plot indicator '{}' does not exist! Valid options: {}".format(name, sorted(VALID_PLOT_INDICATORS)))
             sys.exit(1)
 
-VALID_TA_CUSTOM = {'RSI', 'ADX', 'FI', 'OBV', 'MACD', 'DI', 'ATR'}
+VALID_TA_CUSTOM = {'RSI', 'ADX', 'FI', 'OBV', 'MACD', 'DI', 'ATR', 'CCI', 'ROC', 'MFI'}
 
 def validate_ta_custom(conf):
     ''' validates the conf['ta_custom'] list against the known indicator names '''
@@ -195,25 +195,8 @@ def validate_strategy_conf(conf):
 def add_technical_indicators(dframe, conf):
     ''' adds technical indicators as columns to the dataframe '''
     
-    # Relative Strength Index (RSI)
-    dframe['RSI'] = ta.RSI(dframe['Close'], timeperiod=conf['rsi_time'])
-
-    # Average True Range (ATR)
-    dframe['ATR'] = ta.ATR(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=conf['atr_time'])
-
-    # Moving Average Convergence Devergence (MACD)
-    dframe['MACD'], dframe['MACDsig'], dframe['MACDhist'] = ta.MACD(dframe['Close'], fastperiod=conf['macd_fast'], slowperiod=conf['macd_slow'], signalperiod=conf['macd_signal'])
-
-    # Average Directional Movement Index (ADX)
-    dframe['ADX'] = ta.ADX(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
-
-    # Directional Indicators (+DI and -DI)
-    dframe['P_DI'] = ta.PLUS_DI(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
-    dframe['M_DI'] = ta.MINUS_DI(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
-
-    # On Balance Volume (OBV)
-    dframe['OBV'] = ta.OBV(dframe['Close'], dframe['Volume'])
-
+    ### Trend Indicators ###
+    
     # Simple Moving Average (SMA)
     dframe['SMAfast'] = ta.SMA(dframe['Close'], timeperiod=conf['sma_fast'])
     dframe['SMAslow'] = ta.SMA(dframe['Close'], timeperiod=conf['sma_slow'])
@@ -226,8 +209,47 @@ def add_technical_indicators(dframe, conf):
     dframe['EMA50'] = ta.EMA(dframe['Close'], timeperiod=50)
     dframe['EMA100'] = ta.EMA(dframe['Close'], timeperiod=100)
 
+    # Moving Average Convergence Devergence (MACD)
+    dframe['MACD'], dframe['MACDsig'], dframe['MACDhist'] = ta.MACD(dframe['Close'], fastperiod=conf['macd_fast'], slowperiod=conf['macd_slow'], signalperiod=conf['macd_signal'])
+
+    ### Momentum Indicators ###
+
+    # Relative Strength Index (RSI)
+    dframe['RSI'] = ta.RSI(dframe['Close'], timeperiod=conf['rsi_time'])
+
+    # Commodity Channel Index (CCI)
+    dframe['CCI'] = ta.CCI(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
+
+    # Rate of change (ROC)
+    dframe['ROC'] = ta.ROC(dframe['Close'], timeperiod=10)
+
+    ### Volatility Indicators ###
+
+    # Average True Range (ATR)
+    dframe['ATR'] = ta.ATR(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=conf['atr_time'])
+
     # Bollinger Bands (SMA) (default settings)
     dframe['BBu'], dframe['BBm'], dframe['BBl'] = ta.BBANDS(dframe['Close'], timeperiod=20, matype=0)
+
+    # Average Directional Movement Index (ADX)
+    dframe['ADX'] = ta.ADX(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
+
+    # Directional Indicators (+DI and -DI)
+    dframe['P_DI'] = ta.PLUS_DI(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
+    dframe['M_DI'] = ta.MINUS_DI(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
+
+    ### Volume Indicators ###
+
+    # On Balance Volume (OBV)
+    dframe['OBV'] = ta.OBV(dframe['Close'], dframe['Volume'])
+
+    # Money Flow Index (MFI)
+    dframe['MFI'] = ta.MFI(dframe['High'], dframe['Low'], dframe['Close'], dframe['Volume'], timeperiod=14)
+    
+    # Force Index (FI)
+    dframe['FI'] = dframe['Close'].diff(13) * dframe['Volume']
+
+    ### Trailing Exit ###
 
     # Chandelier Exit (CE)
     dframe['CEHigh'] = dframe['High'].rolling(22).max()
@@ -236,9 +258,6 @@ def add_technical_indicators(dframe, conf):
     dframe['CE2'] = dframe['CEHigh'] - atr22 * 2
     dframe['CE15'] = dframe['CEHigh'] - atr22 * 1.5
     dframe.drop(['CEHigh'], axis=1, inplace=True)
-
-    # Force Index (FI)
-    dframe['FI'] = dframe['Close'].diff(13) * dframe['Volume']
 
     return dframe
 
@@ -1758,6 +1777,20 @@ def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
             ax.plot(df.index, df['FI'], color='blue', linewidth=.8, label='FI')
             ax.axhline(y=0, color='black', linewidth=1, linestyle='--')
             ax.set_ylabel('FI')
+        elif name == 'CCI':
+            ax.plot(df.index, df['CCI'], color='blue', linewidth=.8, label='CCI')
+            ax.axhline(y=100, color='red', linewidth=1, linestyle='-.')
+            ax.axhline(y=-100, color='red', linewidth=1, linestyle='-.')
+            ax.set_ylabel('CCI')
+        elif name == 'ROC':
+            ax.plot(df.index, df['ROC'], color='blue', linewidth=.8, label='ROC')
+            ax.axhline(y=0, color='black', linewidth=1, linestyle='--')
+            ax.set_ylabel('ROC')
+        elif name == 'MFI':
+            ax.plot(df.index, df['MFI'], color='blue', linewidth=.8, label='MFI')
+            ax.axhline(y=80, color='red', linewidth=1, linestyle='-.')
+            ax.axhline(y=20, color='red', linewidth=1, linestyle='-.')
+            ax.set_ylabel('MFI')
 
     for ax in axes:
         ax.grid(linestyle='--')

@@ -122,8 +122,8 @@ All behaviour is controlled via JSON config files in `config/`:
    plot per ticker (`<outdir>/plots/TA-custom/<TICKER>_plot_ta_custom.png`):
    the price panel plus one stacked panel per entry in the `ta_custom` list
    in `system_conf.json` (valid entries: `RSI`, `ADX`, `DI`, `MACD`, `ATR`,
-   `OBV`, `FI`). Passing `--custom-ta` with an empty or missing `ta_custom`
-   list is an error.
+   `OBV`, `FI`, `CCI`, `ROC`, `MFI`). Passing `--custom-ta` with an empty or
+   missing `ta_custom` list is an error.
 
 #### Output
 
