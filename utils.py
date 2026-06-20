@@ -1001,8 +1001,12 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
             alpha=0.2
         )
 
-    # Y-axis limit = "outlier-cutoff" * standard deviation of trades distribution
+    # Y-axis limit = "outlier-cutoff" * standard deviation of trades distribution,
+    # expanded to fit the HODL benchmark if it lies above the simulation results
     y_max = mc_result_df.iloc[-1].median() + (conf['outlier'] * mc_result_df.iloc[-1].std())
+    if benchmark is not None:
+        val_out, _ = benchmark
+        y_max = max(y_max, val_out * 1.05)
     plt.ylim(bottom=0, top=y_max)
 
     # plot min-max values as text box
