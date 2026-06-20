@@ -1355,7 +1355,7 @@ def balance_plot(df, conf, ctx):
     val_out = _get_urth_benchmark_result(conf, ctx)
 
     fig = plt.figure(figsize = (10, 5))
-    plot_title = f"Trading simulation (backtest) [{conf['pos_sizing']}] (${conf['balance']:,.0f})"
+    plot_title = f"Trading simulation [{conf['pos_sizing']}] (${conf['balance']:,.0f})"
     fig.suptitle(plot_title, fontsize=16)
     
     plt.plot(df.index, df['Balance'],
@@ -1601,8 +1601,10 @@ def ticker_plot(df, ticker, description, conf, ctx):
                  textcoords='offset points', ha='right', va='top')
 
     if 'Rmul' in df.columns:
-        plt.annotate('R-average: {:,.2f} ({} trades)'.format(df['Rmul'].sum()/df['Rmul'].count(), df['Rmul'].count()), 
-                     xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35), 
+        trades_count = df['Rmul'].count()
+        r_avg = df['Rmul'].sum() / trades_count if trades_count else 0.0
+        plt.annotate('R-average: {:,.2f} ({} trades)'.format(r_avg, trades_count),
+                     xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35),
                      bbox={'facecolor':'0.9', 'boxstyle':'square', 'alpha':0.2}, textcoords='offset points', ha='left', va='top')
 
     plt.grid(linestyle='--')
@@ -1692,8 +1694,10 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
                  textcoords='offset points', ha='right', va='top')
 
     if 'Rmul' in df.columns:
-        ax1.annotate('R-average: {:,.2f} ({} trades)'.format(df['Rmul'].sum()/df['Rmul'].count(), df['Rmul'].count()), 
-                     xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35), 
+        trades_count = df['Rmul'].count()
+        r_avg = df['Rmul'].sum() / trades_count if trades_count else 0.0
+        ax1.annotate('R-average: {:,.2f} ({} trades)'.format(r_avg, trades_count),
+                     xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35),
                      bbox={'facecolor':'0.9', 'boxstyle':'square', 'alpha':0.2}, textcoords='offset points', ha='left', va='top')
 
     ax1.grid(linestyle='--')
