@@ -192,6 +192,16 @@ def validate_report_type(conf):
         logger.critical("The report_type '{}' does not exist! Valid options: {}".format(report_type, sorted(VALID_REPORT_TYPES)))
         sys.exit(1)
 
+def validate_gen_ta_custom(conf):
+    ''' validates conf['gen_ta_custom'] (defaults to False if absent) against conf['ta_custom'] '''
+    gen_ta_custom = conf.get('gen_ta_custom', False)
+    if not isinstance(gen_ta_custom, bool):
+        logger.critical("conf['gen_ta_custom'] must be a boolean, got: {}".format(gen_ta_custom))
+        sys.exit(1)
+    if gen_ta_custom and not conf.get('ta_custom'):
+        logger.critical("conf['gen_ta_custom'] is true but conf['ta_custom'] is empty - nothing to plot")
+        sys.exit(1)
+
 def validate_strategy_conf(conf):
     ''' validates conf['enter']/conf['exit'] against the known strategies, up front '''
     if conf['enter'] not in TradingSignals.enter_str:

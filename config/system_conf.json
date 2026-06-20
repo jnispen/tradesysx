@@ -6,6 +6,7 @@
     "gen_plots"    : true,
     "gen_ta_plots" : true,
     "plot_indicators" : ["SMA225"],
+    "gen_ta_custom": false,
     "ta_custom"    : ["FI"],
     "report_type"  : "short",
     "position"     : "long",

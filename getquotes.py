@@ -20,7 +20,7 @@ from getquotes.logging_setup import setup_logging, add_logging_arguments
 
 logger = logging.getLogger(__name__)
 
-def update_quotes(conf, ctx, custom_ta=False):
+def update_quotes(conf, ctx):
 
     ohlc_filename = 'ohlc_raw.csv'
     outp_filename = 'data_out.csv'
@@ -81,7 +81,7 @@ def update_quotes(conf, ctx, custom_ta=False):
                 ut.ticker_plot(dft, ticker, desc, conf, ctx)
             if conf['gen_ta_plots'] == True:
                 ut.ticker_plot_ta(dft, ticker, desc, conf, ctx)
-            if custom_ta == True:
+            if conf.get('gen_ta_custom', False) == True:
                 ut.ticker_plot_ta_custom(dft, ticker, desc, conf, ctx)
 
             # 6. generate the table and list of trades (timesequence for simulation)
@@ -192,12 +192,6 @@ def main():
         default='out',
         help='Output directory (relative to basedir or absolute)'
     )
-    parser.add_argument(
-        '--custom-ta',
-        action='store_true',
-        default=False,
-        help='Generate the ad-hoc price+ta_custom diagnostic plot per ticker (off by default)'
-    )
     add_logging_arguments(parser)
     args = parser.parse_args()
     setup_logging(args.loglevel)
@@ -209,7 +203,6 @@ def main():
     logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
     logger.info(f"Configuration file: {args.config}")
     logger.info(f"Output directory  : {args.outdir}")
-    logger.info(f"Custom TA plots   : {args.custom_ta}")
     logger.info(f"Loglevel          : {args.loglevel}")
 
     # set base directory
@@ -233,10 +226,7 @@ def main():
     ut.validate_plot_indicators(conf)
     ut.validate_ta_custom(conf)
     ut.validate_report_type(conf)
-
-    if args.custom_ta and not conf.get('ta_custom'):
-        logger.critical("--custom-ta was passed but conf['ta_custom'] is empty - nothing to plot")
-        sys.exit(1)
+    ut.validate_gen_ta_custom(conf)
 
     # load telegram chat id and bot token if configured
     if conf['notify'] == True:
@@ -247,7 +237,7 @@ def main():
         ctx.bot_token = ta_conf['bot_token']
         ctx.chat_id = ta_conf['chat_id']
 
-    update_quotes(conf, ctx, custom_ta=args.custom_ta)
+    update_quotes(conf, ctx)
 
     elapsed = datetime.now() - start_time
     logger.info(f'==== Total execution time {str(elapsed).split(".")[0]} ====')

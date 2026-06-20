@@ -66,7 +66,7 @@ All behaviour is controlled via JSON config files in `config/`:
 - `config/system_conf.json` — main configuration: data range, indicator
   settings, strategy selection (enter/exit/stoploss), position sizing,
   account balance, risk per trade, Monte Carlo parameters, and the
-  `ta_custom` panel list used by `--custom-ta`.
+  `ta_custom` panel list used by `gen_ta_custom`.
 - `config/telegram_conf.json` — bot token and chat ID, only required when
   `notify` is `true`.
 - `quotes/quotes_stocks.lst` — the list of tickers (with descriptions) to
@@ -89,7 +89,7 @@ All behaviour is controlled via JSON config files in `config/`:
 4. Run the pipeline:
 
    ```sh
-   python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--custom-ta] [--loglevel <level>]
+   python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--loglevel <level>]
    ```
 
    `--basedir` defaults to the current working directory and is used to
@@ -103,23 +103,11 @@ All behaviour is controlled via JSON config files in `config/`:
    tables and reports are written. Relative paths are resolved against
    `basedir`; absolute paths are used as-is. Defaults to `out`.
 
-   `conf['report_type']` (in `system_conf.json`) selects the summary report
-   type: `short` (default) writes `<outdir>/system_summary.pdf` with the
-   system-level figures only; `full` additionally appends every ticker's plot
-   and writes `<outdir>/full_system_summary.pdf` instead.
-
    `--loglevel` controls console verbosity and accepts `DEBUG`, `INFO`
    (default), `WARNING`, `ERROR` or `CRITICAL`. `INFO` shows section banners,
    per-ticker progress and final summaries; `DEBUG` additionally shows
    per-trade details and full configuration/table dumps. The same flag is
    available on `tst/simulator.py` (see [tst/README.md](tst/README.md)).
-
-   `--custom-ta` is off by default and generates an extra ad-hoc diagnostic
-   plot per ticker (`<outdir>/plots/TA-custom/<TICKER>_plot_ta_custom.png`):
-   the price panel plus one stacked panel per entry in the `ta_custom` list
-   in `system_conf.json` (valid entries: `RSI`, `ADX`, `DI`, `MACD`, `ATR`,
-   `OBV`, `FI`, `CCI`, `ROC`, `MFI`). Passing `--custom-ta` with an empty or
-   missing `ta_custom` list is an error.
 
 #### Output
 
@@ -128,8 +116,8 @@ directory (default `out/`, configurable via `--outdir`):
 
 - `<outdir>/data/` — raw and processed OHLC data per ticker
 - `<outdir>/plots/` — per-ticker price charts (`<outdir>/plots/TA/` for
-  indicator panels, and `<outdir>/plots/TA-custom/` when `--custom-ta` is
-  passed)
+  indicator panels, and `<outdir>/plots/TA-custom/` when `gen_ta_custom` is
+  `true`)
 - `<outdir>/images/` — system-level plots (trades distribution, balance,
   Monte Carlo)
 - `<outdir>/tables/` — trades table and trades list as CSV
