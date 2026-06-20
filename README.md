@@ -2,37 +2,37 @@
 
 GetQuotes is a backtesting and paper-trading toolkit for mechanical
 trading systems. It downloads historical stock data, applies a configurable
-entry/exit/stoploss strategy, simulates a trading account, and runs a Monte
-Carlo analysis on the resulting trades.
+entry/exit/stoploss strategy, simulates a virtual trading account, and runs a Monte
+Carlo simulation ("bag-of-marbles" simulation) over the resulting R-multiple distribution.
 
 The toolkit was directly inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
 #### How it works
 
-Running `getquotes.py` performs the following steps for every ticker in the
+Running `getquotes.py` performs the following processing pipeline for every ticker in the
 configured quotes file:
 
-1. **Download data** — fetch daily OHLC price history from Yahoo Finance
+1. **Download data** — fetch OHLC price history from Yahoo Finance
    (`yfinance`) and store it as `<outdir>/data/<TICKER>_ohlc_raw.csv`.
-2. **Add technical indicators** — compute RSI, ATR, ADX, ±DI, SMA/EMA
-   moving averages, Bollinger Bands and Chandelier Exit levels (`TA-Lib`).
+2. **Add technical indicators** — compute a set of TA indicators (e.g. RSI, ATR, SMA/EMA
+   moving averages, Bollinger Bands) over the data.
 3. **Generate ENTER/EXIT signals** — apply the configured entry strategy
    (`3EMA`, `SMA` or `BBRSI`), exit strategy (`CE`, `CEE`, `RSI`, `XR`,
    `3EMA`, `SMA` or `BBRSI`) and stoploss method (`3atr` or `percent`) to
-   produce per-day trading signals.
+   produce entry or exit trading signals.
 4. **Plot ticker charts** — save a price/indicator chart per ticker
    (`<outdir>/plots/`), optionally with a separate technical-analysis panel
    (`<outdir>/plots/TA/`).
-5. **Build the trades table** — collect every completed (and any still-open)
-   trade into a combined trades table and trades list, including R-multiples,
-   MAE/MFE and E-Ratio.
+5. **Build the trades table** — collect every completed (and any open trades 
+   on the date of calculation) trade into a combined trades table and trades list. 
+   From this step the R-multiple distribution resulting from the trading system is obtaned.
 6. **Compute system statistics** — System Quality Number (SQN), win rate,
    Kelly criterion, average R per win/loss, trades/year, etc.
 7. **Run the balance simulation** — paper-trade the signals using the
    configured position sizing strategy (`core_equity_risk`,
    `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) and track
-   the account balance over time.
+   the (virtual) account balance over time.
 8. **Run a Monte Carlo simulation** — resample the R-multiple distribution
    from the trades to estimate the range of possible outcomes, drawdown and
    loss streaks, and compare against a buy-and-hold benchmark (MSCI World /
@@ -43,7 +43,7 @@ configured quotes file:
 10. **Notify via Telegram** *(optional)* — post the daily ENTER/EXIT/stoploss
     signals and the summary PDF to a configured Telegram chat.
 
-#### Ticker plot indicators
+#### Plot indicators
 
 The price chart (`<outdir>/plots/<TICKER>_plot.png`) and the price panel of
 the TA chart (`<outdir>/plots/TA/<TICKER>_plot_ta.png`) always show the same
@@ -53,15 +53,11 @@ overlays, picked from three tiers:
   always shown.
 - **Strategy-driven** — an indicator set is shown automatically when it
   matches the configured `enter` strategy: EMA20/50/100 for `3EMA`, the
-  fast/slow SMA pair for `SMA`, Bollinger Bands for `BBRSI`. The Chandelier
-  Exit levels are likewise shown automatically based on the `exit` strategy
-  (`CE` or `CEE`). These aren't configurable — they follow whatever
-  `enter`/`exit` is set to.
+  fast/slow SMA pair for `SMA`, Bollinger Bands for `BBRSI`. For the Chandelier
+  Exit level, the levels are shown, based on the `exit` strategy (`CE` or `CEE`).
 - **User-selectable** — the `plot_indicators` list in `system_conf.json` adds
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
-  Bands) and `"SMA225"` (225-day SMA, a simple bull/bear market reference).
-  An empty or missing list shows none of these. An unrecognized name causes
-  the pipeline to exit with an error before any data is processed.
+  Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
 
 #### Configuration
 
