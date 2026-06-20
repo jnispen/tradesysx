@@ -690,8 +690,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
             th, td {{ text-align: left; }}
             table.compact-table {{ width: auto; table-layout: auto; }}
             table.full-table {{ width: 92%; table-layout: fixed; }}
-            table.full-table th:nth-child(odd), table.full-table td:nth-child(odd) {{ width: 20%; }}
-            table.full-table th:nth-child(even), table.full-table td:nth-child(even) {{ width: 30%; }}
+            table.full-table th:nth-child(odd), table.full-table td:nth-child(odd) {{ width: 22%; }}
+            table.full-table th:nth-child(even), table.full-table td:nth-child(even) {{ width: 28%; }}
         </style>
     </head>
     <body>
