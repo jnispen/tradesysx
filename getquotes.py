@@ -20,7 +20,7 @@ from getquotes.logging_setup import setup_logging, add_logging_arguments
 
 logger = logging.getLogger(__name__)
 
-def update_quotes(conf, ctx, report='summary', custom_ta=False):
+def update_quotes(conf, ctx, custom_ta=False):
 
     ohlc_filename = 'ohlc_raw.csv'
     outp_filename = 'data_out.csv'
@@ -144,7 +144,7 @@ def update_quotes(conf, ctx, report='summary', custom_ta=False):
 
         # 11. generate a complete system summary report in a single pdf
         logger.info('==== [7/8] Generating summary report ====')
-        ut.generate_summary_report(system_stat, conf, quotes, ctx, full=(report == 'full'))
+        ut.generate_summary_report(system_stat, conf, quotes, ctx, full=(conf.get('report_type', 'short') == 'full'))
     else:
         logger.info('==== [4/8] Generating system statistics: skipped (process_data=false) ====')
         logger.info('==== [5/8] Running trading balance simulation (backtest): skipped (process_data=false) ====')
@@ -193,13 +193,6 @@ def main():
         help='Output directory (relative to basedir or absolute)'
     )
     parser.add_argument(
-        '--report',
-        type=str,
-        choices=['summary', 'full'],
-        default='summary',
-        help='Report type: "summary" (default) or "full" (adds every ticker plot next to the URTH benchmark plot)'
-    )
-    parser.add_argument(
         '--custom-ta',
         action='store_true',
         default=False,
@@ -216,7 +209,6 @@ def main():
     logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
     logger.info(f"Configuration file: {args.config}")
     logger.info(f"Output directory  : {args.outdir}")
-    logger.info(f"Report type       : {args.report}")
     logger.info(f"Custom TA plots   : {args.custom_ta}")
     logger.info(f"Loglevel          : {args.loglevel}")
 
@@ -240,6 +232,7 @@ def main():
     ut.validate_strategy_conf(conf)
     ut.validate_plot_indicators(conf)
     ut.validate_ta_custom(conf)
+    ut.validate_report_type(conf)
 
     if args.custom_ta and not conf.get('ta_custom'):
         logger.critical("--custom-ta was passed but conf['ta_custom'] is empty - nothing to plot")
@@ -254,7 +247,7 @@ def main():
         ctx.bot_token = ta_conf['bot_token']
         ctx.chat_id = ta_conf['chat_id']
 
-    update_quotes(conf, ctx, report=args.report, custom_ta=args.custom_ta)
+    update_quotes(conf, ctx, custom_ta=args.custom_ta)
 
     elapsed = datetime.now() - start_time
     logger.info(f'==== Total execution time {str(elapsed).split(".")[0]} ====')

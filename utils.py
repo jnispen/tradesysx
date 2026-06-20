@@ -183,6 +183,15 @@ def validate_ta_custom(conf):
             logger.critical("The ta_custom indicator '{}' does not exist! Valid options: {}".format(name, sorted(VALID_TA_CUSTOM)))
             sys.exit(1)
 
+VALID_REPORT_TYPES = {'short', 'full'}
+
+def validate_report_type(conf):
+    ''' validates conf['report_type'] (defaults to 'short' if absent) '''
+    report_type = conf.get('report_type', 'short')
+    if report_type not in VALID_REPORT_TYPES:
+        logger.critical("The report_type '{}' does not exist! Valid options: {}".format(report_type, sorted(VALID_REPORT_TYPES)))
+        sys.exit(1)
+
 def validate_strategy_conf(conf):
     ''' validates conf['enter']/conf['exit'] against the known strategies, up front '''
     if conf['enter'] not in TradingSignals.enter_str:

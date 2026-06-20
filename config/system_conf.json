@@ -7,6 +7,7 @@
     "gen_ta_plots" : true,
     "plot_indicators" : ["SMA225"],
     "ta_custom"    : ["FI"],
+    "report_type"  : "short",
     "position"     : "long",
     "stloss"       : "3atr",
     "enter"        : "3EMA",
