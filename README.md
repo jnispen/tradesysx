@@ -69,7 +69,7 @@ All behaviour is controlled via JSON config files in `config/`:
   `ta_custom` panel list used by `gen_ta_custom`.
 - `config/telegram_conf.json` — bot token and chat ID, only required when
   `notify` is `true`.
-- `quotes/quotes_sp500.lst`, `quotes/quotes_nasdaq.lst`, `quotes/quotes_dow30.lst` — example lists of tickers (with descriptions) to process.
+- `quotes/quotes_sp500.lst`, `quotes/quotes_nasdaq.lst`, `quotes/quotes_dow30.lst` — example lists of tickers to process.
 
 #### Setup
 
@@ -78,7 +78,7 @@ All behaviour is controlled via JSON config files in `config/`:
    ```sh
    pip install -r requirements.txt
    ```
-
+   
    Note: `TA-Lib` requires the underlying TA-Lib C library to be installed
    separately before the Python bindings can be built.
 2. Adjust `config/system_conf.json` (and `quotes/quotes_sp500.lst`) to
@@ -103,9 +103,7 @@ All behaviour is controlled via JSON config files in `config/`:
    `basedir`; absolute paths are used as-is. Defaults to `out`.
 
    `--loglevel` controls console verbosity and accepts `DEBUG`, `INFO`
-   (default), `WARNING`, `ERROR` or `CRITICAL`. `INFO` shows section banners,
-   per-ticker progress and final summaries; `DEBUG` additionally shows
-   per-trade details and full configuration/table dumps. The same flag is
+   (default), `WARNING`, `ERROR` or `CRITICAL`. The same flag is
    available on `tst/simulator.py` (see [tst/README.md](tst/README.md)).
 
 #### Output
