@@ -36,7 +36,8 @@ configured quotes file:
 8. **Run a Monte Carlo simulation** — resample the R-multiple distribution
    from the trades to estimate the range of possible outcomes, drawdown and
    loss streaks, and compare against a buy-and-hold benchmark (MSCI World /
-   URTH).
+   `URTH` by default, controlled by `benchmark`/`bm_ticker` — see
+   [Configuration](#configuration)).
 9. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
    `<outdir>/system_summary.pdf` report covering configuration, statistics and
    charts.
@@ -66,7 +67,17 @@ All behaviour is controlled via JSON config files in `config/`:
 - `config/system_conf.json` — main configuration: data range, indicator
   settings, strategy selection (enter/exit/stoploss), position sizing,
   account balance, risk per trade, Monte Carlo parameters, and the
-  `ta_custom` panel list used by `gen_ta_custom`.
+  `ta_custom` panel list used by `gen_ta_custom`. Also controls the
+  buy-and-hold benchmark comparison: `benchmark` (default `true`) toggles it
+  on/off entirely — when `false`, no HODL line/legend appears on the balance
+  or Monte Carlo plots and no benchmark figure is added to the summary PDF.
+  `bm_ticker` (default `"URTH"`) selects which ticker to use. If that
+  ticker isn't already in your own quotes file, it's downloaded and plotted
+  separately as a reference only (plain price chart, no trading signals) and
+  never affects system statistics (SQN, R-average, win rate, balance
+  simulation, Monte Carlo). If you deliberately include it in your own quotes
+  file, it's treated like any other ticker you trade — full signals, full
+  stats inclusion — while the benchmark comparison still uses its price data.
 - `config/telegram_conf.json` — bot token and chat ID, only required when
   `notify` is `true`.
 - `quotes/quotes_sp500.lst` — the list of tickers (with descriptions) to

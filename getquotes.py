@@ -29,6 +29,7 @@ def update_quotes(conf, ctx):
     stats = SystemStats()
     telegram_df = pd.DataFrame(columns=['Ticker', 'Close', 'Signal','STLoss'])
     last_close_date = pd.Timestamp("1900-01-01")
+    first_close_date = None
 
     config_str = '==== System configuration ====\n' + json.dumps(conf, indent=2)
     logger.debug(config_str)
@@ -37,13 +38,21 @@ def update_quotes(conf, ctx):
     with open(quote_file) as f:
         quotes = json.loads(f.read())
 
-    # add benchmark to dict
-    quotes["URTH"] = "MSCI World (US4642863926)"
+    # the benchmark is only auto-added as a non-traded reference when it isn't
+    # already one of the user's own tickers - in that case it's just a normal
+    # ticker and takes part in the system stats like any other
+    benchmark_enabled = conf.get('benchmark', True)
+    bm_ticker = conf.get('bm_ticker', 'URTH')
+    auto_benchmark = benchmark_enabled and bm_ticker not in quotes
+    benchmark_desc = "MSCI World (US4642863926)" if bm_ticker == "URTH" else bm_ticker
 
     # 1. read quotes from yfinance and save raw OHLC file
     if conf['update_data'] == True:
         logger.info(f'==== [1/8] Downloading quote data ({len(quotes)}) ====')
         ut.get_quotes_data(quotes, conf, ohlc_filename, ctx)
+        if auto_benchmark:
+            logger.info(f'==== Downloading benchmark data ({bm_ticker}) ====')
+            ut.get_quotes_data({bm_ticker: benchmark_desc}, conf, ohlc_filename, ctx)
     else:
         logger.info('==== [1/8] Downloading quote data: skipped (update_data=false) ====')
 
@@ -73,8 +82,10 @@ def update_quotes(conf, ctx):
 
             # 4. add ENTER and EXIT signals
             dft = ut.add_trading_signals(dft, conf)
-            last_close_date = pd.to_datetime(dft.index[-1])
-            first_close_date = pd.to_datetime(dft.index[0])
+            ticker_last_close_date = pd.to_datetime(dft.index[-1])
+            ticker_first_close_date = pd.to_datetime(dft.index[0])
+            last_close_date = max(last_close_date, ticker_last_close_date)
+            first_close_date = ticker_first_close_date if first_close_date is None else min(first_close_date, ticker_first_close_date)
 
             # 5. generate plots and save figures
             if conf['gen_plots'] == True:
@@ -97,6 +108,13 @@ def update_quotes(conf, ctx):
 
             # 7. save processed data to .csv
             dft.to_csv(ctx.outpath('data',f"{ticker}_{outp_filename}"))
+
+        # the auto-injected benchmark never runs through the signal pipeline above
+        # (it isn't a traded ticker), so it only gets a plain price plot here
+        if auto_benchmark and conf['gen_plots'] == True:
+            bdf = pd.read_csv(ctx.outpath('data', f"{bm_ticker}_{ohlc_filename}"))
+            bdf.set_index('Date', inplace=True)
+            ut.plot_benchmark_price(bdf, bm_ticker, benchmark_desc, conf, ctx)
 
         # combine the per-ticker frames collected above into the totals
         if trades_table_frames:
