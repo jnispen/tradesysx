@@ -660,23 +660,28 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
     conf_table = _multi_column_table(conf_items, ["Key", "Value"], n_cols=2)
     conf_html = conf_table.to_html(border=0, index=False, classes="full-table")
 
-    quotes_items = [(ticker, desc) for ticker, desc in quotes.items() if ticker != "URTH"]
-    quotes_table = _multi_column_table(quotes_items, ["Ticker", "Description"], n_cols=2)
+    quotes_table = _multi_column_table(list(quotes.items()), ["Ticker", "Description"], n_cols=2)
     quotes_html = quotes_table.to_html(border=0, index=False, classes="quotes-table")
+
+    benchmark_enabled = conf.get('benchmark', True)
+    bm_ticker = conf.get('bm_ticker', 'URTH')
+
+    fig_width = 650
 
     fig_a = ctx.outpath("images/system_trades_plot.png")
     fig_b = ctx.outpath("images/system_trades_dist_plot.png")
     fig_c = ctx.outpath("images/balance_plot.png")
     fig_d = ctx.outpath("images/monte_carlo_sampled_plot.png")
-    fig_e = ctx.outpath("plots/URTH_plot.png")
-
-    fig_width = 650
+    fig_e_html = ""
+    if benchmark_enabled:
+        fig_e = ctx.outpath("plots", f"{bm_ticker}_plot.png")
+        fig_e_html = f"""<img src="file://{fig_e}" style="width:{fig_width}px">"""
 
     ticker_section = ""
     if full:
         rows = "".join(
             f"""<img src="file://{ctx.outpath('plots', f'{ticker}_plot.png')}" style="width:{fig_width}px">"""
-            for ticker in quotes if ticker != "URTH"
+            for ticker in quotes
         )
         ticker_section = f"""
         <h2>Ticker Plots</h2>
@@ -719,7 +724,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
         <img src="file://{fig_b}" style="width:{fig_width}px">
         <img src="file://{fig_c}" style="width:{fig_width}px">
         <img src="file://{fig_d}" style="width:{fig_width}px">
-        <img src="file://{fig_e}" style="width:{fig_width}px">
+        {fig_e_html}
 
         {ticker_section}
     </body>
@@ -901,13 +906,16 @@ def do_monte_carlo_simulation_sampled(total_trades_list, conf, ctx, stats):
     # set fixed variables for simulation
     risk = stats.avg_risk / conf['balance'] if len(Rmul_arr) <= conf['sim_len_max'] else (stats.avg_risk/stats.trades_num) * conf['sim_len_max'] / conf['balance']
 
-    # precompute the URTH buy-and-hold benchmark for the plot
-    val_out = _get_urth_benchmark_result(conf, ctx)
-    ann_ret_hodl = ann_return(conf['balance'], val_out, stats.trades_len/365)
+    # precompute the buy-and-hold benchmark for the plot, if enabled
+    benchmark = None
+    if conf.get('benchmark', True):
+        val_out = _get_benchmark_result(conf, ctx)
+        ann_ret_hodl = ann_return(conf['balance'], val_out, stats.trades_len/365)
+        benchmark = (val_out, ann_ret_hodl)
 
     run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk,
                             output_filename="monte_carlo_sampled_plot.png",
-                            benchmark=(val_out, ann_ret_hodl))
+                            benchmark=benchmark)
 
 def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="monte_carlo_sampled_plot.png", benchmark=None):
     ''' run a Monte Carlo balance simulation by sampling from the given R-multiple distribution (bag of marbles) '''
@@ -1140,11 +1148,12 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         transform=label_offset
     )
 
-    # plot the buy-and-hold benchmark (e.g. URTH), if provided
+    # plot the buy-and-hold benchmark, if provided
     if benchmark is not None:
         val_out, ann_ret_hodl = benchmark
+        hodl_label = f"HODL ({conf.get('bm_ticker', 'URTH')})"
 
-        ax.plot([x_first, x_last], [val_out, val_out], color='black', linewidth=1.5, linestyle='-.', alpha=.7, label='HODL (URTH)')
+        ax.plot([x_first, x_last], [val_out, val_out], color='black', linewidth=1.5, linestyle='-.', alpha=.7, label=hodl_label)
         # Shift the HODL label to the left so its text never overlaps with the median label
         hodl_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=-110, y=2, units='points')
         plt.text(
@@ -1168,7 +1177,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     else:
         _legend_loc = 'upper right'
 
-    _legend_names = {'Median', 'HODL (URTH)'}
+    _legend_names = {'Median', f"HODL ({conf.get('bm_ticker', 'URTH')})"}
     _handles, _labels = ax.get_legend_handles_labels()
     _named = [(h, l) for h, l in zip(_handles, _labels) if l in _legend_names]
     if _named:
@@ -1344,21 +1353,22 @@ def df_to_html(df,
     html_table = df.to_html(border=0, index=index)
     return f"<html><head>{css}</head><body>{html_table}</body></html>"
 
-def _get_urth_benchmark_result(conf, ctx):
+def _get_benchmark_result(conf, ctx):
 
-    # get benchmarkdata (from MSCI World ETF)
-    urth_df = pd.read_csv(ctx.outpath('data', "URTH_ohlc_raw.csv"))
-    urth_df = urth_df.dropna(subset=['Open', 'High', 'Low', 'Close'], how='all')
-    urth_in = urth_df['Close'].iloc[0]
-    urth_out = urth_df['Close'].iloc[-1]
-    shares = conf['balance']/urth_in
-    return shares * urth_out
+    # get benchmark data (buy-and-hold result for conf['bm_ticker'])
+    ticker = conf.get('bm_ticker', 'URTH')
+    benchmark_df = pd.read_csv(ctx.outpath('data', f"{ticker}_ohlc_raw.csv"))
+    benchmark_df = benchmark_df.dropna(subset=['Open', 'High', 'Low', 'Close'], how='all')
+    price_in = benchmark_df['Close'].iloc[0]
+    price_out = benchmark_df['Close'].iloc[-1]
+    shares = conf['balance']/price_in
+    return shares * price_out
 
 def balance_plot(df, conf, ctx):
     ''' plot paper trading simulation results '''
 
-    # retrieve the benchmark data (URTH)
-    val_out = _get_urth_benchmark_result(conf, ctx)
+    benchmark_enabled = conf.get('benchmark', True)
+    val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
 
     fig = plt.figure(figsize = (10, 5))
     plot_title = f"Trading simulation [{conf['pos_sizing']}] (${conf['balance']:,.0f})"
@@ -1375,10 +1385,9 @@ def balance_plot(df, conf, ctx):
 
     plt.axhline(y=conf['balance'], color='green', linewidth=.9, linestyle='--')
 
-    bal_str = (
-        f" HODL: ${val_out:,.0f}\n"
-        f"TRADE: ${df.iloc[-1]['Balance']:,.0f}"
-    )
+    bal_str = f"TRADE: ${df.iloc[-1]['Balance']:,.0f}"
+    if benchmark_enabled:
+        bal_str = f" HODL: ${val_out:,.0f}\n" + bal_str
     plt.text(
         0.75, 0.22, bal_str,
         transform=plt.gca().transAxes,
@@ -1552,6 +1561,33 @@ def _plot_price_overlays(ax, df, conf):
         ax.scatter(df.index, df['Enter'], color='green', label='Enter', marker='^', alpha=1)
     if df['Exit'].value_counts().any():
         ax.scatter(df.index, df['Exit'], color='darkred', label='Exit', marker='v', alpha=1)
+
+def plot_benchmark_price(df, ticker, description, conf, ctx):
+    ''' plot a plain Close-price chart for the auto-injected benchmark ticker -
+        no trading signals, since it never runs through the strategy pipeline.
+        Still draws the SMA225 bull/bear overlay when configured, as a visual
+        aid against the traded tickers' charts. '''
+
+    if not pd.api.types.is_datetime64_any_dtype(df.index):
+        df.index = pd.to_datetime(df.index)
+
+    fig = plt.figure(figsize = (28, 10))
+    ax = fig.gca()
+    fig.suptitle('{} - {}'.format(description, ticker), fontsize=20)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
+
+    if 'SMA225' in conf.get('plot_indicators', []):
+        sma225 = ta.SMA(df['Close'], timeperiod=225)
+        ax.plot(df.index, sma225, color='orange', linewidth=2, linestyle='-.', label='SMA225')
+
+    ax.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')
+
+    plt.grid(linestyle='--')
+    plt.xlabel('Date')
+    plt.ylabel('Price (USD)')
+    plt.legend(loc='lower right')
+    plt.savefig(ctx.outpath("plots", f"{ticker}_plot.png"), dpi=150)
+    plt.close(fig)
 
 def ticker_plot(df, ticker, description, conf, ctx):
     ''' plot ticker + enter and exits points '''

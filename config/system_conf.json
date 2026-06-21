@@ -1,5 +1,7 @@
 {
     "quotefile"    : "quotes/quotes_sp500.lst",
+    "benchmark"    : true,
+    "bm_ticker"    : "SPY",
     "notify"       : false,
     "update_data"  : true,
     "process_data" : true,
