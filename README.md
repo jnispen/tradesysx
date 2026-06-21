@@ -71,7 +71,10 @@ All behaviour is controlled via JSON config files in `config/`:
   buy-and-hold benchmark comparison: `benchmark` (default `true`) toggles it
   on/off entirely — when `false`, no HODL line/legend appears on the balance
   or Monte Carlo plots and no benchmark figure is added to the summary PDF.
-  `bm_ticker` (default `"URTH"`) selects which ticker to use. If that
+  `bm_ticker` (default `"URTH"`) selects which ticker to use, and
+  `bm_desc` sets its human-readable label (used in the report and
+  plot titles) — defaults to "iShares MSCI World ETF" for `URTH`, or the
+  ticker symbol itself for any other `bm_ticker`. If that
   ticker isn't already in your own quotes file, it's downloaded and plotted
   separately as a reference only (plain price chart, no trading signals) and
   never affects system statistics (SQN, R-average, win rate, balance
