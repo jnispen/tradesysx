@@ -662,7 +662,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
 
     quotes_items = [(ticker, desc) for ticker, desc in quotes.items() if ticker != "URTH"]
     quotes_table = _multi_column_table(quotes_items, ["Ticker", "Description"], n_cols=2)
-    quotes_html = quotes_table.to_html(border=0, index=False, classes="compact-table")
+    quotes_html = quotes_table.to_html(border=0, index=False, classes="quotes-table")
 
     fig_a = ctx.outpath("images/system_trades_plot.png")
     fig_b = ctx.outpath("images/system_trades_dist_plot.png")
@@ -702,6 +702,9 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
             table.full-table {{ width: 92%; table-layout: fixed; }}
             table.full-table th:nth-child(odd), table.full-table td:nth-child(odd) {{ width: 22%; }}
             table.full-table th:nth-child(even), table.full-table td:nth-child(even) {{ width: 28%; }}
+            table.quotes-table {{ width: 92%; table-layout: fixed; }}
+            table.quotes-table th:nth-child(odd), table.quotes-table td:nth-child(odd) {{ width: 15%; }}
+            table.quotes-table th:nth-child(even), table.quotes-table td:nth-child(even) {{ width: 35%; }}
         </style>
     </head>
     <body>
