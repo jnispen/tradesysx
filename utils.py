@@ -1088,7 +1088,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
             facecolor='white',
             alpha=1.0,
             boxstyle='round,pad=0.5',
-            edgecolor='black'
+            edgecolor='gray'
         )
     )
 
@@ -1181,8 +1181,9 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     _handles, _labels = ax.get_legend_handles_labels()
     _named = [(h, l) for h, l in zip(_handles, _labels) if l in _legend_names]
     if _named:
-        ax.legend(*zip(*_named), loc=_legend_loc, fontsize=9,
-                  facecolor='white', framealpha=1.0)
+        _anchor_y = 0.0 if _legend_loc == 'lower right' else 1.0
+        ax.legend(*zip(*_named), loc=_legend_loc, bbox_to_anchor=(0.95, _anchor_y),
+                  fontsize=9, facecolor='white', framealpha=1.0)
     ax.set_xlabel('Trade')
     ax.set_ylabel('Balance (USD)')
     ax.grid(True, which='both', linestyle='dotted', alpha=0.5)
@@ -1398,7 +1399,7 @@ def balance_plot(df, conf, ctx):
             facecolor='white',
             alpha=0.7,
             boxstyle='round,pad=0.5',
-            edgecolor='black'
+            edgecolor='gray'
         )
     )
 
@@ -1460,12 +1461,12 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
     plt.grid(True, color='grey', linewidth=.5, linestyle='dashed')
 
     plt.text(
-        0.67, 0.97, sys_stats,
+        0.67, 0.95, sys_stats,
         transform=plt.gca().transAxes,
         fontsize=7,
         fontfamily='Monospace', 
         verticalalignment='top',
-        bbox=dict(facecolor='white', alpha=0.9, boxstyle='round,pad=0.5')
+        bbox=dict(facecolor='white', alpha=0.9, boxstyle='round,pad=0.5', edgecolor='gray')
     )
 
     plt.savefig(ctx.outpath("images", "system_trades_plot.png"), dpi=150)
@@ -1519,7 +1520,7 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
             facecolor='white',
             alpha=0.7,
             boxstyle='round,pad=0.5',
-            edgecolor='black'
+            edgecolor='gray'
         )
     )
 
