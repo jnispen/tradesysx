@@ -24,20 +24,19 @@ configured quotes file:
 4. **Plot ticker charts** — save a price/indicator chart per ticker
    (`<outdir>/plots/`), optionally with a separate technical-analysis panel
    (`<outdir>/plots/TA/`).
-5. **Build the trades table** — collect every completed (and any open trades 
-   on the date of calculation) trade into a combined trades table and trades list. 
+5. **Build the trades table** — collect every completed trade (and any open trades 
+   on the date of calculation) into a combined trades table and trades list. 
    From this step the R-multiple distribution resulting from the trading system is obtaned.
 6. **Compute system statistics** — System Quality Number (SQN), win rate,
    Kelly criterion, average R per win/loss, trades/year, etc.
-7. **Run the balance simulation** — paper-trade the signals using the
+7. **Run the balance simulation** — paper-trade (backtest) the enter/exit signals using the
    configured position sizing strategy (`core_equity_risk`,
    `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) and track
-   the (virtual) account balance over time.
+   a virtual account balance over time.
 8. **Run a Monte Carlo simulation** — resample the R-multiple distribution
    from the trades to estimate the range of possible outcomes, drawdown and
-   loss streaks, and compare against a buy-and-hold benchmark (MSCI World /
-   `URTH` by default, controlled by `benchmark`/`bm_ticker` — see
-   [Configuration](#configuration)).
+   loss streaks, and compare against a buy-and-hold benchmark (ishares MSCI World ETF /
+   `URTH` by default — see [Configuration](#configuration)).
 9. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
    `<outdir>/system_summary.pdf` report covering configuration, statistics and
    charts.
@@ -66,21 +65,8 @@ All behaviour is controlled via JSON config files in `config/`:
 
 - `config/system_conf.json` — main configuration: data range, indicator
   settings, strategy selection (enter/exit/stoploss), position sizing,
-  account balance, risk per trade, Monte Carlo parameters, and the
-  `ta_custom` panel list used by `gen_ta_custom`. Also controls the
-  buy-and-hold benchmark comparison: `benchmark` (default `true`) toggles it
-  on/off entirely — when `false`, no HODL line/legend appears on the balance
-  or Monte Carlo plots and no benchmark figure is added to the summary PDF.
-  `bm_ticker` (default `"URTH"`) selects which ticker to use, and
-  `bm_desc` sets its human-readable label (used in the report and
-  plot titles) — defaults to "iShares MSCI World ETF" for `URTH`, or the
-  ticker symbol itself for any other `bm_ticker`. If that
-  ticker isn't already in your own quotes file, it's downloaded and plotted
-  separately as a reference only (plain price chart, no trading signals) and
-  never affects system statistics (SQN, R-average, win rate, balance
-  simulation, Monte Carlo). If you deliberately include it in your own quotes
-  file, it's treated like any other ticker you trade — full signals, full
-  stats inclusion — while the benchmark comparison still uses its price data.
+  account balance, risk per trade, Monte Carlo parameters and the
+  `ta_custom` panel list used by `gen_ta_custom`.
 - `config/telegram_conf.json` — bot token and chat ID, only required when
   `notify` is `true`.
 - `quotes/quotes_sp500.lst` — the list of tickers (with descriptions) to
