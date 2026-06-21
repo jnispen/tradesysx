@@ -44,7 +44,7 @@ def update_quotes(conf, ctx):
     benchmark_enabled = conf.get('benchmark', True)
     bm_ticker = conf.get('bm_ticker', 'URTH')
     auto_benchmark = benchmark_enabled and bm_ticker not in quotes
-    benchmark_desc = "MSCI World (US4642863926)" if bm_ticker == "URTH" else bm_ticker
+    benchmark_desc = "iShares MSCI World ETF" if bm_ticker == "URTH" else bm_ticker
 
     # 1. read quotes from yfinance and save raw OHLC file
     if conf['update_data'] == True:
