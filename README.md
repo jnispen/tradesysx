@@ -35,8 +35,8 @@ configured quotes file:
    a virtual account balance over time.
 8. **Run a Monte Carlo simulation** — resample the R-multiple distribution
    from the trades to estimate the range of possible outcomes, drawdown and
-   loss streaks, and compare against a buy-and-hold benchmark (ishares MSCI World ETF /
-   `URTH` by default — see [Configuration](#configuration)).
+   loss streaks, and (optional) compare against a buy-and-hold benchmark (iShares MSCI World ETF /
+   `URTH` by default).
 9. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
    `<outdir>/system_summary.pdf` report covering configuration, statistics and
    charts.
@@ -69,8 +69,7 @@ All behaviour is controlled via JSON config files in `config/`:
   `ta_custom` panel list used by `gen_ta_custom`.
 - `config/telegram_conf.json` — bot token and chat ID, only required when
   `notify` is `true`.
-- `quotes/quotes_sp500.lst` — the list of tickers (with descriptions) to
-  process.
+- `quotes/quotes_sp500.lst`, `quotes/quotes_nasdaq.lst`, `quotes/quotes_dow30.lst` — example lists of tickers (with descriptions) to process.
 
 #### Setup
 
