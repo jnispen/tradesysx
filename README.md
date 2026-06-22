@@ -122,7 +122,7 @@ directory (default `out/`, configurable via `--outdir`):
   `report_type` set to `full`), `<outdir>/trades_table.pdf`,
   `<outdir>/trades_list.pdf` — combined PDF reports
 
-### Example output plots
+### Example plots
 
 #### Price plot (GOOG: Alphabet Inc.)
 
