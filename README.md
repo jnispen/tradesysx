@@ -75,6 +75,8 @@ All behaviour is controlled via JSON config files in `config/`:
    python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--loglevel <level>]
    ```
 
+   **Options**
+
    `--basedir` defaults to the current working directory and is used to
    locate the `config/` and `quotes/` directories.
 
@@ -101,18 +103,20 @@ directory (default `out/`).The following data, plots and images are produced:
 - `<outdir>/plots/TA-custom/` — generates custom TA plots (`gen_ta_custom=true`)
 - `<outdir>/images/` — system-level plots (trades distribution, balance, Monte Carlo)
 - `<outdir>/tables/` — trades table and trades list as CSV files
-- `<outdir>/system_summary.pdf` (or `<outdir>/full_system_summary.pdf` with `report_type=full`),
-`<outdir>/trades_table.pdf`, `<outdir>/trades_list.pdf` — combined PDF reports
+- `<outdir>/system_summary.pdf`,
+- `<outdir>/full_system_summary.pdf` (`report_type=full`),
+- `<outdir>/trades_table.pdf`,
+- `<outdir>/trades_list.pdf` — combined PDF reports
 
-### Plot indicators
+### 4.1 Plot indicators
 
 The price chart (`<outdir>/plots/<TICKER>_plot.png`) and the price panel of
 the TA chart (`<outdir>/plots/TA/<TICKER>_plot_ta.png`) always show the same
 overlays, picked from three tiers:
 
 - **Fixed** — the close price, ENTER/EXIT markers and trade annotations are
-  always shown.
-- **Strategy-driven** — an indicator set is shown automatically when it
+  always shown;
+- **Strategy** — an indicator set is shown automatically when it
   matches the configured `enter` strategy: EMA20/50/100 for `3EMA`, the
   fast/slow SMA pair for `SMA`, Bollinger Bands for `BBRSI`. For the Chandelier
   Exit level, the levels are shown, based on the `exit` strategy (`CE` or `CEE`).
@@ -120,21 +124,21 @@ overlays, picked from three tiers:
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
   Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
 
-## Example plots
+## 5. Example plots
 
-### Price plot (GOOG: Alphabet Inc.)
+### 5.1 Price plot (ticker price plot, 3ema example)
 
 <img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
 *TODO: description*
 
-### Trades distribution (R-multiple)
+### 5.2 Trades distribution (R-multiple)
 
 <img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
 
 *TODO: description*
 
-### Trading balance simulation (Backtest) 
+### 5.3 Trading simulation (paper trading backtest)
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
