@@ -75,7 +75,7 @@ All behaviour is controlled via JSON config files in `config/`:
    python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--loglevel <level>]
    ```
 
-   **Options**
+   **Options:**
 
    `--basedir` defaults to the current working directory and is used to
    locate the `config/` and `quotes/` directories.
@@ -103,10 +103,7 @@ directory (default `out/`).The following data, plots and images are produced:
 - `<outdir>/plots/TA-custom/` — generates custom TA plots (`gen_ta_custom=true`)
 - `<outdir>/images/` — system-level plots (trades distribution, balance, Monte Carlo)
 - `<outdir>/tables/` — trades table and trades list as CSV files
-- `<outdir>/system_summary.pdf`,
-- `<outdir>/full_system_summary.pdf` (`report_type=full`),
-- `<outdir>/trades_table.pdf`,
-- `<outdir>/trades_list.pdf` — combined PDF reports
+- `<outdir>/system_summary.pdf`, `full_system_summary.pdf` (`report_type=full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
 
 ### 4.1 Plot indicators
 
