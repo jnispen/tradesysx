@@ -1120,17 +1120,17 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     #b = float(conf['balance'])
     #x_vals = np.array(mc_result_df.index)
     #y_vals = a * x_vals + b
-    #ax.plot(x_vals, y_vals, color='blue', linewidth=1.0, linestyle='--', alpha=0.5)
+    #ax.plot(x_vals, y_vals, color='blue', linewidth=2.0, linestyle='dotted', alpha=0.5)
 
     # add label for the last average value
-    # y_last = a * x_last + b
-    # plt.text(x_last, y_last, f"${y_last:,.0f}",
+    #y_last = a * x_last + b
+    #plt.text(x_last, y_last, f"${y_last:,.0f}",
     #     fontsize=10,
     #     fontfamily='Monospace',
     #     verticalalignment='center',
     #     color='blue',
     #     transform=p_offset
-    # )
+    #)
 
     # annualized gain trading simulation (CAGR)
     median_balance = mc_result_df.iloc[-1].median()
@@ -1482,7 +1482,6 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
     palette = {'Positive': "#22d63a",
                'Negative': "#db1717"}
     
-    #ax = sns.histplot(data=df, x="Trades", color='brown', kde=True, alpha=.3, line_kws=dict(linewidth=.7))
     bins_rice = int(np.ceil(2 * trades_tot ** (1/2)))
     ax = sns.histplot(
         data=df,

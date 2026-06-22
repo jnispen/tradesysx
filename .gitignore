@@ -6,4 +6,5 @@ CLAUDE.md
 .grill/*
 dist/*
 docs/*
+!docs/examples/
 build/*
