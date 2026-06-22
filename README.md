@@ -122,17 +122,23 @@ directory (default `out/`, configurable via `--outdir`):
   `report_type` set to `full`), `<outdir>/trades_table.pdf`,
   `<outdir>/trades_list.pdf` — combined PDF reports
 
-#### Example output
+#### Example outputs
 
-<img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="600">
+##### Price plot
 
-*TODO: description*
-
-<img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="600">
+<img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
 *TODO: description*
 
-<img src="docs/examples/balance_plot.png" alt="Balance simulation" width="600">
+##### Trades distribution (R-multiple)
+
+<img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
+
+*TODO: description*
+
+##### Trading Balance (Backtest) 
+
+<img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
 *TODO: description*
 
