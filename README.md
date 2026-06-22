@@ -1,4 +1,4 @@
-### GetQuotes
+# GetQuotes
 
 GetQuotes is a backtesting and paper-trading toolkit for mechanical
 trading systems. It downloads historical stock data, applies a configurable
@@ -8,7 +8,7 @@ Carlo simulation ("bag-of-marbles" simulation) over the resulting R-multiple dis
 The toolkit was directly inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
-#### How it works
+## How it works
 
 Running `getquotes.py` performs the following processing pipeline for every ticker in the
 configured quotes file:
@@ -43,7 +43,7 @@ configured quotes file:
 10. **Notify via Telegram** *(optional)* — post the daily ENTER/EXIT/stoploss
     signals and the summary PDF to a configured Telegram chat.
 
-#### Plot indicators
+## Plot indicators
 
 The price chart (`<outdir>/plots/<TICKER>_plot.png`) and the price panel of
 the TA chart (`<outdir>/plots/TA/<TICKER>_plot_ta.png`) always show the same
@@ -59,7 +59,7 @@ overlays, picked from three tiers:
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
   Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
 
-#### Configuration
+## Configuration
 
 All behaviour is controlled via JSON config files in `config/`:
 
@@ -71,7 +71,7 @@ All behaviour is controlled via JSON config files in `config/`:
   `notify` is `true`.
 - `quotes/quotes_sp500.lst`, `quotes/quotes_nasdaq.lst`, `quotes/quotes_dow30.lst` — example lists of tickers to process.
 
-#### Setup
+## Setup
 
 1. Install Python dependencies:
 
@@ -106,7 +106,7 @@ All behaviour is controlled via JSON config files in `config/`:
    (default), `WARNING`, `ERROR` or `CRITICAL`. The same flag is
    available on `tst/simulator.py` (see [tst/README.md](tst/README.md)).
 
-#### Output
+## Output
 
 All generated data, plots, tables and reports are written under the output
 directory (default `out/`, configurable via `--outdir`):
@@ -122,21 +122,21 @@ directory (default `out/`, configurable via `--outdir`):
   `report_type` set to `full`), `<outdir>/trades_table.pdf`,
   `<outdir>/trades_list.pdf` — combined PDF reports
 
-### Example plots
+# Example plots
 
-#### Price plot (GOOG: Alphabet Inc.)
+## Price plot (GOOG: Alphabet Inc.)
 
 <img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
 *TODO: description*
 
-#### Trades distribution (R-multiple)
+## Trades distribution (R-multiple)
 
 <img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
 
 *TODO: description*
 
-#### Trading balance simulation (Backtest) 
+## Trading balance simulation (Backtest) 
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
