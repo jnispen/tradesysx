@@ -124,7 +124,7 @@ directory (default `out/`, configurable via `--outdir`):
 
 #### Example outputs
 
-##### Price plot
+##### Price plot (GOOG: Alphabet Inc.)
 
 <img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
@@ -136,7 +136,7 @@ directory (default `out/`, configurable via `--outdir`):
 
 *TODO: description*
 
-##### Trading Balance (Backtest) 
+##### Trading balance simulation (Backtest) 
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
