@@ -731,7 +731,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
     </html>
     """
 
-    output_filename = "full_system_summary.pdf" if full else "system_summary.pdf"
+    output_filename = "system_summary_full.pdf" if full else "system_summary.pdf"
     output_path = ctx.outpath(output_filename)
     HTML(string=html_content).write_pdf(output_path)
 
