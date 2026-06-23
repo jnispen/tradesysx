@@ -1,4 +1,4 @@
-# GetQuotes (trading systems, R-multiple and backtesting)
+# GetQuotes (backtesting trading systems)
 
 GetQuotes is a backtesting and paper-trading toolkit for mechanical
 trading systems. It downloads historical stock data, applies a configurable
