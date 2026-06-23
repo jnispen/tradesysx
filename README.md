@@ -123,7 +123,7 @@ overlays, picked from three tiers:
 
 ## 5. Example plots
 
-### 5.1 Price plot (ticker price plot, 3ema example)
+### 5.1 Price plot (3EMA example)
 
 <img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
@@ -135,7 +135,7 @@ overlays, picked from three tiers:
 
 *TODO: description*
 
-### 5.3 Trading simulation (paper trading backtest)
+### 5.3 Trading simulation (trading backtest)
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
