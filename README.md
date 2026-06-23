@@ -129,13 +129,13 @@ overlays, picked from three tiers:
 
 *TODO: description*
 
-### 5.2 Trades distribution (R-multiple)
+### 5.2 R-multiple distribution
 
 <img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
 
 *TODO: description*
 
-### 5.3 Trading simulation (trading backtest)
+### 5.3 Trading backtest
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
