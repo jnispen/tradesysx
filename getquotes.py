@@ -179,7 +179,8 @@ def update_quotes(conf, ctx):
 
         asyncio.run(ut.bot_signal_update(ctx, last_close_date, telegram_df))
         asyncio.run(ut.bot_signal_alert(ctx, last_close_date, telegram_df))
-        response = ut.bot_summary_update(ctx, ctx.outpath("system_summary.pdf"))
+        summary_filename = "system_summary_full.pdf" if conf.get('report_type', 'short') == 'full' else "system_summary.pdf"
+        response = ut.bot_summary_update(ctx, ctx.outpath(summary_filename))
         if response.ok:
             logger.info('- response OK, updates sent successfully')
         else:
