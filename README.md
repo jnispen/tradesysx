@@ -1,7 +1,7 @@
 # GetQuotes (backtesting trading systems)
 
 GetQuotes is a backtesting and paper-trading toolkit for mechanical
-trading systems. It downloads historical stock data, applies a configurable
+trading systems. It downloads historical OHLC stock data, applies a configurable
 entry/exit/stoploss strategy, simulates a virtual trading account, and runs a Monte
 Carlo simulation ("bag-of-marbles" simulation) over the resulting R-multiple distribution.
 
