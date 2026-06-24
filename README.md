@@ -124,7 +124,7 @@ directory (default `out/`).The following data, plots and images are produced:
 
 #### Price plot (3EMA strategy)
 
-The plot below shows the price-time chart of Google (Alphabet Inc.). For the triple moving average (3EMA) strategy, the plot is overlayed with 3 colored moving averages. The resulting ENTER and EXIT trading signals are also overlaid on the plot (shown as green and red triangles). Displayed in the bottom part are the current R-average and in-trade statistics.
+The plot below shows the price-time chart of Google (Alphabet Inc.). For the triple moving average (3EMA) strategy, the plot is overlayed with 3 colored moving averages. The resulting ENTER and EXIT trading signals are also shown on the plot (green and red triangles). Displayed in the bottom part are the current R-average and in-trade statistics.
 
 <img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
