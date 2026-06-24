@@ -79,7 +79,7 @@ overlays, picked from three tiers:
    pip install -r requirements.txt
    ```
 
-   Note: [`TA-Lib`](https://ta-lib.org/) requires the underlying TA-Lib C library
+   Note: `TA-Lib` requires the underlying [TA-Lib C library](https://ta-lib.org/)
    to be installed separately before the Python bindings can be built.
 3. Adjust `config/system_conf.json` (and `quotes/quotes_sp500.lst`) to
    match your desired tickers, strategy and account settings.
