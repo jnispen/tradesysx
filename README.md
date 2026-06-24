@@ -2,8 +2,8 @@
 
 GetQuotes is a backtesting toolkit for mechanical trading systems. It downloads historical OHLC stock data
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
-simulates a virtual trading account (paper-trading backtest), and runs a Monte Carlo simulation over the
-resulting R-multiple distribution (empirical resampling with replacement).
+simulates a virtual trading account (paper-trading backtest), and runs a Monte Carlo simulation over the 
+obtained R-multiple distribution (empirical resampling with replacement).
 
 The GetQuotes toolkit was inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
@@ -26,14 +26,14 @@ configured quotes file:
    (`<outdir>/plots/TA/`).
 6. **Build the trades table** — collect every completed and open trade into a combined
    trades table and trades list. From this step the R-multiple distribution resulting from
-   the trading system is obtaned.
+   the trading system is obtained.
 8. **Compute the trading system statistics** — System Quality Number (SQN), win rate,
    Kelly criterion, average R per win/loss, trades/year, etc.
-9. **Run the balance simulation** — starting with an initial trading account balance, run a
-    paper-trade (backtest) the enter/exit signals using the configured position sizing strategy
+9. **Run the balance simulation** — starting from an initial trading account balance, run a
+    paper-trade (backtest), using the enter/exit signals from the configured position sizing strategy
    (`core_equity_risk`, `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) and track
    the balance and total value of the trading account over time.
-11. **Run a Monte Carlo simulation** — resample the R-multiple distribution
+11. **Run a Monte Carlo simulation** — resample from the R-multiple distribution obtained
    from the trades to estimate the range of possible outcomes (empirical resampling with replacement),
    drawdown and loss streaks, and optionally compare against a configurable buy-and-hold benchmark
    (default: iShares MSCI World ETF / `URTH`).
@@ -104,9 +104,8 @@ overlays, picked from three tiers:
    tables and reports are written. Relative paths are resolved against
    `basedir`; absolute paths are used as-is. Defaults to `out`.
 
-   `--loglevel` controls console verbosity and accepts `DEBUG`, `INFO`
-   (default), `WARNING`, `ERROR` or `CRITICAL`. The same flag is
-   available on `tst/simulator.py` (see [tst/README.md](tst/README.md)).
+   `--loglevel` controls console verbosity [`DEBUG`, `INFO` (default),
+   `WARNING`, `ERROR` or `CRITICAL`].
 
 ## 4. Data Output
 
