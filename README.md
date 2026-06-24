@@ -13,8 +13,8 @@ development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 Running `getquotes.py` performs the following processing pipeline for every ticker in the
 configured quotes file:
 
-1. **Download data** — fetch OHLC price history from Yahoo Finance and store it as
-   `<outdir>/data/<TICKER>_ohlc_raw.csv`.
+1. **Download data** — fetch OHLC price history from [Yahoo Finance](https://finance.yahoo.com/)
+    and store it as `<outdir>/data/<TICKER>_ohlc_raw.csv`.
 3. **Add technical indicators** — compute a set of TA indicators (e.g. RSI, ATR, SMA/EMA
    moving averages, Bollinger Bands) over the data.
 4. **Generate ENTER/EXIT signals** — apply the configured entry strategy
@@ -101,8 +101,8 @@ overlays, picked from three tiers:
    `config/system_conf.json`.
 
    `--outdir` sets the output directory where all generated data, plots,
-   tables and reports are written. Relative paths are resolved against
-   `basedir`; absolute paths are used as-is. Defaults to `out`.
+   tables and reports are written to. Relative paths are resolved against
+   `basedir`; absolute paths are used as-is. Defaults to `out/`.
 
    `--loglevel` controls console verbosity [`DEBUG`, `INFO` (default),
    `WARNING`, `ERROR` or `CRITICAL`].
@@ -110,7 +110,7 @@ overlays, picked from three tiers:
 ## 4. Data output
 
 All generated data, plots, tables and reports are written under the output
-directory (default `out/`).The following data, plots and images are produced:
+directory.The following data, plots and images are produced:
 
 - `<outdir>/data/` — raw and processed OHLC data per ticker
 - `<outdir>/plots/` — per-ticker price charts
@@ -122,7 +122,7 @@ directory (default `out/`).The following data, plots and images are produced:
 
 ### 4.1. Example plots
 
-Shown below are some typical plots obtained after running the pipeline.
+Shown below are some typical plots generated after running the pipeline.
 
 #### Price plot (3EMA strategy)
 
