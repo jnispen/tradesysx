@@ -124,9 +124,9 @@ directory (default `out/`).The following data, plots and images are produced:
 
 #### Price plot (3EMA example)
 
-<img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
+The plot below shows the price-time plot of Google (Alphabet Inc.). For the trading strategy of triple moving averages (3eMA) the plot is overlayed with 3 colored lines showing the 3 moving averages. The resulting trade ENTER and trade EXIT signals are also overlaid on the plot (shown as green and red triangles). Shown in the bottom part are the current R-average and the current in-trade statistics.
 
-*TODO: description*
+<img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
 #### R-multiple distribution
 
