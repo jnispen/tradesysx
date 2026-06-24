@@ -55,6 +55,22 @@ All behaviour is controlled via JSON config files in `config/`:
   `notify` is `true`.
 - `quotes/quotes_sp500.lst`, `quotes/quotes_nasdaq.lst`, `quotes/quotes_dow30.lst` — example lists of tickers to process.
 
+### 2.1 Plot indicators
+
+The price chart (`<outdir>/plots/<TICKER>_plot.png`) and the price panel of
+the TA chart (`<outdir>/plots/TA/<TICKER>_plot_ta.png`) always show the same
+overlays, picked from three tiers:
+
+- **Fixed** — the close price, ENTER/EXIT markers and trade annotations are
+  always shown;
+- **Strategy** — an indicator set is shown automatically when it
+  matches the configured `enter` strategy: EMA20/50/100 for `3EMA`, the
+  fast/slow SMA pair for `SMA`, Bollinger Bands for `BBRSI`. For the Chandelier
+  Exit level, the levels are shown, based on the `exit` strategy (`CE` or `CEE`).
+- **User-selectable** — the `plot_indicators` list in `system_conf.json` adds
+  indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
+  Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
+
 ## 3. Environment and Tool Setup
 
 1. Install Python dependencies:
@@ -91,22 +107,6 @@ All behaviour is controlled via JSON config files in `config/`:
    `--loglevel` controls console verbosity and accepts `DEBUG`, `INFO`
    (default), `WARNING`, `ERROR` or `CRITICAL`. The same flag is
    available on `tst/simulator.py` (see [tst/README.md](tst/README.md)).
-
-### 3.1 Plot indicators
-
-The price chart (`<outdir>/plots/<TICKER>_plot.png`) and the price panel of
-the TA chart (`<outdir>/plots/TA/<TICKER>_plot_ta.png`) always show the same
-overlays, picked from three tiers:
-
-- **Fixed** — the close price, ENTER/EXIT markers and trade annotations are
-  always shown;
-- **Strategy** — an indicator set is shown automatically when it
-  matches the configured `enter` strategy: EMA20/50/100 for `3EMA`, the
-  fast/slow SMA pair for `SMA`, Bollinger Bands for `BBRSI`. For the Chandelier
-  Exit level, the levels are shown, based on the `exit` strategy (`CE` or `CEE`).
-- **User-selectable** — the `plot_indicators` list in `system_conf.json` adds
-  indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
-  Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
 
 ## 4. Data Output
 
