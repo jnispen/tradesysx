@@ -1,9 +1,9 @@
 # GetQuotes (backtesting trading systems)
 
-GetQuotes is a backtesting and paper-trading toolkit for mechanical
-trading systems. It downloads historical OHLC stock data, applies a configurable
-entry/exit/stoploss strategy, simulates a virtual trading account (backtest), and runs a Monte
-Carlo simulation over the resulting R-multiple distribution (empirical resampling with replacement).
+GetQuotes is a backtesting toolkit for mechanical trading systems. It downloads historical OHLC stock data 
+from Yahoo Finance (<https://finance.yahoo.com/>), applies a configurable entry/exit/stoploss strategy, 
+simulates a virtual trading account (paper-trading backtest), and runs a Monte Carlo simulation over the 
+resulting R-multiple distribution (empirical resampling with replacement).
 
 The GetQuotes toolkit was inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
@@ -13,34 +13,34 @@ development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 Running `getquotes.py` performs the following processing pipeline for every ticker in the
 configured quotes file:
 
-1. **Download data** — fetch OHLC price history from Yahoo Finance
-   (`yfinance`) and store it as `<outdir>/data/<TICKER>_ohlc_raw.csv`.
-2. **Add technical indicators** — compute a set of TA indicators (e.g. RSI, ATR, SMA/EMA
+1. **Download data** — fetch OHLC price history from Yahoo Finance and store it as
+   `<outdir>/data/<TICKER>_ohlc_raw.csv`.
+3. **Add technical indicators** — compute a set of TA indicators (e.g. RSI, ATR, SMA/EMA
    moving averages, Bollinger Bands) over the data.
-3. **Generate ENTER/EXIT signals** — apply the configured entry strategy
+4. **Generate ENTER/EXIT signals** — apply the configured entry strategy
    (`3EMA`, `SMA` or `BBRSI`), exit strategy (`CE`, `CEE`, `RSI`, `XR`,
    `3EMA`, `SMA` or `BBRSI`) and stoploss method (`3atr` or `percent`) to
    produce entry or exit trading signals.
-4. **Plot ticker charts** — save a price/indicator chart per ticker
+5. **Plot ticker charts** — save a price/indicator chart per ticker
    (`<outdir>/plots/`), optionally with a separate technical-analysis panel
    (`<outdir>/plots/TA/`).
-5. **Build the trades table** — collect every completed trade (and any open trades 
-   on the date of calculation) into a combined trades table and trades list. 
-   From this step the R-multiple distribution resulting from the trading system is obtaned.
-6. **Compute system statistics** — System Quality Number (SQN), win rate,
+6. **Build the trades table** — collect every completed and open trade into a combined
+   trades table and trades list. From this step the R-multiple distribution resulting from
+   the trading system is obtaned.
+8. **Compute system statistics** — System Quality Number (SQN), win rate,
    Kelly criterion, average R per win/loss, trades/year, etc.
-7. **Run the balance simulation** — paper-trade (backtest) the enter/exit signals using the
-   configured position sizing strategy (`core_equity_risk`,
-   `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) and track
-   a virtual account balance over time.
-8. **Run a Monte Carlo simulation** — resample the R-multiple distribution
-   from the trades to estimate the range of possible outcomes, drawdown and
-   loss streaks, and (optional) compare against a buy-and-hold benchmark (iShares MSCI World ETF /
-   `URTH` by default).
-9. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
+9. **Run the balance simulation** — starting with an initial trading account balance, run a
+    paper-trade (backtest) the enter/exit signals using the configured position sizing strategy
+   (`core_equity_risk`, `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) and track
+   the balance and total value of the trading account over time.
+11. **Run a Monte Carlo simulation** — resample the R-multiple distribution
+   from the trades to estimate the range of possible outcomes (empirical resampling with replacement),
+   drawdown and loss streaks, and optionally compare against a configurable buy-and-hold benchmark
+   (iShares MSCI World ETF / `URTH` by default).
+13. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
    `<outdir>/system_summary.pdf` report covering configuration, statistics and
    charts.
-10. **Notify via Telegram** *(optional)* — post the daily ENTER/EXIT/stoploss
+14. **Notify via Telegram** *(optional)* — publish the daily ENTER/EXIT/stoploss
     signals and the summary PDF to a configured Telegram chat.
 
 ## 2. Configuration
