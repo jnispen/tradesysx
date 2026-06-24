@@ -140,3 +140,9 @@ directory (default `out/`).The following data, plots and images are produced:
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
 *TODO: description*
+
+### 5.4 Monte Carlo simulation
+
+<img src="docs/examples/monte_carlo_plot.png" alt="Monte Carlo simulation" width="900">
+
+*TODO: description*
