@@ -2,10 +2,10 @@
 
 GetQuotes is a backtesting and paper-trading toolkit for mechanical
 trading systems. It downloads historical OHLC stock data, applies a configurable
-entry/exit/stoploss strategy, simulates a virtual trading account, and runs a Monte
-Carlo simulation ("bag-of-marbles" simulation) over the resulting R-multiple distribution.
+entry/exit/stoploss strategy, simulates a virtual trading account (backtest), and runs a Monte
+Carlo simulation over the resulting R-multiple distribution (empirical resampling with replacement).
 
-The toolkit was directly inspired by the various books on trading systems
+The GetQuotes toolkit was inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
 ## 1. What it does
