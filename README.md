@@ -71,7 +71,7 @@ overlays, picked from three tiers:
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
   Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
 
-## 3. Environment and Tool Setup
+## 3. Environment setup and tool cmdline
 
 1. Install Python dependencies:
 
@@ -107,7 +107,7 @@ overlays, picked from three tiers:
    `--loglevel` controls console verbosity [`DEBUG`, `INFO` (default),
    `WARNING`, `ERROR` or `CRITICAL`].
 
-## 4. Data Output
+## 4. Data output
 
 All generated data, plots, tables and reports are written under the output
 directory (default `out/`).The following data, plots and images are produced:
@@ -121,6 +121,8 @@ directory (default `out/`).The following data, plots and images are produced:
 - `<outdir>/system_summary.pdf`, `full_system_summary.pdf` (`report_type=full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
 
 ### 4.1. Example plots
+
+Shown below are some typical plots obtained after running the pipeline.
 
 #### Price plot (3EMA strategy)
 
