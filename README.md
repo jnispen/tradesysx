@@ -8,7 +8,7 @@ resulting R-multiple distribution (empirical resampling with replacement).
 The GetQuotes toolkit was inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
-## 1. What it does
+## 1. What it does (processing steps)
 
 Running `getquotes.py` performs the following processing pipeline for every ticker in the
 configured quotes file:
@@ -27,7 +27,7 @@ configured quotes file:
 6. **Build the trades table** — collect every completed and open trade into a combined
    trades table and trades list. From this step the R-multiple distribution resulting from
    the trading system is obtaned.
-8. **Compute system statistics** — System Quality Number (SQN), win rate,
+8. **Compute the trading system statistics** — System Quality Number (SQN), win rate,
    Kelly criterion, average R per win/loss, trades/year, etc.
 9. **Run the balance simulation** — starting with an initial trading account balance, run a
     paper-trade (backtest) the enter/exit signals using the configured position sizing strategy
@@ -36,7 +36,7 @@ configured quotes file:
 11. **Run a Monte Carlo simulation** — resample the R-multiple distribution
    from the trades to estimate the range of possible outcomes (empirical resampling with replacement),
    drawdown and loss streaks, and optionally compare against a configurable buy-and-hold benchmark
-   (iShares MSCI World ETF / `URTH` by default).
+   (default: iShares MSCI World ETF / `URTH`).
 13. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
    `<outdir>/system_summary.pdf` report covering configuration, statistics and
    charts.
@@ -92,20 +92,7 @@ All behaviour is controlled via JSON config files in `config/`:
    (default), `WARNING`, `ERROR` or `CRITICAL`. The same flag is
    available on `tst/simulator.py` (see [tst/README.md](tst/README.md)).
 
-## 4. Data Output
-
-All generated data, plots, tables and reports are written under the output
-directory (default `out/`).The following data, plots and images are produced:
-
-- `<outdir>/data/` — raw and processed OHLC data per ticker
-- `<outdir>/plots/` — per-ticker price charts
-- `<outdir>/plots/TA/` — next to price, includes indicator panels
-- `<outdir>/plots/TA-custom/` — generates custom TA plots (`gen_ta_custom=true`)
-- `<outdir>/images/` — system-level plots (trades distribution, balance, Monte Carlo)
-- `<outdir>/tables/` — trades table and trades list as CSV files
-- `<outdir>/system_summary.pdf`, `full_system_summary.pdf` (`report_type=full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
-
-### 4.1 Plot indicators
+### 3.1 Plot indicators
 
 The price chart (`<outdir>/plots/<TICKER>_plot.png`) and the price panel of
 the TA chart (`<outdir>/plots/TA/<TICKER>_plot_ta.png`) always show the same
@@ -121,21 +108,34 @@ overlays, picked from three tiers:
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
   Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
 
-## 5. Example plots
+## 4. Data Output
 
-### 5.1 Price plot (3EMA example)
+All generated data, plots, tables and reports are written under the output
+directory (default `out/`).The following data, plots and images are produced:
+
+- `<outdir>/data/` — raw and processed OHLC data per ticker
+- `<outdir>/plots/` — per-ticker price charts
+- `<outdir>/plots/TA/` — next to price, includes indicator panels
+- `<outdir>/plots/TA-custom/` — generates custom TA plots (`gen_ta_custom=true`)
+- `<outdir>/images/` — system-level plots (trades distribution, balance, Monte Carlo)
+- `<outdir>/tables/` — trades table and trades list as CSV files
+- `<outdir>/system_summary.pdf`, `full_system_summary.pdf` (`report_type=full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
+
+### 4.1. Example plots
+
+#### Price plot (3EMA example)
 
 <img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
 *TODO: description*
 
-### 5.2 R-multiple distribution
+#### R-multiple distribution
 
 <img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
 
 *TODO: description*
 
-### 5.3 Trading backtest
+#### Trading backtest
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
