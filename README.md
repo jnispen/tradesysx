@@ -124,15 +124,21 @@ directory (default `out/`).The following data, plots and images are produced:
 
 #### Price plot (3EMA strategy)
 
-The plot below shows the price-time chart of Google (Alphabet Inc.). For the triple moving average (3EMA) strategy, the plot is overlayed with 3 colored moving averages. The resulting ENTER and EXIT trading signals are also shown on the plot (green and red triangles). Displayed in the bottom part are the current R-average and in-trade statistics.
+The plot below shows the price-time chart of Google (Alphabet Inc.). For the triple moving average (3EMA) strategy,
+the plot is overlayed with 3 colored moving average lines. The resulting ENTER and EXIT trading signals are also shown on
+the plot (green and red triangles). Displayed in the bottom part are the current R-average and in-trade statistics.
 
 <img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
 #### R-multiple distribution
 
-<img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
+When applied to the downloaded data, the combination of a specific ticker set, time range and trading strategy incl. the parameters, results in 
+a set of trading outcomes which can be expressed as the ratio of inital risk to reward (R-multiple), where the initial risk per unit is called 1R.
+This set of outcomes can be show as in the figure below, which shows all trade outcomes from left to right expressed as R-multiples. Over this obtained
+set a list of system statistics can be calculated which characterize the specific trading system. The system summmary, incl. the average R 
+and System Quality number (SQN) is shown inside a text box in the top right part of the figure.
 
-*TODO: description*
+<img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
 
 #### Trading backtest
 
