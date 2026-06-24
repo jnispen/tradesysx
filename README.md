@@ -133,10 +133,10 @@ the plot (green and red triangles). Displayed in the bottom part are the current
 #### R-multiple distribution
 
 When applied to the downloaded data, the combination of a specific ticker set, time range and trading strategy incl. the parameters, results in 
-a set of trading outcomes which can be expressed as the ratio of inital risk to reward (R-multiple), where the initial risk per unit is called 1R.
-This set of outcomes can be show as in the figure below, which shows all trade outcomes from left to right expressed as R-multiples. Over this obtained
-set a list of system statistics can be calculated which characterize the specific trading system. The system summmary, incl. the average R 
-and System Quality number (SQN) is shown inside a text box in the top right part of the figure.
+a set of trading outcomes which can be expressed as a multiple of the initial risk taken (R-multiple), where the initial risk per unit is called 1R.
+This set of trading outcomes can be show as in the figure below, which shows all individual trade results from left to right expressed as R-multiples.
+Also shown in the top right part of the figure is a summary of the system statistics, which are calculated from the trading outcomes. Two notable, labelled, system
+statistics include the the average R-multiple (R-mean) and the System Quality number (SQN).
 
 <img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
 
