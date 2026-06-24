@@ -671,7 +671,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
     fig_a = ctx.outpath("images/system_trades_plot.png")
     fig_b = ctx.outpath("images/system_trades_dist_plot.png")
     fig_c = ctx.outpath("images/balance_plot.png")
-    fig_d = ctx.outpath("images/monte_carlo_sampled_plot.png")
+    fig_d = ctx.outpath("images/monte_carlo_plot.png")
     fig_e_html = ""
     if benchmark_enabled:
         fig_e = ctx.outpath("plots", f"{bm_ticker}_plot.png")
@@ -914,10 +914,10 @@ def do_monte_carlo_simulation_sampled(total_trades_list, conf, ctx, stats):
         benchmark = (val_out, ann_ret_hodl)
 
     run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk,
-                            output_filename="monte_carlo_sampled_plot.png",
+                            output_filename="monte_carlo_plot.png",
                             benchmark=benchmark)
 
-def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="monte_carlo_sampled_plot.png", benchmark=None):
+def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="monte_carlo_plot.png", benchmark=None):
     ''' run a Monte Carlo balance simulation by sampling from the given R-multiple distribution (bag of marbles) '''
 
     logger.info(f"Number of samples      : {conf['iterations']}")
@@ -1009,7 +1009,7 @@ def ann_return(start_capital: float, end_capital: float, years: float) -> float:
     return ratio ** (1.0 / years) - 1.0
 
 def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_avg, Rmul_avg_sampled, avg_neg_run, max_neg_run,
-                                      output_filename="monte_carlo_sampled_plot.png", benchmark=None):
+                                      output_filename="monte_carlo_plot.png", benchmark=None):
     ''' plot the results of the monte carlo simulation '''
 
     # plot all series of balances for all iterations

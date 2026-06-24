@@ -84,7 +84,7 @@ def main():
     risk = float(conf['risk_percent'])
 
     logger.info("==== Monte Carlo simulation ====")
-    output_filename = "monte_carlo_plot.png"
+    output_filename = "monte_carlo_plot_rmul.png"
     run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk,
                             output_filename=output_filename, benchmark=None)
     logger.info("================================")
