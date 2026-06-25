@@ -1101,6 +1101,18 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     # shift labels left and up so they sit just inside the right edge of their line
     label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=-8, y=2, units='points')
 
+    # shift the start-balance label right and down so it sits just inside the left edge, below the line
+    start_label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=8, y=-5, units='points')
+    plt.text(
+        x_first, conf['balance'], f"${conf['balance']:,.0f}",
+        fontsize=10,
+        fontfamily='Monospace',
+        verticalalignment='top',
+        horizontalalignment='left',
+        color='green',
+        transform=start_label_offset
+    )
+
     # 5th and 95th percentile markers (middle 90% of outcomes)
     p5  = mc_result_df.iloc[-1].quantile(0.05)
     p95 = mc_result_df.iloc[-1].quantile(0.95)

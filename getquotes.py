@@ -51,7 +51,7 @@ def update_quotes(conf, ctx):
         logger.info(f'==== [1/8] Downloading quote data ({len(quotes)}) ====')
         ut.get_quotes_data(quotes, conf, ohlc_filename, ctx)
         if auto_benchmark:
-            logger.info(f'==== [1/8] Downloading benchmark data ) ====')
+            logger.info(f'==== [1/8] Downloading benchmark data ====')
             ut.get_quotes_data({bm_ticker: benchmark_desc}, conf, ohlc_filename, ctx)
     else:
         logger.info('==== [1/8] Downloading quote data: skipped (update_data=false) ====')
