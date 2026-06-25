@@ -1,5 +1,8 @@
 {
     "quotefile"    : "quotes/quotes_sp500.lst",
+    "benchmark"    : true,
+    "bm_ticker"    : "URTH",
+    "bm_desc"      : "iShares MSCI World ETF",
     "notify"       : false,
     "update_data"  : true,
     "process_data" : true,
@@ -42,6 +45,7 @@
     "macd_signal"  : 9,
     "montecarlo"   : true,
     "sim_len_max"  : 300,
-    "iterations"   : 1000,
+    "iterations"   : 10000,
+    "plot_frac"    : 0.05,
     "outlier"      : 4
 }

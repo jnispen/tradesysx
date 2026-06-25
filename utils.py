@@ -1012,19 +1012,25 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
                                       output_filename="monte_carlo_plot.png", benchmark=None):
     ''' plot the results of the monte carlo simulation '''
 
-    # plot all series of balances for all iterations
+    # only plot a fraction of the simulated iterations (all iterations still count towards the stats below)
+    plot_fraction = conf.get('plot_frac', 0.1)
+    n_plot = max(1, int(round(mc_result_df.shape[1] * plot_fraction)))
+    plot_cols = np.random.choice(mc_result_df.columns, size=n_plot, replace=False)
+    plot_df = mc_result_df[plot_cols]
+
+    # plot the sampled subset of balance series
     sns.set_style("white")
-    ax = mc_result_df.plot(
+    ax = plot_df.plot(
         figsize=(10, 5),
         color='gray',
         linewidth=0.1,
         marker=None,
         legend=False
     )
-    
+
     # show a marker for the final balance only
     x_last = mc_result_df.index[-1]
-    for _, series in mc_result_df.items():
+    for _, series in plot_df.items():
         y_last = series.iloc[-1]
         ax.scatter(
             x_last, y_last,
@@ -1061,9 +1067,9 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     # Each candidate defines a region (row slice × y-fraction band); we count
     # how many (row, sim) data points fall inside and choose the emptiest corner.
     if y_max > 0:
-        _n  = len(mc_result_df)
+        _n  = len(plot_df)
         _q  = max(1, int(_n * 0.25))
-        _d  = mc_result_df.values
+        _d  = plot_df.values
         _candidates = [
             # (box_x, box_y, ha, va, row_slice, y_lo_frac, y_hi_frac)
             (0.03, 0.97, 'left',  'top',    slice(0, _q),        0.70, 1.00),  # upper-left
@@ -1094,7 +1100,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
 
     x_first = mc_result_df.index[0]
 
-    ax.set_title(f"Monte Carlo simulation [{conf['iterations']}x]", fontsize=16, pad=25)
+    ax.set_title(f"Monte Carlo simulation [{conf['iterations']}x ({conf['plot_frac']:.0%} plotted)]", fontsize=16, pad=25)
     ax.plot([x_first, x_last], [conf['balance'], conf['balance']], color='green', linestyle='--', linewidth=1, alpha=.7)
     ax.plot([x_first, x_last], [mc_result_df.iloc[-1].median(), mc_result_df.iloc[-1].median()], color='brown', linestyle='dotted', linewidth=1.5, alpha=.7, label='Median')
 
@@ -1180,9 +1186,9 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     # choose between upper-right and lower-right for the trend-line legend,
     # based on which has fewer simulation paths passing through it
     if y_max > 0:
-        _n = len(mc_result_df)
+        _n = len(plot_df)
         _q = max(1, int(_n * 0.25))
-        _d_right = mc_result_df.values[_n - _q:_n]
+        _d_right = plot_df.values[_n - _q:_n]
         _upper_density = np.sum((_d_right >= 0.70 * y_max) & (_d_right <= 1.00 * y_max))
         _lower_density = np.sum((_d_right >= 0.00 * y_max) & (_d_right <= 0.30 * y_max))
         _legend_loc = 'lower right' if _lower_density < _upper_density else 'upper right'
