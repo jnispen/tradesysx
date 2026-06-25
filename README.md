@@ -146,7 +146,7 @@ statistics characterizing the trading system include the the average R-multiple 
 
 One of the steps in the pipeline performs a backtest on downloaded data. This step basically answers the question: *"What would have happened to the balance in the trading account if the trading system had been applied from start to finish on the set of tickers, using a selected position sizing strategy?"*
 
-The trading simulation plot below shows the balance (dotted brown line) and the total value (solid green line) of the trading account from the data startdate to the enddate. The red and green triangles shown in the bottom of the plot show the trade enter end exit signals. The size of the trade position is determined by the position sizing strategy (here the total risk taken per trade is a percentage of the balance at the enter date).
+The plot below shows the balance (dotted brown line) and the total value (solid green line) of the trading account from the data startdate to the enddate. The red and green triangles shown in the bottom of the plot show the trade enter end exit signals. The size of the trade position is determined by the position sizing strategy (here the total risk taken per trade is a percentage of the balance at the enter date).
 
 The trading account end balance is also compared against a configurable benchmark (optional), which is show as "Buy-and-Hold" (HODL). The HODL value show in the bottom right corner of the plot is the total value of the benchmark stock at the enddate, given that 100% of the account balance was used to buy the benchmark stock at the startdate, with no active trading in between. 
 
