@@ -1094,7 +1094,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
 
     x_first = mc_result_df.index[0]
 
-    ax.set_title(f"Monte Carlo simulation [{conf['iterations']}x] (${conf['balance']:,.0f})", fontsize=16, pad=25)
+    ax.set_title(f"Monte Carlo simulation [{conf['iterations']}x]", fontsize=16, pad=25)
     ax.plot([x_first, x_last], [conf['balance'], conf['balance']], color='green', linestyle='--', linewidth=1, alpha=.7)
     ax.plot([x_first, x_last], [mc_result_df.iloc[-1].median(), mc_result_df.iloc[-1].median()], color='brown', linestyle='dotted', linewidth=1.5, alpha=.7, label='Median')
 
@@ -1372,7 +1372,7 @@ def balance_plot(df, conf, ctx):
     val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
 
     fig = plt.figure(figsize = (10, 5))
-    plot_title = f"Trading simulation [{conf['pos_sizing']}] (${conf['balance']:,.0f})"
+    plot_title = f"Trading simulation [{conf['pos_sizing']}]"
     fig.suptitle(plot_title, fontsize=16)
     
     plt.plot(df.index, df['Balance'],
