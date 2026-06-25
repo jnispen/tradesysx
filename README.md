@@ -126,9 +126,9 @@ Shown below are some typical plots generated after running the pipeline.
 
 #### Price plot (3EMA strategy)
 
-The plot below shows the price-time chart of Google (Alphabet Inc.). For the triple moving average (3EMA) strategy,
+The plot below shows the price chart of Google (Alphabet Inc.). For the triple moving average (3EMA) strategy,
 the plot is overlayed with 3 colored moving average lines. The resulting ENTER and EXIT trading signals are also shown on
-the plot (green and red triangles). Displayed in the bottom part are the current R-average and in-trade statistics.
+the plot (green and red triangles). Displayed in the bottom part are the current R-average and trade statistics.
 
 <img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
 
