@@ -144,9 +144,11 @@ statistics characterizing the trading system include the the average R-multiple 
 
 #### Trading backtest
 
-<img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
+One of the steps in the pipeline is to perform a backtest using the downloaded data. This step basically answers the question: "What would have happened to the balance in my trading account if the trading system had been applied from start to finish on the set of tickers, using a selected position sizing strategy?".
 
-*TODO: description*
+The trading simulation plot shown below shows the balance (dotted brown line) and the total value (solid green line) of the trading account from the trading startdate to the enddate. The red and green triangles shown in the bottom of the plot show the trade enter end exit signals. The size of the trade positions taken is determined by the position sising strategy (here the risk taken per trade (1R) is 2% of the balance at the enter signal). 
+
+<img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
 ### 5.4 Monte Carlo simulation
 
