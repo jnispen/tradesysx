@@ -51,7 +51,7 @@ def update_quotes(conf, ctx):
         logger.info(f'==== [1/8] Downloading quote data ({len(quotes)}) ====')
         ut.get_quotes_data(quotes, conf, ohlc_filename, ctx)
         if auto_benchmark:
-            logger.info(f'==== Downloading benchmark data ({bm_ticker}) ====')
+            logger.info(f'==== [1/8] Downloading benchmark data ({bm_ticker}) ====')
             ut.get_quotes_data({bm_ticker: benchmark_desc}, conf, ohlc_filename, ctx)
     else:
         logger.info('==== [1/8] Downloading quote data: skipped (update_data=false) ====')
@@ -218,12 +218,6 @@ def main():
     start_time = datetime.now()
     logger.info(f'==== Start: {start_time.strftime("%Y-%m-%d %H:%M:%S")} ====')
 
-    logger.info('==== [0/8] Command line parameters ====')
-    logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
-    logger.info(f"Configuration file: {args.config}")
-    logger.info(f"Output directory  : {args.outdir}")
-    logger.info(f"Loglevel          : {args.loglevel}")
-
     # set base directory
     if args.basedir:
         base_dir = os.path.abspath(args.basedir)
@@ -240,6 +234,13 @@ def main():
     except Exception as e:
         logger.critical(f"failed to load configuration file: {e}")
         sys.exit(1)
+
+    logger.info('==== [0/8] Command line parameters ====')
+    logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
+    logger.info(f"Configuration file: {args.config}")
+    logger.info(f"Quote file        : {conf['quotefile']}")
+    logger.info(f"Output directory  : {args.outdir}")
+    logger.info(f"Loglevel          : {args.loglevel}")
 
     ut.validate_strategy_conf(conf)
     ut.validate_plot_indicators(conf)

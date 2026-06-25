@@ -1,5 +1,5 @@
 {
-    "quotefile"    : "quotes/quotes_stock.lst",
+    "quotefile"    : "quotes/quotes_sp500.lst",
     "benchmark"    : true,
     "bm_ticker"    : "URTH",
     "bm_desc"      : "iShares MSCI World ETF",
@@ -16,7 +16,7 @@
     "stloss"       : "3atr",
     "enter"        : "3EMA",
     "exit"         : "3EMA",
-    "start"        : "2023-01-01",
+    "start"        : "2020-01-01",
     "_end"         : "2024-10-01",
     "_period"      : "5y",
     "_interval"    : "1d",
