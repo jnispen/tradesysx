@@ -989,7 +989,7 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
     logger.info(f"Max drawdown (%)       : {stats.max_drawdown:.1f}")
 
     # save the balances and plot the result (see simulation plot)
-    plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, np.mean(Rmul_arr), np.mean(Rmul_sampled), avg_neg_run, max_neg_run,
+    plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, np.mean(Rmul_arr), np.mean(Rmul_sample), avg_neg_run, max_neg_run,
                                       output_filename=output_filename, benchmark=benchmark)
 
 def longest_negative_streak(values):
@@ -1075,7 +1075,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
             (0.03, 0.97, 'left',  'top',    slice(0, _q),        0.70, 1.00),  # upper-left
             (0.97, 0.97, 'right', 'top',    slice(_n - _q, _n),  0.70, 1.00),  # upper-right
             (0.03, 0.03, 'left',  'bottom', slice(0, _q),        0.00, 0.30),  # lower-left
-            (0.97, 0.03, 'right', 'bottom', slice(_n - _q, _n),  0.00, 0.30),  # lower-right
+            # lower-right is reserved for the "samples plotted" textbox
         ]
         box_x, box_y, box_ha, box_va, *_ = min(
             _candidates,
@@ -1098,9 +1098,24 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         )
     )
 
+    # lower-right textbox: percentage of simulation runs actually drawn on the plot
+    ax.text(
+        0.99, 0.01, f"{n_plot/mc_result_df.shape[1]:.0%} of samples plotted",
+        transform=plt.gca().transAxes,
+        fontsize=8,
+        fontfamily='Monospace',
+        verticalalignment='bottom',
+        horizontalalignment='right',
+        bbox=dict(
+            facecolor='white',
+            alpha=0.0,
+            edgecolor='none'
+        )
+    )
+
     x_first = mc_result_df.index[0]
 
-    ax.set_title(f"Monte Carlo simulation [{conf['iterations']}x ({conf['plot_frac']:.0%} plotted)]", fontsize=16, pad=25)
+    ax.set_title(f"Monte Carlo simulation [{conf['iterations']}x]", fontsize=16, pad=25)
     ax.plot([x_first, x_last], [conf['balance'], conf['balance']], color='green', linestyle='--', linewidth=1, alpha=.7)
     ax.plot([x_first, x_last], [mc_result_df.iloc[-1].median(), mc_result_df.iloc[-1].median()], color='brown', linestyle='dotted', linewidth=1.5, alpha=.7, label='Median')
 
@@ -1108,7 +1123,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=-8, y=2, units='points')
 
     # shift the start-balance label right and down so it sits just inside the left edge, below the line
-    start_label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=8, y=-5, units='points')
+    start_label_offset = mtransforms.offset_copy(ax.transData, fig=ax.figure, x=4, y=-5, units='points')
     plt.text(
         x_first, conf['balance'], f"${conf['balance']:,.0f}",
         fontsize=10,

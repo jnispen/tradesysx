@@ -1,5 +1,5 @@
 {
-    "quotefile"    : "quotes/quotes_dow30.lst",
+    "quotefile"    : "quotes/quotes_sp500.lst",
     "benchmark"    : true,
     "bm_ticker"    : "URTH",
     "bm_desc"      : "iShares MSCI World ETF",
@@ -25,7 +25,7 @@
     "intrade_wait" : 10,
     "trading_fee"  : 0.2,
     "min_invest"   : 20,
-    "risk_percent" : 0.02,
+    "risk_percent" : 0.01,
     "risk_amount"  : 250,
     "balance"      : 10000,
     "pos_sizing"   : "core_equity_risk",
