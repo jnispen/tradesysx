@@ -160,8 +160,8 @@ The trading account end balance is also (optionally) compared against a configur
 
 ### 5.5 Telegram notification (optional)
 
+Optionally, after running the pipeline, system updates can be sent to a Telegram bot. The current update includes the close price of all tickers in the ticker list, as well as the stoploss price and the current signal (currently IN a trade, currently NOT IN a trade, ENTER or EXIT). An example of this is shown in the screenshot below.
+
 <p align="center">
   <img src="docs/examples/telegram.png" alt="Telegram notification" width="300">
 </p>
-
-*TODO: description*
