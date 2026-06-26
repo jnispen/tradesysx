@@ -157,3 +157,11 @@ The trading account end balance is also (optionally) compared against a configur
 <img src="docs/examples/monte_carlo_plot.png" alt="Monte Carlo simulation" width="900">
 
 *TODO: description*
+
+### 5.5 Telegram notification (optional)
+
+<p align="center">
+  <img src="docs/examples/telegram.png" alt="Telegram notification" width="300">
+</p>
+
+*TODO: description*
