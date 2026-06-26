@@ -1614,6 +1614,7 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
         ax.plot(df.index, sma225, color='orange', linewidth=2, linestyle='-.', label='SMA225')
 
     ax.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')
+    plt.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))
 
     plt.grid(linestyle='--')
     plt.xlabel('Date')
