@@ -158,7 +158,7 @@ The trading account end balance is also (optionally) compared against a configur
 
 ### 5.5 (*Optional*) Telegram notification
 
-After running the pipeline, system updates can be sent to a Telegram bot. This option is configured by setting `notify=true` in the `config/system_conf.json` file. The current update includes the close price of all tickers, as well as the stoploss price and the current signal (currently IN a trade, currently NOT IN a trade, ENTER, EXIT or STOPLOSS). The update also sends a system summary report in PDF format. An example of this is shown in the screenshot below.
+After running the pipeline, system updates can be sent to a Telegram bot. This option is configured by setting `notify=true` in the `config/system_conf.json` file. The current update includes the close price of all tickers, as well as the stoploss price and the current signal (i.e. currently IN a trade, currently NOT IN a trade, ENTER, EXIT or STOPLOSS). The update also sends a system summary report in PDF format. An example of this is shown in the screenshot below.
 
 <p align="center">
   <img src="docs/examples/telegram.png" alt="Telegram notification" width="270" height="600">
