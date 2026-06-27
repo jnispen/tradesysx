@@ -803,7 +803,9 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
         if row.Exit != '-':
             units = active_trades[row.Ticker]
             tot_profit = units * round(row.Profit, 2)
-            cap_invested = -(units * row.Exit - (units * row.Exit) * float(conf['trading_fee'])/100)
+            exit_fee = (units * row.Exit) * float(conf['trading_fee']) / 100
+            cap_invested = -(units * row.Exit - exit_fee)
+            logger.debug(f"Trading fee (exit ): {exit_fee:.2f} ({row.Ticker})")
             active_trades[row.Ticker] = 0
             gain_lst.append(round(tot_profit, 2))
             units_lst.append('-')
@@ -842,7 +844,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
             closed_ret = float(tmp_df['LastClose'].iloc[0]) * float(value)
             balance += closed_ret
             closed_open_trades += 1
-            logger.debug("Closed: {} {:,.2f}".format(key, closed_ret))
+            logger.debug("Closed: {} ({:,.2f})".format(key, closed_ret))
             tmp_row = {
                 'Date': last_close_date.strftime('%Y-%m-%d'),
                 'Ticker': f"({key})",
@@ -903,8 +905,8 @@ def do_monte_carlo_simulation_sampled(total_trades_list, conf, ctx, stats):
     # extract Rmul values from the trades list
     Rmul_arr = total_trades_list['Rmul'].dropna().to_numpy()
 
-    # set fixed variables for simulation
-    risk = stats.avg_risk / conf['balance'] if len(Rmul_arr) <= conf['sim_len_max'] else (stats.avg_risk/stats.trades_num) * conf['sim_len_max'] / conf['balance']
+    # set the average risk 
+    risk = stats.avg_risk / conf['balance']
 
     # precompute the buy-and-hold benchmark for the plot, if enabled
     benchmark = None
@@ -930,10 +932,10 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
 
     # sample from the real distribution as measured by the closed trades
     multiset = Rmul_arr.tolist()
-    sample_count = 10000
+    sample_count = conf['iterations']
     Rmul_sample = np.random.choice(multiset, size=sample_count, replace=True)
 
-    logger.info(f"Sampled Rmul average   : {np.mean(Rmul_sample):.2f} (10000 samples)")
+    logger.info(f"Sampled Rmul average   : {np.mean(Rmul_sample):.2f} ({conf['iterations']} samples)")
     logger.info(f"Risk per trade ($)     : {risk*conf['balance']:.2f}")
     logger.info(f"Risk per trade (%)     : {risk*100:.2f}")
 
@@ -951,7 +953,7 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
     # Monte Carlo balance simulation
     for it in range(0, N):
 
-        # draw samples from the original distribution
+        # draw series of samples from the original distribution (of size M)
         Rmul_sampled = np.random.choice(multiset, size=M, replace=True)
 
         # store longest neg streak
@@ -1050,6 +1052,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
 
     # plot min-max values as text box
     sim_str = (
+        f"Trades      : {x_last}\n"
         f"Min         : ${mc_result_df.iloc[-1].min():,.0f}\n"
         f"Max         : ${mc_result_df.iloc[-1].max():,.0f}\n"
         f"Std         : ${mc_result_df.iloc[-1].std():,.0f}\n"
@@ -1243,6 +1246,7 @@ def _get_capital_invested(row, conf, balance, stats):
     # apply fee (fee is a percentage of the gross transaction)
     fee = units * row.Enter * float(conf["trading_fee"]) / 100
     cap_invested = units * row.Enter - fee
+    logger.debug(f"Trading fee (enter): {fee:.2f} ({row.Ticker})")
 
     # do not enter trades where the invested amount is too low, and scale down if the investement requires > current balance
     if cap_invested < conf['min_invest']:
@@ -1254,6 +1258,7 @@ def _get_capital_invested(row, conf, balance, stats):
         units = balance / row.Enter
         fee = units * row.Enter * float(conf["trading_fee"]) / 100
         cap_invested = units * row.Enter - fee
+        logger.debug(f"Trading fee (scaled down): {fee:.2f} ({row.Ticker})")
         if units <= 0:
             units = 0
             cap_invested = 0
