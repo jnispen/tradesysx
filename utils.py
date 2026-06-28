@@ -758,7 +758,7 @@ def compute_position_size(conf, balance, stats):
     elif ps == "fixed_amount":
         return conf["pos_amount"]             # position size as a fixed_amount
     elif ps == "kelly":
-        return conf['kelly_ratio'] * stats.kelly_crit * balance # position size as a per the kelly criterion
+        return conf['kelly_ratio'] * stats.kelly_crit * balance # position size as per the kelly criterion
     else:
         logger.critical(f"The position sizing strategy [{conf['pos_sizing']}] does not exist!")
         sys.exit(1)
@@ -936,7 +936,6 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
     Rmul_sample = np.random.choice(multiset, size=sample_count, replace=True)
 
     logger.info(f"Sampled Rmul average   : {np.mean(Rmul_sample):.2f} ({conf['iterations']} samples)")
-    logger.info(f"Risk per trade ($)     : {risk*conf['balance']:.2f}")
     logger.info(f"Risk per trade (%)     : {risk*100:.2f}")
 
     sim_runs = conf['iterations']
