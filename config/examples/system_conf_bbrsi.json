@@ -12,7 +12,6 @@
     "gen_ta_custom": false,
     "ta_custom"    : ["FI"],
     "report_type"  : "short",
-    "position"     : "long",
     "stloss"       : "percent",
     "enter"        : "BBRSI",
     "exit"         : "BBRSI",

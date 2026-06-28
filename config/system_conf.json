@@ -12,7 +12,6 @@
     "gen_ta_custom": false,
     "ta_custom"    : ["FI"],
     "report_type"  : "short",
-    "position"     : "long",
     "stloss"       : "3atr",
     "enter"        : "3EMA",
     "exit"         : "3EMA",
