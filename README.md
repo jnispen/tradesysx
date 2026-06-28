@@ -3,9 +3,9 @@
 GetQuotes is a backtesting toolkit for mechanical trading systems. It downloads historical OHLC stock data
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
 simulates a virtual trading account (paper-trading backtest), and runs a Monte Carlo simulation over the 
-obtained R-multiple distribution (empirical resampling with replacement).
+obtained R-multiple distribution (resampling with replacement).
 
-The GetQuotes toolkit was inspired by the various books on trading systems
+The GetQuotes toolkit was directly inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
 ## 1. What it does (processing steps)
@@ -71,7 +71,7 @@ overlays, picked from three tiers:
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
   Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
 
-## 3. Environment setup and tool cmdline
+## 3. Environment setup and cmdline parameters
 
 1. Install Python dependencies:
 
@@ -158,7 +158,7 @@ After obtaining the R-multiple distribution, a Monte Carlo simulation can be use
 
 For each simulated trade series, the simulation samples a series with the length of the number of trades or less if `sim_len_max` is smaller and repeats this process N times (set by the `iterations` parameter). Furthermore, it is assumed that at each trade a 1R risk equal to the average risk percentage calculated from the backtest is taken. The average risk is taken here in an attempt to simulate simultaneous trades, as will happen during real trading, in contrast to running the simulation as a series of sequential trades (where the full balance will be available for each trade).
 
-In the picture below, an MC simulation with 10000 iterations was run. Starting with the configured starting balance in the trading account, 5% of all resampled sequences have been plotted (for clarity). However, the numbers in the figure represent the values obtained for the full set. On the right-hand side of the figure, the median values of the outcomes (dotted line) as well as the 95 and 5 percentile markers are shown. If configured, the line for the benchmark value (HODL) is also shown. The percentile values between the round brackets show the CAGR (annualized growth rate) of the starting capital. The text box in the upper left corner shows some more computed values, of which the average loss streak, the maximum loss streak, and the maximum drawdown percentage might be of interest. To accommodate for a very skewed outcome distribution, the y-axis is cut off from a value above 4 times the standard deviation from the median, which is set by the `outlier` parameter.
+In the picture below, an MC simulation with 10000 iterations was run. Starting with the configured starting balance in the trading account, only 5% of all resampled sequences have been plotted (for clarity, configurable with the `plot_frac` parameter). However, the numbers in the figure represent the values obtained for the full set. On the right-hand side of the figure, the median values of the outcomes (dotted line) as well as the 95 and 5 percentile markers are shown. If configured, the line for the benchmark value (HODL) is also shown. The percentile values between the round brackets show the CAGR (annualized growth rate) of the starting capital. The text box in the upper left corner shows some more computed values, of which the average loss streak, the maximum loss streak, and the maximum drawdown percentage might be of interest. To accommodate for a very skewed outcome distribution, the y-axis is cut off from a value above 4 times the standard deviation from the median, which is set by the `outlier` parameter.
 
 <img src="docs/examples/monte_carlo_plot.png" alt="Monte Carlo simulation" width="900">
 
