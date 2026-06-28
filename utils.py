@@ -1056,7 +1056,6 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
         f"Min         : ${mc_result_df.iloc[-1].min():,.0f}\n"
         f"Max         : ${mc_result_df.iloc[-1].max():,.0f}\n"
         f"Std         : ${mc_result_df.iloc[-1].std():,.0f}\n"
-        f"Risk        : ${risk*conf['balance']:,.0f}\n"
         f"Risk        : {risk*100:,.2f}%\n"
         f"Loss avg    : {avg_neg_run:.0f}x\n"
         f"Loss max    : {max_neg_run:.0f}x\n"
