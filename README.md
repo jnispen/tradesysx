@@ -129,7 +129,7 @@ The plot below shows the price chart of Google (Alphabet Inc.). For the triple m
 the plot is overlayed with 3 colored moving average lines. The resulting ENTER and EXIT trading signals are also shown on
 the plot (green and red triangles). Displayed in the bottom part are the current R-average and trade statistics.
 
-<img src="docs/examples/GOOG_plot.png" alt="GOOG price chart" width="900">
+<img src="docs/examples/GOOGL_plot.png" alt="GOOGLE price chart" width="900">
 
 #### R-multiple distribution
 
