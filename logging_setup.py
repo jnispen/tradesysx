@@ -1,9 +1,9 @@
-''' Shared console logging setup for getquotes/utils/strategy '''
+''' Shared console logging setup for tradesysx/utils/strategy '''
 
 import logging
 
-# loggers created by this app's own modules (getquotes.py runs as "__main__")
-APP_LOGGER_NAMES = ("__main__", "getquotes.utils", "getquotes.strategy")
+# loggers created by this app's own modules (tradesysx.py runs as "__main__")
+APP_LOGGER_NAMES = ("__main__", "tradesysx.utils", "tradesysx.strategy")
 
 RESET = "\033[0m"
 LEVEL_COLORS = {

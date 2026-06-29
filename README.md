@@ -1,15 +1,15 @@
-# GetQuotes
+# TradeSysX (Trading System Explorer)
 
-GetQuotes is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) stock data
+TradeSysX is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) stock data
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
 simulates a virtual trading account (paper-trading backtest) using a configurable positon sizing strategy, and runs a Monte Carlo simulation over the obtained R-multiple distribution.
 
-The GetQuotes toolkit was directly inspired by the various books on trading systems
+TradeSysX was directly inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
 ## 1. What it does (processing steps)
 
-Running `getquotes.py` performs the following processing pipeline for every ticker in the
+Running `tradesysx.py` performs the following processing pipeline for every ticker in the
 configured quotes file:
 
 1. **Download data** — fetch OHLC price history from [Yahoo Finance](https://finance.yahoo.com/)
@@ -87,7 +87,7 @@ overlays, picked from three tiers:
 5. Run the pipeline:
 
    ```sh
-   python getquotes.py [--basedir <path>] [--config <file>] [--outdir <path>] [--loglevel <level>]
+   python tradesysx.py [--basedir <path>] [--config <file>] [--outdir <path>] [--loglevel <level>]
    ```
 
    **Options:**

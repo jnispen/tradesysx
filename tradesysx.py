@@ -10,13 +10,13 @@ import os
 
 from datetime import datetime
 
-# make the repo root's parent directory importable as the `getquotes` package
+# make the repo root's parent directory importable as the `tradesysx` package
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from getquotes import utils as ut
-from getquotes.tables import TotalTradesList, TradesTable
-from getquotes.context import RunContext, SystemStats
-from getquotes.logging_setup import setup_logging, add_logging_arguments
+from tradesysx import utils as ut
+from tradesysx.tables import TotalTradesList, TradesTable
+from tradesysx.context import RunContext, SystemStats
+from tradesysx.logging_setup import setup_logging, add_logging_arguments
 
 logger = logging.getLogger(__name__)
 

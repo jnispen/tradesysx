@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['getquotes.py'],
+    ['tradesysx.py'],
     pathex=[],
     binaries=[],
     datas=[('quotes', 'quotes'), ('config', 'config')],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='getquotes',
+    name='tradesysx',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
