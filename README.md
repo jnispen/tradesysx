@@ -151,7 +151,7 @@ The trading account end balance is also (optionally) compared against a configur
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
-### Monte Carlo simulation
+#### Monte Carlo simulation
 
 After obtaining the R-multiple distribution, a Monte Carlo simulation can be used to explore a range of *possible* alternative trade sequences. However, the results from the simulation should be interpreted with caution as the simulation is inherently an approximation, and small changes in the underlying R-multiple distribution will significantly affect the outcome. The simulation attempts to visualize the range of possible alternate outcomes given the R-multiple distribution by drawing (*resampling*) with replacement from the distribution. By randomly drawing individual trade outcomes from the set, many different series of trade histories emerge while adhering to the probability distribution of the set. If a sufficient number of samples are drawn, the sampled average R-multiple will converge to the average R-multiple of the set.
 
@@ -161,7 +161,7 @@ In the picture below, an Monte Carlo simulation with 10 000 iterations was run. 
 
 <img src="docs/examples/monte_carlo_plot.png" alt="Monte Carlo simulation" width="900">
 
-### Telegram notification (*Optional*)
+#### Telegram notification (*Optional*)
 
 After running the pipeline, system updates can be sent to a Telegram bot. This option is configured by setting `notify=true` in the `config/system_conf.json` file. The current update includes the close price of all tickers, as well as the stoploss price and the current signal (i.e., currently IN a trade, currently NOT IN a trade, ENTER, EXIT, or STOPLOSS). The update also sends a system summary report in PDF format. An example of this is shown in the screenshot below.
 
