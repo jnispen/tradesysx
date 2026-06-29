@@ -653,7 +653,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
     dict (rendered as tables). If `full` is True, the report also includes
     every ticker's plot, at the same size as the other figures. '''
 
-    stat_html = stat_df.to_html(border=0, index=False, classes="compact-table")
+    stat_html = stat_df.to_html(border=0, index=False, classes="summary-table")
 
     conf_values = [", ".join(v) if isinstance(v, list) else v for v in conf.values()]
     conf_items = list(zip(conf.keys(), conf_values))
@@ -704,6 +704,9 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
             {table_style_css(14)}
             th, td {{ text-align: left; }}
             table.compact-table {{ width: auto; table-layout: auto; }}
+            table.summary-table {{ width: 46%; table-layout: fixed; }}
+            table.summary-table th:nth-child(odd), table.summary-table td:nth-child(odd) {{ width: 50%; }}
+            table.summary-table th:nth-child(even), table.summary-table td:nth-child(even) {{ width: 50%; }}
             table.full-table {{ width: 92%; table-layout: fixed; }}
             table.full-table th:nth-child(odd), table.full-table td:nth-child(odd) {{ width: 22%; }}
             table.full-table th:nth-child(even), table.full-table td:nth-child(even) {{ width: 28%; }}
@@ -1609,7 +1612,7 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
 
     fig = plt.figure(figsize = (28, 10))
     ax = fig.gca()
-    fig.suptitle('{} - {}'.format(description, ticker), fontsize=20)
+    fig.suptitle('{} ({})'.format(description, ticker), fontsize=20)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
 
     if 'SMA225' in conf.get('plot_indicators', []):
@@ -1636,7 +1639,7 @@ def ticker_plot(df, ticker, description, conf, ctx):
     if not pd.api.types.is_datetime64_any_dtype(df.index):
         df.index = pd.to_datetime(df.index)
 
-    fig.suptitle('{} - {}'.format(description, ticker), fontsize=20)
+    fig.suptitle('{} ({})'.format(description, ticker), fontsize=20)
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=conf['date_int']))
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
 
@@ -1702,7 +1705,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize = (28, 10))
     else:
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize = (28, 15))
-    fig.suptitle('{} - {}'.format(description, ticker), fontsize=20)
+    fig.suptitle('{} ({})'.format(description, ticker), fontsize=20)
 
     # Ensure index is datetime
     if not pd.api.types.is_datetime64_any_dtype(df.index):
@@ -1797,7 +1800,7 @@ def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
     panels = conf['ta_custom']
     num_axes = 1 + len(panels)
     fig, axes = plt.subplots(num_axes, 1, sharex=True, figsize=(28, 5 * num_axes))
-    fig.suptitle('{} - {}'.format(description, ticker), fontsize=20)
+    fig.suptitle('{} ({})'.format(description, ticker), fontsize=20)
 
     # Ensure index is datetime
     if not pd.api.types.is_datetime64_any_dtype(df.index):
