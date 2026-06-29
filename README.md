@@ -1,6 +1,6 @@
-# TradeSysX (Trading System Explorer)
+# TradeSysX
 
-TradeSysX is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) stock data
+TradeSysX (Trading System Explorer) is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) stock data
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
 simulates a virtual trading account (paper-trading backtest) using a configurable positon sizing strategy, and runs a Monte Carlo simulation over the obtained R-multiple distribution.
 
