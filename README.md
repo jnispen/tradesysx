@@ -7,12 +7,12 @@ simulates a virtual trading account (paper-trading backtest) using a configurabl
 TradeSysX was directly inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
-## 1. What it does (processing steps)
+## 1. Processing steps
 
 Running `tradesysx.py` performs the following processing pipeline for every ticker in the
 configured quotes file:
 
-1. **Download data** — fetch OHLC price history from [Yahoo Finance](https://finance.yahoo.com/)
+1. **Download ticker data** — fetch OHLC price history from [Yahoo Finance](https://finance.yahoo.com/)
     and store it as `<outdir>/data/<TICKER>_ohlc_raw.csv`.
 3. **Add technical indicators** — compute a set of TA indicators (e.g. RSI, ATR, SMA/EMA
    moving averages, Bollinger Bands) over the data.
@@ -28,7 +28,7 @@ configured quotes file:
    the trading system is obtained.
 8. **Compute the trading system statistics** — System Quality Number (SQN), win rate,
    Kelly criterion, average R per win/loss, trades/year, etc.
-9. **Run the balance simulation** — starting from an initial trading account balance, run a
+9. **Run a balance simulation** — starting from an initial trading account balance, run a
     paper-trade (backtest), using the enter/exit signals from the configured position sizing strategy
    (`core_equity_risk`, `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) and track
    the balance and total value of the trading account over time.
@@ -119,7 +119,7 @@ directory.The following data, plots and images are produced:
 - `<outdir>/tables/` — trades table and trades list as CSV files
 - `<outdir>/system_summary.pdf`, `full_system_summary.pdf` (`report_type=full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
 
-### 4.1. Example plots
+### 4.1. Example plots and graphs
 
 Shown below are some typical plots generated after running the pipeline.
 
@@ -151,7 +151,7 @@ The trading account end balance is also (optionally) compared against a configur
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
-### 5.4 Monte Carlo simulation
+### Monte Carlo simulation
 
 After obtaining the R-multiple distribution, a Monte Carlo simulation can be used to explore a range of *possible* alternative trade sequences. However, the results from the simulation should be interpreted with caution as the simulation is inherently an approximation, and small changes in the underlying R-multiple distribution will significantly affect the outcome. The simulation attempts to visualize the range of possible alternate outcomes given the R-multiple distribution by drawing (*resampling*) with replacement from the distribution. By randomly drawing individual trade outcomes from the set, many different series of trade histories emerge while adhering to the probability distribution of the set. If a sufficient number of samples are drawn, the sampled average R-multiple will converge to the average R-multiple of the set.
 
@@ -161,7 +161,7 @@ In the picture below, an Monte Carlo simulation with 10 000 iterations was run. 
 
 <img src="docs/examples/monte_carlo_plot.png" alt="Monte Carlo simulation" width="900">
 
-### 5.5 (*Optional*) Telegram notification
+### Telegram notification (*Optional*)
 
 After running the pipeline, system updates can be sent to a Telegram bot. This option is configured by setting `notify=true` in the `config/system_conf.json` file. The current update includes the close price of all tickers, as well as the stoploss price and the current signal (i.e., currently IN a trade, currently NOT IN a trade, ENTER, EXIT, or STOPLOSS). The update also sends a system summary report in PDF format. An example of this is shown in the screenshot below.
 
