@@ -74,7 +74,7 @@ overlays, picked from three tiers:
 
 Two ways of running `tradesysx` are described, from a **Python virtual environment**, and from a **Docker container**.
 
-### 3.1 Running from a virtual environment 
+### 3.1 Running from a Python virtual environment 
 
 Create a Python virtual environment and *activate* it:
 
