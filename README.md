@@ -5,7 +5,7 @@ from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/e
 simulates a virtual trading account (paper-trading backtest) using a configurable positon sizing strategy, and runs a Monte Carlo simulation over the obtained R-multiple distribution.
 
 TradeSysX was inspired by the various books on trading systems
-development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
+development written by [Dr. Van K. Tharp](https://vantharp.com/).
 
 ## 1. Processing steps
 
