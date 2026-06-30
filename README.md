@@ -1,6 +1,6 @@
 # TradeSysX
 
-TradeSysX (Trading System Explorer) is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) stock data
+TradeSysX (Trading System eXplorer) is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) stock data
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
 simulates a virtual trading account (paper-trading backtest) using a configurable positon sizing strategy, and runs a Monte Carlo simulation over the obtained R-multiple distribution.
 
@@ -74,13 +74,13 @@ overlays, picked from three tiers:
 
 ### 3.1 Running from a virtual environment 
 
-Install a python virtual environment and *activate* it:
+Create a python virtual environment and *activate* it:
 
 ```
 python3 -m venv venv
 source venv/bin/activate
 ```
-Cd into the `tradesysx` directory
+Cd into the directory where `tradesysx` has been cloned or extracted:
 
 1. Install Python dependencies:
 
@@ -114,8 +114,12 @@ Cd into the `tradesysx` directory
    `basedir`; absolute paths are used as-is. Defaults to `out/`.
 
    `--loglevel` controls console verbosity [`DEBUG`, `INFO` (default),
-   `WARNING`, `ERROR` or `CRITICAL`].
+   `WARNING`, `ERROR` or `CRITICAL`]
 
+### 3.2 Running from a docker container
+
+An alternative is to run the pipeline from a docker container. The steps involved are described here.
+   
 ## 4. Data output
 
 All generated data, plots, tables and reports are written under the output
