@@ -137,7 +137,7 @@ directory.The following data, plots and images are produced:
 
 ### 4.1. Example plots and graphs
 
-Shown below are some typical plots generated after running the pipeline.
+Shown below are some typical plots generated after running `tradesysx`.
 
 #### Price plot (3EMA strategy)
 
