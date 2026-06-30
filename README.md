@@ -9,7 +9,7 @@ development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
 ## 1. Processing steps
 
-Running `tradesysx.py` performs the following processing pipeline for every ticker in the
+Running `tradesysx` performs the following processing pipeline for every ticker in the
 configured quotes file:
 
 1. **Download ticker data** — fetch OHLC price history from [Yahoo Finance](https://finance.yahoo.com/)
@@ -72,7 +72,7 @@ overlays, picked from three tiers:
 
 ## 3. Environment setup and cmdline parameters
 
-Two ways of running the pipeline are described, from a **python virtual environment**, and from a **Docker container**.
+Two ways of running `tradesysx` are described, from a **python virtual environment**, and from a **Docker container**.
 
 ### 3.1 Running from a virtual environment 
 
