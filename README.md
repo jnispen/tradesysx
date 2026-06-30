@@ -4,7 +4,7 @@ TradeSysX (Trading System Explorer) is a toolkit for backtesting mechanical trad
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
 simulates a virtual trading account (paper-trading backtest) using a configurable positon sizing strategy, and runs a Monte Carlo simulation over the obtained R-multiple distribution.
 
-TradeSysX was directly inspired by the various books on trading systems
+TradeSysX was inspired by the various books on trading systems
 development written by Dr. Van K. Tharp (<https://vantharpinstitute.com/>).
 
 ## 1. Processing steps
@@ -71,6 +71,16 @@ overlays, picked from three tiers:
   Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
 
 ## 3. Environment setup and cmdline parameters
+
+### 3.1 Running from a virtual environment 
+
+Install a python virtual environment and *activate* it:
+
+```
+python3 -m venv venv
+source venv/bin/activate
+```
+Cd into the `tradesysx` directory
 
 1. Install Python dependencies:
 
