@@ -235,7 +235,7 @@ def main():
         logger.critical(f"failed to load configuration file: {e}")
         sys.exit(1)
 
-    logger.info('==== [0/8] Command line parameters ====')
+    logger.info('==== [0/8] Commandline parameters ====')
     logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
     logger.info(f"Configuration file: {args.config}")
     logger.info(f"Quote file        : {conf['quotefile']}")
