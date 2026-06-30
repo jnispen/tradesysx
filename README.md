@@ -124,8 +124,7 @@ In some situations it could make sense to run `tradesysx` from a Docker containe
    
 ## 4. Data output
 
-All generated data, plots, tables and reports are written to the output
-directory. The following data, plots and images are produced:
+All data output is written to the output directory. The following data, plots and images are generated:
 
 - `<outdir>/data/` — raw and processed OHLC data per ticker
 - `<outdir>/plots/` — per-ticker price charts
