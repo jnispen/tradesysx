@@ -4,7 +4,7 @@ TradeSysX (**T**rading **S**ystem e**X**plorer) is a toolkit for backtesting mec
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
 simulates a virtual trading account (paper-trading backtest) using a configurable positon sizing strategy, and runs a Monte Carlo simulation over the obtained R-multiple distribution.
 
-TradeSysX was inspired by the various books on trading systems
+TradeSysX was inspired by the various [books](https://vantharp.com/vans-books/) on trading systems
 development written by [Dr. Van K. Tharp](https://vantharp.com/).
 
 ## 1. Processing steps
