@@ -120,7 +120,7 @@ Cd into the directory where `tradesysx` has been cloned or extracted:
 
 ### 3.2 Running from a Docker container
 
-In some situations it might make sense to run `tradesysx` from a Docker container. The steps involved are described in the [scripts/README.md](scripts/README.md) file.
+In some situations it could make sense to run `tradesysx` from a Docker container. The steps involved are described in more detail in the [scripts/README.md](scripts/README.md) file.
    
 ## 4. Data output
 
