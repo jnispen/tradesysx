@@ -72,6 +72,8 @@ overlays, picked from three tiers:
 
 ## 3. Environment setup and cmdline parameters
 
+Two ways of running the pipeline are described, from a python virtual environment, and from a Docker container.
+
 ### 3.1 Running from a virtual environment 
 
 Create a python virtual environment and *activate* it:
@@ -118,7 +120,7 @@ Cd into the directory where `tradesysx` has been cloned or extracted:
 
 ### 3.2 Running from a docker container
 
-An alternative is to run the pipeline from a docker container. The steps involved are described here.
+An alternative is to run the pipeline from a Docker container. The steps involved are described in the [scripts/README.md] (scripts/README.md).
    
 ## 4. Data output
 
