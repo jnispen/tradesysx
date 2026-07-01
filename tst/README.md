@@ -1,4 +1,4 @@
-### Monte Carlo simulator (standalone)
+# Monte Carlo simulator (standalone)
 
 `simulator.py` is a tool used to explore how a given R-multiple
 distribution plays out over many simulated trade sequences ("bag of
@@ -8,7 +8,7 @@ The R-multiple distribution is read from a CSV file with an `Rmul` column
 (e.g. `out/tables/Rmul_trades.csv`, produced by the main pipeline), passed
 via `--rmul-dist`.
 
-#### Running it
+## Running it
 
 From the repository root:
 
@@ -25,7 +25,7 @@ python tst/simulator.py --rmul-dist <path> [--basedir <path>] [--outdir <path>] 
 - `--loglevel` accepts `DEBUG`, `INFO` (default), `WARNING`, `ERROR` or
   `CRITICAL`.
 
-#### Configuration
+## Configuration
 
 `tst/config/simulator_conf.json` (always loaded relative to this script,
 regardless of `--basedir`):
@@ -37,7 +37,7 @@ regardless of `--basedir`):
 - `outlier` — used to cap the plot's y-axis (median + `outlier` × stdev of
   final balances).
 
-#### Output
+## Output
 
 The plotted output is written to `<outdir>/images/monte_carlo_plot.png`,
 showing all simulated balance trajectories plus summary statistics (median,
