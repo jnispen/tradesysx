@@ -1,8 +1,8 @@
-#  Running `tradesysx` from a Docker container
+##  Running `tradesysx` from a Docker container
 
 Below is a description on how to package and run `tradesysx` from a Docker container. It was added as a quick way to test or try-out the software. The `build_binary.sh` script was added to compile everything into a single executable, which might also be conveniant in some cases.
 
-## export_package.sh
+### export_package.sh
 
 Packages the current `HEAD` commit into a zip archive for sharing with a collaborator.
 
@@ -17,7 +17,7 @@ scripts/export_package.sh <label>
 
 The recipient should unzip the archive and follow the setup steps in `tradesysx/README.md` (`pip install -r requirements.txt`, etc.).
 
-## Dockerfile
+### Dockerfile
 
 Tests an exported zip in isolation: builds the TA-Lib C library and
 WeasyPrint runtime deps, unzips the package, installs `requirements.txt`,
@@ -47,7 +47,7 @@ python tradesysx.py
 ls out/
 ```
 
-## build_binary.sh
+### build_binary.sh
 
 Builds a standalone executable with [PyInstaller](https://pyinstaller.org/).
 
