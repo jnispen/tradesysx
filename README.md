@@ -1,6 +1,6 @@
 # TradeSysX
 
-TradeSysX (**T**rading **S**ystem e**X**plorer) is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) stock data
+TradeSysX (**T**rading **S**ystem e**X**plorer) is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) data
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
 simulates a virtual trading account (paper-trading backtest) using a configurable positon sizing strategy, and runs a Monte Carlo simulation over the obtained R-multiple distribution.
 
@@ -20,7 +20,7 @@ configured quotes file:
    (`3EMA`, `SMA` or `BBRSI`), exit strategy (`CE`, `CEE`, `RSI`, `XR`,
    `3EMA`, `SMA` or `BBRSI`) and stoploss method (`3atr` or `percent`) to
    produce entry or exit trading signals.
-5. **Plot ticker charts** — save a price/indicator chart per ticker
+5. **Generate ticker plots** — save a price/indicator plot per ticker
    (`<outdir>/plots/`), optionally with a separate technical-analysis panel
    (`<outdir>/plots/TA/`).
 6. **Build the trades table** — collect every completed and open trade into a combined
@@ -28,19 +28,19 @@ configured quotes file:
    the trading system is obtained.
 8. **Compute the trading system statistics** — System Quality Number (SQN), win rate,
    Kelly criterion, average R per win/loss, trades/year, etc.
-9. **Run a balance simulation** — starting from an initial trading account balance, run a
-    paper-trade (backtest), using the enter/exit signals from the configured position sizing strategy
-   (`core_equity_risk`, `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) and track
+9. **Run a balance simulation** — starting with an initial trading account balance, run a
+    paper-trade (backtest), using the enter/exit signals generated in step 3 and a configured position sizing strategy
+   (`core_equity_risk`, `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) to track
    the balance and total value of the trading account over time.
-11. **Run a Monte Carlo simulation** — resample from the R-multiple distribution obtained
+11. **Run a Monte Carlo simulation** — draw series of trade histories by resampling from the R-multiple distribution obtained
    from the trades to estimate the range of possible outcomes (empirical resampling with replacement),
    drawdown and loss streaks, and optionally compare against a configurable buy-and-hold benchmark
    (default: iShares MSCI World ETF / `URTH`).
 13. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
    `<outdir>/system_summary.pdf` report covering configuration, statistics and
-   charts.
+   key charts.
 14. **Notify via Telegram** *(optional)* — publish the daily ENTER/EXIT/stoploss
-    signals and the summary PDF to a configured Telegram chat.
+    signals and the summary PDF to a configured Telegram channel (bot).
 
 ## 2. Configuration
 
@@ -70,7 +70,7 @@ overlays, picked from three tiers:
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
   Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
 
-## 3. Environment setup and cmdline parameters
+## 3. Environment setup and `tradesysx` cmdline parameters
 
 Two ways of running `tradesysx` are described, from a **Python virtual environment**, and from a **Docker container**.
 
@@ -120,7 +120,7 @@ Cd into the directory where `tradesysx` has been cloned or extracted:
 
 ### 3.2 Running from a Docker container
 
-In some situations it could make sense to run `tradesysx` from a Docker container. The steps involved are described in more detail in the [scripts/README.md](scripts/README.md) file.
+An alternative way to run `tradesysx` is from a Docker container. The steps involved are described in more detail in the [scripts/README.md](scripts/README.md) file.
    
 ## 4. Data output
 
