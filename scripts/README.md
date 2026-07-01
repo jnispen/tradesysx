@@ -1,3 +1,7 @@
+# Exporting `tradesysx` and running from a Docker container
+
+Below is a description on how to package and run `tradesysx` from a Docker container. It was added as a quick way to test or try-out the software. The `build_binary.sh` script was added to compile everything into a single executable, which might also be conveniant in some cases.
+
 ## export_package.sh
 
 Packages the current `HEAD` commit into a zip archive for sharing with a collaborator.
