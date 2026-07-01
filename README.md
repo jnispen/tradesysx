@@ -14,7 +14,7 @@ configured quotes file:
 
 1. **Download ticker data** — fetch OHLC price history from [Yahoo Finance](https://finance.yahoo.com/)
     and store it as `<outdir>/data/<TICKER>_ohlc_raw.csv`.
-3. **Add technical indicators** — compute a set of TA indicators (e.g. RSI, ATR, SMA/EMA
+3. **Add technical indicators** — compute a set of technical-analysis (TA) indicators (e.g. RSI, ATR, SMA/EMA
    moving averages, Bollinger Bands) over the data.
 4. **Generate ENTER/EXIT signals** — apply the configured entry strategy
    (`3EMA`, `SMA` or `BBRSI`), exit strategy (`CE`, `CEE`, `RSI`, `XR`,
@@ -31,9 +31,9 @@ configured quotes file:
 9. **Run a balance simulation** — starting with an initial trading account balance, run a
     paper-trade (backtest), using the enter/exit signals generated in step 3 and a configured position sizing strategy
    (`core_equity_risk`, `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) to track
-   the balance and total value of the trading account over time.
+   the balance and the total value of the trading account over time.
 11. **Run a Monte Carlo simulation** — draw series of trade histories by resampling from the R-multiple distribution obtained
-   from the trades to estimate the range of possible outcomes (empirical resampling with replacement),
+   from the trades (step 5) to estimate the range of possible outcomes (empirical resampling with replacement),
    drawdown and loss streaks, and optionally compare against a configurable buy-and-hold benchmark
    (default: iShares MSCI World ETF / `URTH`).
 13. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
