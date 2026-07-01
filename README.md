@@ -35,12 +35,12 @@ configured quotes file:
 11. **Run a Monte Carlo simulation** — draw series of trade histories by resampling from the R-multiple distribution obtained
    from the trades (step 5) to estimate the range of possible outcomes (empirical resampling with replacement),
    drawdown and loss streaks, and optionally compare against a configurable buy-and-hold benchmark
-   (default: *iShares MSCI World ETF (URTH)*).
+   (default: *iShares MSCI World ETF - URTH*).
 13. **Generate reports** — save all plots, tables (CSV/PDF) and a combined
    `<outdir>/system_summary.pdf` report covering configuration, statistics and
    key charts.
 14. **Notify via Telegram** *(optional)* — publish the daily ENTER/EXIT/stoploss
-    signals and the summary PDF to a configured Telegram channel (bot).
+    signals and the summary PDF to a configured Telegram bot.
 
 ## 2. Configuration
 
