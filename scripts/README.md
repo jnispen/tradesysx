@@ -1,6 +1,6 @@
 ##  Running `tradesysx` from a Docker container
 
-Below is a description on how to package and run `tradesysx` from a Docker container. It was added as a quick way to test or try-out the software. The `build_binary.sh` script was added to compile everything into a single executable, which might also be conveniant in some cases.
+Below is a description on how to package and run `tradesysx` from a Docker container. It was added as a simple way to test or try-out the software.
 
 ### export_package.sh
 
@@ -46,6 +46,10 @@ docker run --rm -it -v /tmp/tradesysx-out:/app/tradesysx/out --entrypoint bash t
 python tradesysx.py
 ls out/
 ```
+
+##  Running `tradesysx` from a single executable
+
+The `build_binary.sh` script was added to compile everything into a single executable, which bypasses the need to create a separate Python virtual environment.
 
 ### build_binary.sh
 

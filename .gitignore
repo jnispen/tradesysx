@@ -1,4 +1,5 @@
 out/*
+tst/out/*
 __pycache__/*
 tst/__pycache__/*
 CLAUDE.md
