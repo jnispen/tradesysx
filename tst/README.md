@@ -1,6 +1,6 @@
 ## Monte Carlo simulator (standalone)
 
-`simulator.py` is a tool which can be used to explore how a given R-multiple distribution plays out over many simulated trade sequences. To acchieve this it resamples (with replacement) from a loaded R-multple distribution (which is considered a "bag of
+`simulator.py` is a tool which is used to explore how a given R-multiple distribution plays out over many simulated trade sequences. To acchieve this it resamples with replacement from a loaded R-multple distribution (which is considered a simple "bag of
 marbles").
 
 The R-multiple distribution is read from a .csv file with a single `Rmul` column (e.g. `out/tables/Rmul_trades.csv`, produced by the main pipeline), and passed via `--rmul-dist`.
@@ -13,6 +13,8 @@ Configuration is set from the file `tst/config/simulator_conf.json`:
 - `balance` — starting account balance.
 - `sim_len_max` — maximum number of trades per simulated run.
 - `iterations` — number of simulation runs.
+- `plot_frac` — fraction of the simulated runs that are drawn on the plot. 
+   Added to keep dense plots readable.
 - `outlier` — used to cap the plot's y-axis (median + `outlier` × stdev of
   final balances).
 
@@ -37,6 +39,7 @@ python tst/simulator.py --rmul-dist <path> [--basedir <path>] [--outdir <path>] 
 
 ### Output
 
-The output diagram is written to `<outdir>/images/monte_carlo_plot.png`,
-showing all simulated balance trajectories plus summary statistics (median,
-stdev, min/max, loss streaks, max drawdown, SQN).
+The output diagram is written to `<outdir>/images/monte_carlo_plot_rmul.png`,
+showing a `plot_frac` sample of the simulated balance trajectories plus
+summary statistics (median, stdev, min/max, loss streaks, max drawdown, SQN)
+computed over all runs.

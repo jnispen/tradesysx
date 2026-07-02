@@ -1,7 +1,8 @@
 {
     "risk_percent" : 0.01,
     "balance"      : 10000,
-    "sim_len_max"  : 100,
-    "iterations"   : 500,
+    "sim_len_max"  : 80,
+    "iterations"   : 10000,
+    "plot_frac"    : 0.2,
     "outlier"      : 4
 }
