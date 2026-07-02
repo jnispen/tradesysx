@@ -1,6 +1,6 @@
 ## Monte Carlo simulator (standalone)
 
-`simulator.py` is a tool which is used to explore how a given R-multiple distribution plays out over many simulated trade sequences. To acchieve this it resamples with replacement from a loaded R-multple distribution (which is considered a simple "bag of
+`simulator.py` is a tool which is used to explore how a given R-multiple distribution plays out over many simulated trade sequences. To achieve this it resamples with replacement from a loaded R-multple distribution (which is considered as a simple "bag of
 marbles").
 
 The R-multiple distribution is read from a .csv file with a single `Rmul` column (e.g. `out/tables/Rmul_trades.csv`, produced by the main pipeline), and passed via `--rmul-dist`.
