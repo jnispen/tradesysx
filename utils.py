@@ -1602,10 +1602,11 @@ def _plot_price_overlays(ax, df, conf):
         ax.scatter(df.index, df['Exit'], color='darkred', label='Exit', marker='v', alpha=1)
 
 def plot_benchmark_price(df, ticker, description, conf, ctx):
-    ''' plot a plain Close-price chart for the auto-injected benchmark ticker -
-        no trading signals, since it never runs through the strategy pipeline.
-        Still draws the SMA225 bull/bear overlay when configured, as a visual
-        aid against the traded tickers' charts. '''
+    ''' plot a plain Close-price chart without any trading signals, used both for
+        the auto-injected benchmark ticker (which never runs through the strategy
+        pipeline) and for follow_only mode. Draws the configured
+        plot_indicators overlay (SMA225 bull/bear line and/or Bollinger Bands) as
+        a visual aid, matching the overlays on the traded tickers' charts. '''
 
     if not pd.api.types.is_datetime64_any_dtype(df.index):
         df.index = pd.to_datetime(df.index)
@@ -1615,8 +1616,23 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
     fig.suptitle('{} ({})'.format(description, ticker), fontsize=20)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
 
-    if 'SMA225' in conf.get('plot_indicators', []):
-        sma225 = ta.SMA(df['Close'], timeperiod=225)
+    plot_indicators = conf.get('plot_indicators', [])
+
+    if 'BB' in plot_indicators:
+        # reuse the precomputed Bollinger columns when the caller passed a
+        # processed frame (follow_only), else compute them here (the
+        # auto-injected benchmark is charted straight from raw OHLC)
+        if 'BBu' in df.columns:
+            bbu, bbm, bbl = df['BBu'], df['BBm'], df['BBl']
+        else:
+            bbu, bbm, bbl = ta.BBANDS(df['Close'], timeperiod=20, matype=0)
+        ax.plot(df.index, bbu, color='black', linewidth=.1)
+        ax.plot(df.index, bbm, color='black', linewidth=.1)
+        ax.plot(df.index, bbl, color='black', linewidth=.1)
+        ax.fill_between(df.index, bbl, bbu, color='grey', alpha=.05)
+
+    if 'SMA225' in plot_indicators:
+        sma225 = df['SMA225'] if 'SMA225' in df.columns else ta.SMA(df['Close'], timeperiod=225)
         ax.plot(df.index, sma225, color='orange', linewidth=2, linestyle='-.', label='SMA225')
 
     ax.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')

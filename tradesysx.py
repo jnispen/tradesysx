@@ -38,6 +38,14 @@ def update_quotes(conf, ctx):
     with open(quote_file) as f:
         quotes = json.loads(f.read())
 
+    # follow_only: download + chart the configured tickers and nothing
+    # else (no signals/trades/stats/simulation/report). With no trades there is
+    # nothing for a buy-and-hold benchmark or the Telegram summary (which would
+    # attach a never-generated PDF) to act on, so both are forced off here.
+    follow_only = conf.get('follow_only', False)
+    if follow_only:
+        conf = {**conf, 'benchmark': False, 'notify': False}
+
     # the benchmark is only auto-added as a non-traded reference when it isn't
     # already one of the user's own tickers - in that case it's just a normal
     # ticker and takes part in the system stats like any other
@@ -57,7 +65,8 @@ def update_quotes(conf, ctx):
         logger.info('==== [1/8] Downloading quote data: skipped (update_data=false) ====')
 
     if conf['process_data'] == True:
-        logger.info(f'==== [2/8] Processing tickers ({len(quotes)}) ====')
+        step2_label = 'Charting tickers (follow_only)' if follow_only else 'Processing tickers'
+        logger.info(f'==== [2/8] {step2_label} ({len(quotes)}) ====')
 
         trades_table_frames = []
         trades_list_frames = []
@@ -79,6 +88,14 @@ def update_quotes(conf, ctx):
 
             # 3. add TA indicators
             dft = ut.add_technical_indicators(dff, conf)
+
+            # follow_only stops here: a plain price chart with the
+            # configured plot_indicators overlay, no strategy signals or trades
+            if follow_only:
+                if conf['gen_plots'] == True:
+                    ut.plot_benchmark_price(dft, ticker, desc, conf, ctx)
+                dft.to_csv(ctx.outpath('data', f"{ticker}_{outp_filename}"))
+                continue
 
             # 4. add ENTER and EXIT signals
             dft = ut.add_trading_signals(dft, conf)
@@ -127,14 +144,21 @@ def update_quotes(conf, ctx):
     else:
         logger.info('==== [2/8] Processing tickers: skipped (process_data=false) ====')
 
-    # 8. save combined trades data to .csv
-    logger.info('==== [3/8] Saving trades table ====')
-    ut.save_trades_table(total_trades_table.df, conf, ctx)
+    # 8. save combined trades data to .csv (follow_only produces no
+    # trades, so there is no trades table to save)
+    if follow_only:
+        logger.info('==== [3/8] Saving trades table: skipped (follow_only) ====')
+    else:
+        logger.info('==== [3/8] Saving trades table ====')
+        ut.save_trades_table(total_trades_table.df, conf, ctx)
 
     # 9-12. system statistics, balance simulation, monte carlo and report all
     # require the per-ticker data processed in step 2, so skip them together
     if conf['process_data'] == True and total_trades_table.df.empty:
-        logger.info('==== No trades found for the current parameter set - stopping ====')
+        if follow_only:
+            logger.info('==== follow_only mode: charts generated, skipping stats/simulation/report ====')
+        else:
+            logger.info('==== No trades found for the current parameter set - stopping ====')
         logger.info('==== [4/8] Generating system statistics: skipped (no trades) ====')
         logger.info('==== [5/8] Running trading balance simulation (backtest): skipped (no trades) ====')
         logger.info('==== [6/8] Running Monte Carlo simulation: skipped (no trades) ====')
@@ -248,8 +272,9 @@ def main():
     ut.validate_report_type(conf)
     ut.validate_gen_ta_custom(conf)
 
-    # load telegram chat id and bot token if configured
-    if conf['notify'] == True:
+    # load telegram chat id and bot token if configured (follow_only
+    # produces no report to send, so notify is ignored - see update_quotes)
+    if conf['notify'] == True and not conf.get('follow_only', False):
         ta_file = ctx.path('config/telegram_conf.json')
         with open(ta_file) as f:
             logger.info(f"Telegram conf file: {ta_file}")
