@@ -120,11 +120,11 @@ Cd into the directory where `tradesysx` has been cloned or extracted:
 
 ### 3.2 Running from a Docker container
 
-An alternative way to run `tradesysx` is from a Docker container. The steps involved are described in more detail in the [scripts/README.md](scripts/README.md) file.
+An alternative way to run `tradesysx` is from a Docker container. The steps involved are described in more detail in the [scripts/README.md](scripts/README.md#running-tradesysx-from-a-docker-container) file.
 
 ### 3.3 Running from a single executable
 
-To bypass the need for the creation of a Python virtual environment a third way to run `tradesysx` is from a single executable. The steps involved are described in more detail in the [scripts/README.md](scripts/README.md) file.
+To bypass the need for the creation of a Python virtual environment a third way to run `tradesysx` is from a single executable. The steps involved are described in more detail in the [scripts/README.md](scripts/README.md#running-tradesysx-from-a-single-executable) file.
    
 ## 4. Data output
 
