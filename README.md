@@ -7,6 +7,18 @@ simulates a virtual trading account (paper-trading backtest) using a configurabl
 TradeSysX was inspired by the various [books](https://vantharp.com/vans-books/) on trading systems
 development written by [Dr. Van K. Tharp](https://vantharp.com/).
 
+## Contents
+
+- [1. Processing steps](#1-processing-steps)
+- [2. Configuration](#2-configuration)
+  - [2.1 Plot indicators](#21-plot-indicators)
+- [3. Environment setup and `tradesysx` cmdline parameters](#3-environment-setup-and-tradesysx-cmdline-parameters)
+  - [3.1 Running from a Python virtual environment](#31-running-from-a-python-virtual-environment)
+  - [3.2 Running from a Docker container](#32-running-from-a-docker-container)
+  - [3.3 Running from a single executable](#33-running-from-a-single-executable)
+- [4. Data output](#4-data-output)
+  - [4.1 Example plots and graphs](#41-example-plots-and-graphs)
+
 ## 1. Processing steps
 
 Running `tradesysx` performs the following processing pipeline for every ticker in the
@@ -138,7 +150,7 @@ All data output is written to the output directory. The following data, plots an
 - `<outdir>/tables/` — trades table and trades list as CSV files
 - `<outdir>/system_summary.pdf`, `full_system_summary.pdf` (`report_type=full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
 
-### 4.1. Example plots and graphs
+### 4.1 Example plots and graphs
 
 Shown below are some typical plots generated after running `tradesysx`.
 
