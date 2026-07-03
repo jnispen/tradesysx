@@ -192,6 +192,8 @@ In the picture below, an Monte Carlo simulation with 10 000 iterations was run. 
 
 <img src="docs/examples/monte_carlo_plot.png" alt="Monte Carlo simulation" width="900">
 
+The Monte Carlo simulator can also be configured and run in standalone mode. In this mode the simulator reads the R-multiple distribution from a .csv file. This mode allows for experimenting with different R-multiple distributions. The standalone mode is described in more detail [here](tst/README.md#monte-carlo-simulator-standalone).
+
 #### Telegram notification (*Optional*)
 
 After running the pipeline, a notification can be sent to a Telegram bot. This option is configured by setting `notify=true` in the `config/system_conf.json` file. The current notification includes the close price of all tickers, as well as the stoploss price and the current signal (currently **IN** a trade ⚪, currently **NOT IN** a trade ⚫, **ENTER** 🟢, **EXIT** 🔵, or **STOPLOSS** 🔴). The update also sends a system summary report in PDF format. An example of this is shown in the screenshot below.
