@@ -72,7 +72,7 @@ overlays, picked from three tiers:
 
 ## 3. Environment setup and `tradesysx` cmdline parameters
 
-Three ways of running `tradesysx` are described, from a **Python virtual environment**, from a **Docker container**, and from a **single executable**.
+Three ways of running `tradesysx` are described, from a **(1) [Python virtual environment](#31-running-from-a-python-virtual-environment)**, from a **(2) [Docker container](#32-running-from-a-docker-container)**, and from a **(3) [single executable](#33-running-from-a-single-executable)**.
 
 ### 3.1 Running from a Python virtual environment 
 
