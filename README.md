@@ -201,3 +201,4 @@ After running the pipeline, a notification can be sent to a Telegram bot. This o
 <p align="center">
   <img src="docs/examples/telegram.png" alt="Telegram notification" width="270" height="400">
 </p>
+
