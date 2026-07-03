@@ -44,7 +44,7 @@ configured quotes file:
 
 ## 2. Configuration
 
-All behaviour is controlled via JSON config files in `config/`:
+The behaviour of `tradesysx` is controlled via JSON config files in `config/`:
 
 - `config/system_conf.json` — main configuration: data range, indicator
   settings, strategy selection (enter/exit/stoploss), position sizing,
