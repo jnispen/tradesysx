@@ -238,6 +238,9 @@ def main():
     )
     add_logging_arguments(parser)
     args = parser.parse_args()
+    # preliminary logging so config-load errors below are visible; the final
+    # level is resolved once the config is loaded (config can supply loglevel
+    # when it isn't passed on the commandline - e.g. a hardcoded docker CMD)
     setup_logging(args.loglevel)
 
     start_time = datetime.now()
@@ -260,12 +263,16 @@ def main():
         logger.critical(f"failed to load configuration file: {e}")
         sys.exit(1)
 
+    # resolve loglevel: explicit --loglevel wins, else config 'loglevel', else INFO
+    loglevel = args.loglevel or conf.get('loglevel') or 'INFO'
+    setup_logging(loglevel)
+
     logger.info('==== [0/8] Commandline parameters ====')
     logger.info(f"Base directory    : {args.basedir or os.getcwd()}")
     logger.info(f"Configuration file: {args.config}")
     logger.info(f"Quote file        : {conf['quotefile']}")
     logger.info(f"Output directory  : {args.outdir}")
-    logger.info(f"Loglevel          : {args.loglevel}")
+    logger.info(f"Loglevel          : {loglevel} ({'commandline' if args.loglevel else 'config' if conf.get('loglevel') else 'default'})")
 
     ut.validate_strategy_conf(conf)
     ut.validate_plot_indicators(conf)

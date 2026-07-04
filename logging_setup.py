@@ -26,11 +26,15 @@ class BracketFormatter(logging.Formatter):
 
 
 def add_logging_arguments(parser):
-    ''' add the shared --loglevel CLI flag to an argparse parser '''
+    ''' add the shared --loglevel CLI flag to an argparse parser
+
+    Defaults to None (not 'INFO') so callers can tell an explicit CLI value
+    apart from "not set" and fall back to a config-file value if they wish.
+    '''
     parser.add_argument(
         '--loglevel',
         type=str.upper,
-        default='INFO',
+        default=None,
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
         help='set the console logging verbosity (default: INFO)'
     )
@@ -43,7 +47,7 @@ def setup_logging(loglevel='INFO'):
     Third-party libraries (yfinance, weasyprint, matplotlib, ...) are
     held at ERROR so their INFO/WARNING chatter doesn't show up.
     '''
-    level = getattr(logging, loglevel.upper(), logging.INFO)
+    level = getattr(logging, (loglevel or 'INFO').upper(), logging.INFO)
 
     handler = logging.StreamHandler()
     handler.setFormatter(BracketFormatter())

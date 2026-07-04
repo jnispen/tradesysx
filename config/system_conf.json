@@ -1,5 +1,6 @@
 {
     "quotefile"    : "quotes/quotes_sp500.lst",
+    "loglevel"     : "info",
     "follow_only"  : false,
     "benchmark"    : true,
     "bm_ticker"    : "URTH",

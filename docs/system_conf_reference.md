@@ -14,6 +14,9 @@ A note on **position sizing** and **strategy** settings: many knobs are only liv
 **quotefile** — [`path`]\
 Path (relative to the base dir) to the JSON quote list of `{ticker: description}` pairs to run the system over, e.g. `quotes/quotes_sp500.lst`.
 
+**loglevel** — [`debug`/`info`/`warning`/`error`/`critical`]\
+Console logging verbosity. Sets the same level as the `--loglevel` commandline flag. Precedence: an explicit `--loglevel` on the commandline wins; otherwise this config value is used; defaults to `info`.
+
 **follow_only** — [`true`/`false`]\
 When `true`, only downloads and charts the configured tickers — no signals, stats, simulation, or report are produced. Used to follow and eyeball price charts.
 
