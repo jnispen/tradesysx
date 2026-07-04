@@ -2,15 +2,17 @@
 
 import os
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
 class RunContext:
-    ''' run-level settings: base directory and telegram credentials '''
+    ''' run-level settings: base directory, telegram credentials and benchmark dataframe '''
     basedir: str
     bot_token: str = ""
     chat_id: str = ""
     outdir: str = "out"
+    benchmark_df: Any = None
 
     def path(self, *parts):
         """Return a string path inside basedir."""
