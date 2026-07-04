@@ -1,14 +1,12 @@
-# `system_conf.json` settings reference
+# System Settings Reference (`system_conf.json`)
 
-Every setting in `config/system_conf.json`, in file order. Each entry gives a short
+The list below details every setting in `config/system_conf.json`. Each entry gives a short
 explanation; where a setting only accepts a fixed set of values, those values are listed.
 Everything else takes a free value (a number, string, date, or path).
 
-A note on **disabled keys**: a leading underscore (e.g. `_end`) is a "comment-out"
-convention — the code reads the key *without* the underscore, so an underscored key is
-ignored until you rename it. A note on **position sizing** and **strategy** settings: many
-knobs are only live for a particular strategy selection (called out per entry); editing a
-knob whose strategy isn't selected has no effect.
+A leading underscore (e.g. `_end`) is a "comment-out" convention — the code reads the key *without* the underscore, so an underscored key is ignored until you rename it. 
+
+A note on **position sizing** and **strategy** settings: many knobs are only live for a particular strategy selection (called out per entry); editing a knob whose strategy isn't selected has no effect.
 
 ---
 
@@ -18,14 +16,13 @@ run the system over, e.g. `quotes/quotes_sp500.lst`.
 
 ### `follow_only`
 `true` / `false`. When `true`, only downloads and charts the configured tickers — no
-signals, stats, simulation, or report are produced. Use it to eyeball price charts.
+signals, stats, simulation, or report are produced. Used to follow and eyeball price charts.
 
 ### `benchmark`
-`true` / `false`. Whether to compute and show a buy-and-hold benchmark to compare the
-system against.
+`true` / `false`. Show a buy-and-hold benchmark (HODL) to compare the trading system against.
 
 ### `bm_ticker`
-Benchmark instrument. Either **any ticker symbol** (bought-and-held over the run period,
+Benchmark instrument. Either **any ticker symbol** (buy-and-hold over the run period,
 e.g. `URTH`), or the special value `quote-lst` — an equal-weight buy-and-hold basket of
 *every* ticker in `quotefile`.
 
@@ -48,7 +45,7 @@ reuses previously processed data.
 `true` / `false`. Generate the per-ticker price plots.
 
 ### `gen_ta_plots`
-`true` / `false`. Generate the per-ticker technical-analysis plots (indicator panels).
+`true` / `false`. Generate the per-ticker technical-analysis (TA) plots (indicator panels).
 
 ### `plot_indicators`
 List of overlays drawn on the price panel. Fixed set: `BB` (Bollinger Bands), `SMA225`.
@@ -67,8 +64,7 @@ Fixed set: `short`, `full`. Selects the summary report variant
 (`out/system_summary.pdf` vs `out/system_summary_full.pdf`).
 
 ### `stloss`
-Stop-loss strategy. Fixed set: `3atr` (3×ATR below the close), `percent` (a percentage of
-the close — see `stoploss`).
+Stop-loss strategy. Fixed set: `3atr` (3×ATR below the close), `percent` (stoploss set as a percentage below the entry price) — see `stoploss`.
 
 ### `enter`
 Entry strategy. Fixed set: `3EMA`, `SMA`, `BBRSI`, `MACD`.
@@ -110,13 +106,6 @@ exit (e.g. `0.2` = 0.2%).
 Float. Minimum capital per trade; if the sized position would invest less than this, the
 trade is skipped.
 
-### `risk_percent`
-Float fraction of equity risked per trade (e.g. `0.01` = 1%). Only used when `pos_sizing`
-is `core_equity_risk`.
-
-### `risk_amount`
-Float. Fixed dollar risk per trade. Only used when `pos_sizing` is `fixed_dollar_risk`.
-
 ### `balance`
 Float. Starting account balance for the paper-trading simulation.
 
@@ -124,6 +113,13 @@ Float. Starting account balance for the paper-trading simulation.
 Position-sizing method. Fixed set: `core_equity_risk` (risk `risk_percent` of equity),
 `fixed_dollar_risk` (risk `risk_amount`), `fixed_ratio` (invest `balance / pos_ratio`),
 `fixed_amount` (invest `pos_amount`), `kelly` (Kelly-fraction of equity).
+
+### `risk_percent`
+Float fraction of equity risked per trade (e.g. `0.01` = 1%). Only used when `pos_sizing`
+is `core_equity_risk`.
+
+### `risk_amount`
+Float. Fixed dollar risk per trade. Only used when `pos_sizing` is `fixed_dollar_risk`.
 
 ### `pos_ratio`
 Number. Divisor of the balance used as the position size. Only used when `pos_sizing` is
@@ -176,10 +172,10 @@ Integer. Signal-line period for MACD.
 `true` / `false`. Run the Monte Carlo simulation step on the resulting trades.
 
 ### `sim_len_max`
-Integer. Maximum number of trades drawn per simulated equity sequence.
+Integer. Maximum number of trades per simulated equity sequence.
 
 ### `iterations`
-Integer. Number of Monte Carlo iterations (simulated sequences).
+Integer. Number of Monte Carlo iterations (simulated trade sequences).
 
 ### `plot_frac`
 Float fraction of the simulated equity curves actually drawn on the Monte Carlo plot
