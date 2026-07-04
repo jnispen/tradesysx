@@ -1,8 +1,9 @@
 ## System Settings Reference (`system_conf.json`)
 
 The list below details every setting in `config/system_conf.json`. Each entry gives a short
-explanation; where a setting only accepts a fixed set of values, those values are listed.
-Everything else takes a free value (a number, string, date, or path).
+explanation; where a setting only accepts a fixed set of values, those values are listed in
+brackets at the end of the description. Everything else takes a free value (a number, string,
+date, or path).
 
 A leading underscore (e.g. `_end`) is a "comment-out" convention — the code reads the key *without* the underscore, so an underscored key is ignored until you rename it. 
 
@@ -15,11 +16,11 @@ Path (relative to the base dir) to the JSON quote list of `{ticker: description}
 run the system over, e.g. `quotes/quotes_sp500.lst`.
 
 #### follow_only
-`true` / `false`. When `true`, only downloads and charts the configured tickers — no
-signals, stats, simulation, or report are produced. Used to follow and eyeball price charts.
+When `true`, only downloads and charts the configured tickers — no
+signals, stats, simulation, or report are produced. Used to follow and eyeball price charts. [`true`/`false`]
 
 #### benchmark
-`true` / `false`. Show a buy-and-hold benchmark (HODL) to compare the trading system against.
+Show a buy-and-hold benchmark (HODL) to compare the trading system against. [`true`/`false`]
 
 #### bm_ticker
 Benchmark instrument. Either **any ticker symbol** (buy-and-hold over the run period,
@@ -30,47 +31,48 @@ e.g. `URTH`), or the special value `quote-lst` — an equal-weight buy-and-hold 
 Free-text description of the benchmark, shown in the report (e.g. `iShares MSCI World ETF`).
 
 #### notify
-`true` / `false`. Send a Telegram notification when the run finishes (reads
-`config/telegram_conf.json`). Ignored in `follow_only` mode.
+Send a Telegram notification when the run finishes (reads
+`config/telegram_conf.json`). Ignored in `follow_only` mode. [`true`/`false`]
 
 #### update_data
-`true` / `false`. Download fresh OHLC data from yfinance. When `false`, reuses the cached
-CSVs in `out/data/`.
+Download fresh OHLC data from yfinance. When `false`, reuses the cached
+CSVs in `out/data/`. [`true`/`false`]
 
 #### process_data
-`true` / `false`. Add technical indicators and generate ENTER/EXIT signals. When `false`,
-reuses previously processed data.
+Add technical indicators and generate ENTER/EXIT signals. When `false`,
+reuses previously processed data. [`true`/`false`]
 
 #### gen_plots
-`true` / `false`. Generate the per-ticker price plots.
+Generate the per-ticker price plots. [`true`/`false`]
 
 #### gen_ta_plots
-`true` / `false`. Generate the per-ticker technical-analysis (TA) plots (indicator panels).
+Generate the per-ticker technical-analysis (TA) plots (indicator panels). [`true`/`false`]
 
 #### plot_indicators
-List of overlays drawn on the price panel. Fixed set: `BB` (Bollinger Bands), `SMA225`.
-Example: `["SMA225"]`.
+List of overlays drawn on the price panel. `BB` = Bollinger Bands, `SMA225` = 225-period SMA.
+Example: `["SMA225"]`. [`BB`/`SMA225`]
 
 #### gen_ta_custom
-`true` / `false`. Generate the ad-hoc custom TA panels defined by `ta_custom`. Must be
-`false` if `ta_custom` is empty.
+Generate the ad-hoc custom TA panels defined by `ta_custom`. Must be
+`false` if `ta_custom` is empty. [`true`/`false`]
 
 #### ta_custom
-List of extra indicator panels to plot, one panel each. Fixed set: `RSI`, `ADX`, `FI`,
-`OBV`, `MACD`, `DI`, `ATR`, `CCI`, `ROC`, `MFI`. Only used when `gen_ta_custom` is `true`.
+List of extra indicator panels to plot, one panel each. Only used when `gen_ta_custom` is
+`true`. [`RSI`/`ADX`/`FI`/`OBV`/`MACD`/`DI`/`ATR`/`CCI`/`ROC`/`MFI`]
 
 #### report_type
-Fixed set: `short`, `full`. Selects the summary report variant
-(`out/system_summary.pdf` vs `out/system_summary_full.pdf`).
+Selects the summary report variant
+(`out/system_summary.pdf` vs `out/system_summary_full.pdf`). [`short`/`full`]
 
 #### stloss
-Stop-loss strategy. Fixed set: `3atr` (3×ATR below the close), `percent` (stoploss set as a percentage below the entry price) — see `stoploss`.
+Stop-loss strategy. `3atr` = 3×ATR below the close, `percent` = stoploss set as a percentage
+below the entry price (see `stoploss`). [`3atr`/`percent`]
 
 #### enter
-Entry strategy. Fixed set: `3EMA`, `SMA`, `BBRSI`, `MACD`.
+Entry strategy. [`3EMA`/`SMA`/`BBRSI`/`MACD`]
 
 #### exit
-Exit strategy. Fixed set: `CE`, `CEE`, `RSI`, `XR`, `3EMA`, `SMA`, `MACD`, `BBRSI`.
+Exit strategy. [`CE`/`CEE`/`RSI`/`XR`/`3EMA`/`SMA`/`MACD`/`BBRSI`]
 
 #### start
 History start date, `YYYY-MM-DD`. Data is downloaded from this date to today.
@@ -110,9 +112,10 @@ trade is skipped.
 Float. Starting account balance for the paper-trading simulation.
 
 #### pos_sizing
-Position-sizing method. Fixed set: `core_equity_risk` (risk `risk_percent` of equity),
-`fixed_dollar_risk` (risk `risk_amount`), `fixed_ratio` (invest `balance / pos_ratio`),
-`fixed_amount` (invest `pos_amount`), `kelly` (Kelly-fraction of equity).
+Position-sizing method. `core_equity_risk` = risk `risk_percent` of equity,
+`fixed_dollar_risk` = risk `risk_amount`, `fixed_ratio` = invest `balance / pos_ratio`,
+`fixed_amount` = invest `pos_amount`, `kelly` = Kelly-fraction of equity.
+[`core_equity_risk`/`fixed_dollar_risk`/`fixed_ratio`/`fixed_amount`/`kelly`]
 
 #### risk_percent
 Float fraction of equity risked per trade (e.g. `0.01` = 1%). Only used when `pos_sizing`
@@ -169,7 +172,7 @@ Integer. Slow EMA period for MACD.
 Integer. Signal-line period for MACD.
 
 #### montecarlo
-`true` / `false`. Run the Monte Carlo simulation step on the resulting trades.
+Run the Monte Carlo simulation step on the resulting trades. [`true`/`false`]
 
 #### sim_len_max
 Integer. Maximum number of trades per simulated equity sequence.
