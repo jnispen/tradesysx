@@ -66,6 +66,8 @@ The behaviour of `tradesysx` is controlled via JSON config files in `config/`:
   `notify` is `true`.
 - `quotes/quotes_sp500.lst`, `quotes/quotes_nasdaq.lst`, `quotes/quotes_dow30.lst` — example lists of tickers to process.
 
+The full list of settings in `config/system_conf.json` is explained in more detail [here](docs/system_conf_reference.md).
+
 ### 2.1 Plot indicators
 
 The price chart (`<outdir>/plots/<TICKER>_plot.png`) and the price panel of
