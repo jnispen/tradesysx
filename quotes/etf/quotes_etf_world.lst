@@ -1,0 +1,20 @@
+{
+    "GLD": "Gold (US78463V1070)",
+    "TLT": "Long Term Treasuries (US4642874329)",
+    "RWR": "Real Estate Index (US78464A6073)",
+    "LQD": "Corporate Bond Index (US4642872422)",
+    "EFA": "MSCI EAFE Idx (European/Australasian) (US4642874659)",
+    "EZU": "MSCI EMU Index (US4642866085)",
+    "ILF": "Latin America 40 (large caps) (US4642873909)",
+    "EPP": "Asia (less Japan) (US4642866655)",
+    "EWJ": "Japan (US4642868487)",
+    "DIA": "US, Large, Value (US78467X1090)",
+    "SPY": "US S&P 500 Index (US78462F1030)",
+    "QQQ": "US, Large, Growth (US73935A1043)",
+    "IJJ": "US, Mid, Value (US4642877058)",
+    "MDY": "US, Mid, Blend (US78467Y1073)",
+    "IJK": "US, Mid, Growth (US4642876068)",
+    "IJS": "US, Small, Value (US4642878791)",
+    "IJR": "US, Small, Blend (US4642878049)",
+    "IJT": "US, Small, Growth (US4642878874)"	
+}
