@@ -4,6 +4,7 @@ import sys
 import math
 import os
 import re
+import json
 import logging
 import pandas as pd
 import numpy as np
@@ -673,7 +674,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
     fig_c = ctx.outpath("images/balance_plot.png")
     fig_d = ctx.outpath("images/monte_carlo_plot.png")
     fig_e_html = ""
-    if benchmark_enabled:
+    if benchmark_enabled and bm_ticker != 'quote-lst':
         fig_e = ctx.outpath("plots", f"{bm_ticker}_plot.png")
         fig_e_html = f"""<img src="file://{fig_e}" style="width:{fig_width}px">"""
 
@@ -808,7 +809,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
             tot_profit = units * round(row.Profit, 2)
             exit_fee = (units * row.Exit) * float(conf['trading_fee']) / 100
             cap_invested = -(units * row.Exit - exit_fee)
-            logger.debug(f"Trading fee (exit ): {exit_fee:.2f} ({row.Ticker})")
+            #logger.debug(f"Trading fee (exit ): {exit_fee:.2f} ({row.Ticker})")
             active_trades[row.Ticker] = 0
             gain_lst.append(round(tot_profit, 2))
             units_lst.append('-')
@@ -1247,7 +1248,7 @@ def _get_capital_invested(row, conf, balance, stats):
     # apply fee (fee is a percentage of the gross transaction)
     fee = units * row.Enter * float(conf["trading_fee"]) / 100
     cap_invested = units * row.Enter - fee
-    logger.debug(f"Trading fee (enter): {fee:.2f} ({row.Ticker})")
+    #logger.debug(f"Trading fee (enter): {fee:.2f} ({row.Ticker})")
 
     # do not enter trades where the invested amount is too low, and scale down if the investement requires > current balance
     if cap_invested < conf['min_invest']:
@@ -1259,7 +1260,7 @@ def _get_capital_invested(row, conf, balance, stats):
         units = balance / row.Enter
         fee = units * row.Enter * float(conf["trading_fee"]) / 100
         cap_invested = units * row.Enter - fee
-        logger.debug(f"Trading fee (scaled down): {fee:.2f} ({row.Ticker})")
+        #logger.debug(f"Trading fee (scaled down): {fee:.2f} ({row.Ticker})")
         if units <= 0:
             units = 0
             cap_invested = 0
@@ -1395,6 +1396,12 @@ def df_to_html(df,
 
 def _get_benchmark_result(conf, ctx):
 
+    # benchmark (HODL of the whole quote list) instead of a single ticker.
+    if conf.get('bm_ticker', 'URTH') == 'quote-lst':
+        if ctx.benchmark_df is None:
+            ctx.benchmark_df = _build_basket_benchmark_df(conf, ctx)
+        return ctx.benchmark_df['Profit'].sum()
+
     # get benchmark data (buy-and-hold result for conf['bm_ticker'])
     ticker = conf.get('bm_ticker', 'URTH')
     benchmark_df = pd.read_csv(ctx.outpath('data', f"{ticker}_ohlc_raw.csv"))
@@ -1403,6 +1410,41 @@ def _get_benchmark_result(conf, ctx):
     price_out = benchmark_df['Close'].iloc[-1]
     shares = conf['balance']/price_in
     return shares * price_out
+
+
+def _build_basket_benchmark_df(conf, ctx):
+    ''' build the equal-weight basket buy-and-hold breakdown as a DataFrame and log
+        it as a table. The starting balance is split equally across all N tickers in
+        the quote list; each is bought at its first valid close and sold at its last
+        close, paying the trading fee once on the buy and once on the sell. The
+        'Profit' column is the net amount returned per position (gross proceeds minus
+        both fees); its sum is the benchmark's final value. '''
+
+    with open(ctx.path(conf['quotefile'])) as f:
+        tickers = list(json.loads(f.read()).keys())
+
+    capital_per_stock = float(conf['balance']) / len(tickers)
+    fee_frac = float(conf['trading_fee']) / 100
+
+    rows = []
+    for idx, ticker in enumerate(tickers, start=1):
+        df = pd.read_csv(ctx.outpath('data', f"{ticker}_ohlc_raw.csv"))
+        df = df.dropna(subset=['Close'])
+        price_in = df['Close'].iloc[0]
+        price_out = df['Close'].iloc[-1]
+        units = capital_per_stock / price_in
+        buy_fee = capital_per_stock * fee_frac
+        gross_out = units * price_out
+        sell_fee = gross_out * fee_frac
+        net = gross_out - buy_fee - sell_fee
+        rows.append({'#': idx, 'Ticker': ticker, 'Buy': price_in, 'Invested': capital_per_stock,
+                     'Sell': price_out, 'Value': gross_out, 'Profit': net})
+
+    bm_df = pd.DataFrame(rows, columns=['#', 'Ticker', 'Buy', 'Invested', 'Sell', 'Value', 'Profit'])
+    logger.debug(f"Quote list benchmark ({len(tickers)}):\n" +
+                 bm_df.to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+    logger.debug(f"Quote list benchmark final value: {bm_df['Profit'].sum():,.2f}")
+    return bm_df
 
 def balance_plot(df, conf, ctx):
     ''' plot paper trading simulation results '''

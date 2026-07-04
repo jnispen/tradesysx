@@ -51,8 +51,9 @@ def update_quotes(conf, ctx):
     # ticker and takes part in the system stats like any other
     benchmark_enabled = conf.get('benchmark', True)
     bm_ticker = conf.get('bm_ticker', 'URTH')
-    auto_benchmark = benchmark_enabled and bm_ticker not in quotes
+    auto_benchmark = benchmark_enabled and bm_ticker != 'quote-lst' and bm_ticker not in quotes
     benchmark_desc = conf.get('bm_desc') or ("iShares MSCI World ETF" if bm_ticker == "URTH" else bm_ticker)
+    logger.info(f"Benchmark         : {bm_ticker if benchmark_enabled else '-'}")
 
     # 1. read quotes from yfinance and save raw OHLC file
     if conf['update_data'] == True:
