@@ -65,13 +65,13 @@ Exit strategy.
 **start** — [`date`]\
 History start date, `YYYY-MM-DD`. Data is downloaded from this date to today.
 
-**end** — [`date`] (default: Disabled (leading underscore))\
+**end** — [`date`] (default: **Disabled (leading underscore)**)\
 Rename to `end` to set an explicit end date (`YYYY-MM-DD`) instead of downloading up to today.
 
-**period** — [`string`] (default: Disabled (leading underscore))\
+**period** — [`string`] (default: **Disabled (leading underscore)**)\
 Rename to `period` to download by rolling look-back (e.g. `5y`) *instead of* using `start`. Specify either `start` or `period`, not both.
 
-**interval** — [`string`] (default: Disabled (leading underscore))\
+**interval** — [`string`] (default: **Disabled (leading underscore)**)\
 Rename to `interval` to set the bar interval (e.g. `1d`, `1wk`). Defaults to `1d` when absent.
 
 **date_int** — [`integer`]\
