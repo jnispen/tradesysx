@@ -689,8 +689,9 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
                     'Units': '', 'Sell': 'CAGR', 'Net Value (incl. fee)': f"{cagr:.1%}"}
         disp = pd.concat([disp, pd.DataFrame([total_row, cagr_row])], ignore_index=True)
         bm_table = disp.to_html(border=0, index=False, classes="benchmark-table")
+        quotefile = os.path.basename(conf.get('quotefile', ''))
         benchmark_table_html = f"""
-        <h2 style="page-break-before: always;">Benchmark (buy-and-hold basket)</h2>
+        <h2 style="page-break-before: always;">Benchmark (buy-and-hold basket &ndash; {quotefile})</h2>
         {bm_table}
         """
 
