@@ -187,7 +187,7 @@ def update_quotes(conf, ctx):
 
         # 11. generate a complete system summary report in a single pdf
         logger.info('==== [7/8] Generating summary report ====')
-        ut.generate_summary_report(system_stat, conf, quotes, ctx, full=(conf.get('report_type', 'short') == 'full'))
+        ut.generate_summary_report(system_stat, conf, quotes, ctx, stats, full=(conf.get('report_type', 'short') == 'full'))
     else:
         logger.info('==== [4/8] Generating system statistics: skipped (process_data=false) ====')
         logger.info('==== [5/8] Running trading balance simulation (backtest): skipped (process_data=false) ====')
