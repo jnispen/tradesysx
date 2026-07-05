@@ -647,7 +647,7 @@ def _multi_column_table(items, columns, n_cols):
     parts = [part.reindex(range(max_len)).fillna("") for part in parts]
     return pd.concat(parts, axis=1)
 
-def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
+def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
     ''' generate a pdf report with system summary, configuration and figures.
 
     `conf` is the system config dict and `quotes` is the ticker -> description
@@ -666,6 +666,33 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
 
     benchmark_enabled = conf.get('benchmark', True)
     bm_ticker = conf.get('bm_ticker', 'URTH')
+
+    # when the benchmark is the equal-weight buy-and-hold basket of the whole
+    # quote list, render its per-ticker breakdown as a table (it takes the slot
+    # the single-ticker benchmark plot would otherwise occupy). The closing
+    # "Total" row states the starting amount, the aggregate ending value and the
+    # CAGR - the same figure shown on the Monte Carlo plot's HODL label.
+    benchmark_table_html = ""
+    if benchmark_enabled and bm_ticker == 'quote-lst':
+        if ctx.benchmark_df is None:
+            ctx.benchmark_df = _build_basket_benchmark_df(conf, ctx)
+        bm_df = ctx.benchmark_df
+        invested_total = bm_df['Invested'].sum()
+        val_out = bm_df['Net Value (incl. fee)'].sum()
+        cagr = ann_return(conf['balance'], val_out, stats.trades_len / 365) if stats.trades_len else 0.0
+        disp = bm_df.copy()
+        for col in ['Buy', 'Invested', 'Units', 'Sell', 'Net Value (incl. fee)']:
+            disp[col] = disp[col].map(lambda x: f"{x:,.2f}")
+        total_row = {'#': '', 'Ticker': 'Total', 'Buy': '', 'Invested': f"{invested_total:,.2f}",
+                     'Units': '', 'Sell': '', 'Net Value (incl. fee)': f"{val_out:,.2f}"}
+        cagr_row = {'#': '', 'Ticker': '', 'Buy': '', 'Invested': '',
+                    'Units': '', 'Sell': 'CAGR', 'Net Value (incl. fee)': f"{cagr:.1%}"}
+        disp = pd.concat([disp, pd.DataFrame([total_row, cagr_row])], ignore_index=True)
+        bm_table = disp.to_html(border=0, index=False, classes="benchmark-table")
+        benchmark_table_html = f"""
+        <h2 style="page-break-before: always;">Benchmark (buy-and-hold basket)</h2>
+        {bm_table}
+        """
 
     fig_width = 650
 
@@ -714,6 +741,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
             table.quotes-table {{ width: 92%; table-layout: fixed; }}
             table.quotes-table th:nth-child(odd), table.quotes-table td:nth-child(odd) {{ width: 15%; }}
             table.quotes-table th:nth-child(even), table.quotes-table td:nth-child(even) {{ width: 35%; }}
+            table.benchmark-table {{ width: 92%; table-layout: auto; }}
+            table.benchmark-table tr:nth-last-child(-n+2) {{ font-weight: bold; }}
         </style>
     </head>
     <body>
@@ -724,11 +753,13 @@ def generate_summary_report(stat_df, conf, quotes, ctx, full=False):
         <h2>System Summary</h2>
         {stat_html}
 
+        <div style="height: 16px;"></div>
         <img src="file://{fig_a}" style="width:{fig_width}px">
         <img src="file://{fig_b}" style="width:{fig_width}px">
         <img src="file://{fig_c}" style="width:{fig_width}px">
         <img src="file://{fig_d}" style="width:{fig_width}px">
         {fig_e_html}
+        {benchmark_table_html}
 
         {ticker_section}
     </body>
@@ -1400,7 +1431,7 @@ def _get_benchmark_result(conf, ctx):
     if conf.get('bm_ticker', 'URTH') == 'quote-lst':
         if ctx.benchmark_df is None:
             ctx.benchmark_df = _build_basket_benchmark_df(conf, ctx)
-        return ctx.benchmark_df['Profit'].sum()
+        return ctx.benchmark_df['Net Value (incl. fee)'].sum()
 
     # get benchmark data (buy-and-hold result for conf['bm_ticker'])
     ticker = conf.get('bm_ticker', 'URTH')
@@ -1417,8 +1448,8 @@ def _build_basket_benchmark_df(conf, ctx):
         it as a table. The starting balance is split equally across all N tickers in
         the quote list; each is bought at its first valid close and sold at its last
         close, paying the trading fee once on the buy and once on the sell. The
-        'Profit' column is the net amount returned per position (gross proceeds minus
-        both fees); its sum is the benchmark's final value. '''
+        'Net Value (incl. fee)' column is the net amount returned per position
+        (gross proceeds minus both fees); its sum is the benchmark's final value. '''
 
     with open(ctx.path(conf['quotefile'])) as f:
         tickers = list(json.loads(f.read()).keys())
@@ -1438,12 +1469,12 @@ def _build_basket_benchmark_df(conf, ctx):
         sell_fee = gross_out * fee_frac
         net = gross_out - buy_fee - sell_fee
         rows.append({'#': idx, 'Ticker': ticker, 'Buy': price_in, 'Invested': capital_per_stock,
-                     'Sell': price_out, 'Value': gross_out, 'Profit': net})
+                     'Units': units, 'Sell': price_out, 'Net Value (incl. fee)': net})
 
-    bm_df = pd.DataFrame(rows, columns=['#', 'Ticker', 'Buy', 'Invested', 'Sell', 'Value', 'Profit'])
+    bm_df = pd.DataFrame(rows, columns=['#', 'Ticker', 'Buy', 'Invested', 'Units', 'Sell', 'Net Value (incl. fee)'])
     logger.debug(f"Quote list benchmark ({len(tickers)}):\n" +
                  bm_df.to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
-    logger.debug(f"Quote list benchmark final value: {bm_df['Profit'].sum():,.2f}")
+    logger.debug(f"Quote list benchmark final value: {bm_df['Net Value (incl. fee)'].sum():,.2f}")
     return bm_df
 
 def balance_plot(df, conf, ctx):
