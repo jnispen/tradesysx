@@ -37,15 +37,13 @@ host:
 docker run --rm -v /tmp/tradesysx-out:/app/tradesysx/out tradesysx-test
 ```
 
-To edit config files inside the container, run the pipeline manually and to view the plots and
-reports from the host:
+Or, edit the system configuration outside of the container and persist the generated plots and reports in the `out/` directory after the run:
 
 ```sh
-docker run --rm -it -v /tmp/tradesysx-out:/app/tradesysx/out --entrypoint bash tradesysx-test
-# edit config/system_conf.json, then:
-python tradesysx.py
-ls out/
+docker run --rm -v /tmp/tradesysx-out:/app/tradesysx/out -v /tmp/tradesysx-config:/app/tradesysx/config tradesysx-test
 ```
+
+Please read the Docker documentation for any other usescase(s) that would suit your need.
 
 ##  Running `tradesysx` from a single executable
 
