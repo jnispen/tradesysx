@@ -706,6 +706,29 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
         fig_e = ctx.outpath("plots", f"{bm_ticker}_plot.png")
         fig_e_html = f"""<img src="file://{fig_e}" style="width:{fig_width}px">"""
 
+        # single-ticker buy-and-hold breakdown, shown below the benchmark plot -
+        # the whole account is put into the one ticker, fee-less, so the "Value"
+        # column equals the HODL figure on the Monte Carlo plot by construction.
+        single_df = pd.read_csv(ctx.outpath('data', f"{bm_ticker}_ohlc_raw.csv"))
+        single_df = single_df.dropna(subset=['Close'])
+        price_in = single_df['Close'].iloc[0]
+        price_out = single_df['Close'].iloc[-1]
+        invested = float(conf['balance'])
+        units = invested / price_in
+        value = units * price_out
+        cagr = ann_return(conf['balance'], value, stats.trades_len / 365) if stats.trades_len else 0.0
+        data_row = {'Ticker': bm_ticker, 'Buy': f"{price_in:,.2f}", 'Invested': f"{invested:,.2f}",
+                    'Units': f"{units:,.2f}", 'Sell': f"{price_out:,.2f}", 'Value': f"{value:,.2f}"}
+        cagr_row = {'Ticker': '', 'Buy': '', 'Invested': '', 'Units': '', 'Sell': 'CAGR',
+                    'Value': f"{cagr:.1%}"}
+        single_disp = pd.DataFrame([data_row, cagr_row],
+                                   columns=['Ticker', 'Buy', 'Invested', 'Units', 'Sell', 'Value'])
+        single_table = single_disp.to_html(border=0, index=False, classes="benchmark-single")
+        benchmark_table_html = f"""
+        <h2>Benchmark (buy-and-hold &ndash; {bm_ticker})</h2>
+        {single_table}
+        """
+
     ticker_section = ""
     if full:
         rows = "".join(
@@ -744,6 +767,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             table.quotes-table th:nth-child(even), table.quotes-table td:nth-child(even) {{ width: 35%; }}
             table.benchmark-table {{ width: 92%; table-layout: auto; }}
             table.benchmark-table tr:nth-last-child(-n+2) {{ font-weight: bold; }}
+            table.benchmark-single {{ width: 92%; table-layout: auto; }}
+            table.benchmark-single tr:nth-last-child(-n+1) {{ font-weight: bold; }}
         </style>
     </head>
     <body>
