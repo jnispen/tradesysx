@@ -656,6 +656,34 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     stat_html = stat_df.to_html(border=0, index=False, classes="summary-table")
 
+    # trading-simulation summary, rendered in the same style as the system
+    # summary table and placed directly under the balance plot. Labels and value
+    # formatting mirror the log lines emitted by do_balance_simulation (the
+    # "Total invested" closure-check line is intentionally left out here).
+    balance_data = {
+        "Metric": [
+            "Starting balance",
+            "Open trades closed",
+            "Average investment",
+            "Average balance",
+            "Average risk ($)",
+            "Average risk (%)",
+            "Final balance",
+            "CAGR",
+        ],
+        "Value": [
+            f"{float(conf['balance']):,.2f}",
+            f"{stats.open_trades_closed}",
+            f"{stats.avg_invested:,.2f}",
+            f"{stats.avg_balance:,.2f}",
+            f"{stats.avg_risk:,.2f}",
+            f"{stats.avg_risk_per:.2f}",
+            f"{stats.final_balance:,.2f}",
+            f"{stats.cagr:.1%}",
+        ],
+    }
+    balance_html = pd.DataFrame(balance_data).to_html(border=0, index=False, classes="summary-table")
+
     conf_values = [", ".join(v) if isinstance(v, list) else v for v in conf.values()]
     conf_items = list(zip(conf.keys(), conf_values))
     conf_table = _multi_column_table(conf_items, ["Key", "Value"], n_cols=2)
@@ -798,6 +826,10 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
         <img src="file://{fig_a}" style="width:{fig_width}px">
         <img src="file://{fig_b}" style="width:{fig_width}px">
         <img src="file://{fig_c}" style="width:{fig_width}px">
+        <div style="height: 16px;"></div>
+        <h2>Trading Simulation</h2>
+        {balance_html}
+        <div style="height: 16px;"></div>
         <img src="file://{fig_d}" style="width:{fig_width}px">
         {fig_e_html}
         {benchmark_table_html}
@@ -952,7 +984,17 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
 
     # store values for use by later pipeline steps
     stats.avg_risk = avg_risk_abs
-    
+
+    cagr = ann_return(conf['balance'], balance, stats.trades_len / 365) if stats.trades_len else 0.0
+
+    # store balance-simulation results for the summary report's balance table
+    stats.open_trades_closed = closed_open_trades
+    stats.avg_invested = avg_invested
+    stats.avg_balance = avg_balance
+    stats.avg_risk_per = avg_risk_per
+    stats.final_balance = balance
+    stats.cagr = cagr
+
     logger.info(f"Open trades closed: {closed_open_trades}")
     logger.info(f"Average investment: {avg_invested:,.2f}")
     logger.info(f"Average balance   : {avg_balance:,.2f}")
@@ -963,6 +1005,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     total_invested = dframe['Invested'].sum()
     logger.info(f"Total invested    : {total_invested:,.2f}")
     logger.info(f"Final balance     : {balance:,.2f}")
+    logger.info(f"CAGR              : {cagr:.1%}")
 
     logger.debug("\n%s", dframe)
     dframe.to_csv(ctx.outpath("tables/", "trades_list.csv"), index=False)
