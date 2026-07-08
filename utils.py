@@ -688,6 +688,12 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
         cagr_row = {'#': '', 'Ticker': '', 'Buy': '', 'Invested': '',
                     'Units': '', 'Sell': 'CAGR', 'Net Value (incl. fee)': f"{cagr:.1%}"}
         disp = pd.concat([disp, pd.DataFrame([total_row, cagr_row])], ignore_index=True)
+        # sub-header row carrying the basket's buy/sell dates below the Buy/Sell
+        # headers, so the report shows the timeframe the benchmark spans
+        disp.columns = pd.MultiIndex.from_tuples(
+            [('#', ''), ('Ticker', ''), ('Buy', f"({bm_df.attrs.get('buy_date', '')})"),
+             ('Invested', ''), ('Units', ''), ('Sell', f"({bm_df.attrs.get('sell_date', '')})"),
+             ('Net Value (incl. fee)', '')])
         bm_table = disp.to_html(border=0, index=False, classes="benchmark-table")
         quotefile = os.path.basename(conf.get('quotefile', ''))
         benchmark_table_html = f"""
@@ -728,8 +734,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
         # sub-header row carrying the buy/sell dates below the Buy/Sell headers,
         # so the report shows the timeframe the benchmark spans
         single_disp.columns = pd.MultiIndex.from_tuples(
-            [('Ticker', ''), ('Buy', buy_date), ('Invested', ''),
-             ('Units', ''), ('Sell', sell_date), ('Value', '')])
+            [('Ticker', ''), ('Buy', f"({buy_date})"), ('Invested', ''),
+             ('Units', ''), ('Sell', f"({sell_date})"), ('Value', '')])
         single_table = single_disp.to_html(border=0, index=False, classes="benchmark-single")
         benchmark_table_html = f"""
         <h2>Benchmark (buy-and-hold &ndash; {bm_ticker})</h2>
@@ -776,6 +782,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             table.benchmark-table tr:nth-last-child(-n+2) {{ font-weight: bold; }}
             table.benchmark-single {{ width: 92%; table-layout: auto; }}
             table.benchmark-single tr:nth-last-child(-n+1) {{ font-weight: bold; }}
+            table.benchmark-table thead tr:nth-child(2) th,
+            table.benchmark-single thead tr:nth-child(2) th {{ font-size: 10px; font-weight: bold; }}
         </style>
     </head>
     <body>
@@ -1491,11 +1499,14 @@ def _build_basket_benchmark_df(conf, ctx):
     fee_frac = float(conf['trading_fee']) / 100
 
     rows = []
+    buy_dates, sell_dates = [], []
     for idx, ticker in enumerate(tickers, start=1):
         df = pd.read_csv(ctx.outpath('data', f"{ticker}_ohlc_raw.csv"))
         df = df.dropna(subset=['Close'])
         price_in = df['Close'].iloc[0]
         price_out = df['Close'].iloc[-1]
+        buy_dates.append(str(df['Date'].iloc[0]))
+        sell_dates.append(str(df['Date'].iloc[-1]))
         units = capital_per_stock / price_in
         buy_fee = capital_per_stock * fee_frac
         gross_out = units * price_out
@@ -1505,6 +1516,10 @@ def _build_basket_benchmark_df(conf, ctx):
                      'Units': units, 'Sell': price_out, 'Net Value (incl. fee)': net})
 
     bm_df = pd.DataFrame(rows, columns=['#', 'Ticker', 'Buy', 'Invested', 'Units', 'Sell', 'Net Value (incl. fee)'])
+    # overall span across the basket (earliest buy, latest sell), surfaced as a
+    # sub-header row in the report so the spanned timeframe is visible
+    bm_df.attrs['buy_date'] = min(buy_dates) if buy_dates else ''
+    bm_df.attrs['sell_date'] = max(sell_dates) if sell_dates else ''
     logger.debug(f"Quote list benchmark ({len(tickers)}):\n" +
                  bm_df.to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
     logger.debug(f"Quote list benchmark final value: {bm_df['Net Value (incl. fee)'].sum():,.2f}")
