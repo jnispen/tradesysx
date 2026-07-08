@@ -36,3 +36,10 @@ class SystemStats:
     avg_risk: float = 0.0
     min_balance: float = 0.0
     max_drawdown: float = 0.0
+    # balance-simulation results, consumed by the summary report's balance table
+    open_trades_closed: int = 0
+    avg_invested: float = 0.0
+    avg_balance: float = 0.0
+    avg_risk_per: float = 0.0
+    final_balance: float = 0.0
+    cagr: float = 0.0
