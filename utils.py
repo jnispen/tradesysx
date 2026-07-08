@@ -713,6 +713,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
         single_df = single_df.dropna(subset=['Close'])
         price_in = single_df['Close'].iloc[0]
         price_out = single_df['Close'].iloc[-1]
+        buy_date = str(single_df['Date'].iloc[0])
+        sell_date = str(single_df['Date'].iloc[-1])
         invested = float(conf['balance'])
         units = invested / price_in
         value = units * price_out
@@ -723,6 +725,11 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
                     'Value': f"{cagr:.1%}"}
         single_disp = pd.DataFrame([data_row, cagr_row],
                                    columns=['Ticker', 'Buy', 'Invested', 'Units', 'Sell', 'Value'])
+        # sub-header row carrying the buy/sell dates below the Buy/Sell headers,
+        # so the report shows the timeframe the benchmark spans
+        single_disp.columns = pd.MultiIndex.from_tuples(
+            [('Ticker', ''), ('Buy', buy_date), ('Invested', ''),
+             ('Units', ''), ('Sell', sell_date), ('Value', '')])
         single_table = single_disp.to_html(border=0, index=False, classes="benchmark-single")
         benchmark_table_html = f"""
         <h2>Benchmark (buy-and-hold &ndash; {bm_ticker})</h2>
