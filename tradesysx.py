@@ -13,6 +13,7 @@ from datetime import datetime
 # make the repo root's parent directory importable as the `tradesysx` package
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tradesysx import __app_name__, __version__
 from tradesysx import utils as ut
 from tradesysx.tables import TotalTradesList, TradesTable
 from tradesysx.context import RunContext, SystemStats
@@ -244,7 +245,7 @@ def main():
     setup_logging(args.loglevel)
 
     start_time = datetime.now()
-    logger.info(f'==== Start: {start_time.strftime("%Y-%m-%d %H:%M:%S")} ====')
+    logger.info(f'==== {__app_name__} v{__version__} - {start_time.strftime("%Y-%m-%d %H:%M:%S")} ====')
 
     # set base directory
     if args.basedir:
