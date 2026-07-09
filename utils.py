@@ -849,8 +849,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
     </html>
     """
 
-    output_filename = "system_summary_full.pdf" if full else "system_summary.pdf"
-    output_path = ctx.outpath(output_filename)
+    # same filename for short and full (full just appends the ticker plots)
+    output_path = ctx.outpath("system_summary.pdf")
     HTML(string=html_content).write_pdf(output_path)
 
     if full:
@@ -906,7 +906,13 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     # ---- benchmark (works for both single-ticker and quote-lst basket modes) ----
     benchmark_enabled = conf.get('benchmark', True)
     bm_ticker = conf.get('bm_ticker', 'URTH')
-    bm_desc = conf.get('bm_desc') or ("iShares MSCI World ETF" if bm_ticker == 'URTH' else bm_ticker)
+    if bm_ticker == 'quote-lst':
+        # the basket has no single-ticker description; bm_desc (e.g. a leftover
+        # ETF name) would be misleading. The quote file is shown in the benchmark
+        # table, so keep the header label short.
+        bm_desc = "buy-and-hold basket"
+    else:
+        bm_desc = conf.get('bm_desc') or bm_ticker
     bm_label = "equal-weight basket" if bm_ticker == 'quote-lst' else bm_ticker
     val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
     bm_cagr = ann_return(balance, val_out, stats.trades_len / 365) if (val_out and stats.trades_len) else None
@@ -1042,7 +1048,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         <h2>Monte Carlo simulation</h2>
         <p>Resampling the realised R-multiples over {conf.get('iterations', 0):,} randomised
         trade sequences estimates the spread of outcomes the system could produce from the
-        same edge in a different order.</p>
+        same edge in a different order. Each simulated run is a sequence of complete, closed
+        trades applied in order, each risking the per-trade amount shown in the table below.</p>
         <figure><img src="{img_mc}" alt="Monte Carlo simulated equity paths">
         <figcaption>Simulated equity paths (a subset shown) with the median outcome in
         purple and the buy-and-hold benchmark as the dashed grey line.</figcaption></figure>
@@ -1255,8 +1262,9 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     html_content = f"<html><head><meta charset=\"utf-8\"><style>{css}</style></head><body>{body}</body></html>"
 
-    pdf_name = "system_summary_full.pdf" if full else "system_summary.pdf"
-    pdf_path = ctx.outpath(pdf_name)
+    # same filename for short and full (full just appends the ticker plots) -
+    # a separate *_full.pdf name was confusing
+    pdf_path = ctx.outpath("system_summary.pdf")
     HTML(string=html_content).write_pdf(pdf_path)
 
     logger.info(f"Report saved: {pdf_path}")
