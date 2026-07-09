@@ -5,6 +5,7 @@ import math
 import os
 import re
 import json
+import base64
 import logging
 import pandas as pd
 import numpy as np
@@ -34,6 +35,7 @@ from telegram.constants import ParseMode
 from tradesysx.strategy import Stoploss, TradingSignals
 from tradesysx.tables import TotalTradesList, TradesTable
 from tradesysx.context import RunContext, SystemStats
+from tradesysx import report_plots as rp
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +187,14 @@ def validate_ta_custom(conf):
             sys.exit(1)
 
 VALID_REPORT_TYPES = {'short', 'full'}
+VALID_REPORT_STYLES = {'classic', 'styled'}
+
+def validate_report_style(conf):
+    ''' validates conf['report_style'] (defaults to 'classic' if absent) '''
+    report_style = conf.get('report_style', 'classic')
+    if report_style not in VALID_REPORT_STYLES:
+        logger.critical("The report_style '{}' does not exist! Valid options: {}".format(report_style, sorted(VALID_REPORT_STYLES)))
+        sys.exit(1)
 
 def validate_report_type(conf):
     ''' validates conf['report_type'] (defaults to 'short' if absent) '''
@@ -529,7 +539,7 @@ def generate_trading_table(df, ticker):
 
     return trades_table, trades_lst
 
-def generate_system_stats(trades_df, trading_period, ctx, stats):
+def generate_system_stats(trades_df, trading_period, conf, ctx, stats):
     ''' compute system statistics and return summary info '''
 
     num_trades = trades_df.shape[0]
@@ -629,7 +639,7 @@ def generate_system_stats(trades_df, trading_period, ctx, stats):
         f"- Kelly criterion   : {kelly_criterion:,.2f}",
     ])
 
-    trades_plot(trades_lst, trades_df['Rmul30'].tolist(), stat_str, ctx, stats)
+    trades_plot(trades_lst, trades_df['Rmul30'].tolist(), stat_str, conf, ctx, stats)
 
     return stats_df
 
@@ -845,6 +855,412 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     if full:
         logger.info(f"Report saved: {output_path}")
+
+def _data_uri(path):
+    ''' read an image file and return it as a base64 data-URI (keeps the styled
+    report self-contained: one HTML file, no external assets). '''
+    try:
+        with open(path, 'rb') as f:
+            enc = base64.b64encode(f.read()).decode()
+        return f"data:image/png;base64,{enc}"
+    except OSError:
+        return ""
+
+
+def _fmt_signed_r(x):
+    ''' R-multiple with an explicit sign and a true minus sign. '''
+    return (f"+{x:.2f}" if x >= 0 else f"−{abs(x):.2f}")
+
+
+def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
+    ''' generate the "styled" system report (report_style="styled").
+
+    Produces two outputs from one WeasyPrint-safe template: the PDF at
+    out/system_summary.pdf and a self-contained HTML at
+    out/html/system_summary.html (charts embedded as base64 data-URIs). Layout
+    follows the report-styling skill: header, KPI cards, strategy-vs-benchmark
+    bars, trade statistics, charts, Monte Carlo, then the config/quotes
+    appendix, with a footer on every page. '''
+
+    from tradesysx.report_style import ACCENT, NEUTRAL, POS, NEG, GRID, TEXT, TEXT2
+
+    # ---- pull numbers out of the system-summary frame + stats ----
+    sd = dict(zip(stat_df['Metric'], stat_df['Value']))
+
+    def num(key):
+        try:
+            return float(str(sd.get(key, '')).split()[0].replace(',', ''))
+        except (ValueError, IndexError):
+            return None
+
+    balance = float(conf['balance'])
+    trades_num = stats.trades_num or int(num('Trades total') or 0)
+    trades_yr = num('Trades/yr')
+    rmean = num('R mean'); rmean_win = num('R mean (win)'); rmean_loss = num('R mean (loss)')
+    rmax = num('R maximum'); rmin = num('R minimum'); rstd = num('R stdev')
+    kelly = num('Kelly criterion')
+    len_win = num('Length mean (win)'); len_loss = num('Length mean (loss)')
+    winners = round(stats.win_rate / 100.0 * trades_num) if trades_num else 0
+    losers = trades_num - winners
+
+    # ---- benchmark (works for both single-ticker and quote-lst basket modes) ----
+    benchmark_enabled = conf.get('benchmark', True)
+    bm_ticker = conf.get('bm_ticker', 'URTH')
+    bm_desc = conf.get('bm_desc') or ("iShares MSCI World ETF" if bm_ticker == 'URTH' else bm_ticker)
+    bm_label = "equal-weight basket" if bm_ticker == 'quote-lst' else bm_ticker
+    val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
+    bm_cagr = ann_return(balance, val_out, stats.trades_len / 365) if (val_out and stats.trades_len) else None
+    cagr_delta = (stats.cagr - bm_cagr) * 100 if bm_cagr is not None else None
+
+    # ---- header date range (from the saved trades table) ----
+    date_range = ""
+    try:
+        _tt = pd.read_csv(ctx.outpath('tables', 'trades_table.csv'))
+        _d0 = pd.to_datetime(_tt['Enter']).min()
+        _d1 = pd.to_datetime(_tt['Exit']).max()
+        date_range = f"{_d0.strftime('%b %Y')} – {_d1.strftime('%b %Y')}"
+    except Exception:
+        date_range = f"{stats.trades_len} days"
+
+    gen_ts = datetime.now().strftime('%d %b %Y, %H:%M')
+    sqn_badge = get_system_qlabel(stats.sqn).strip('()')
+    strategy_desc = f"{conf['enter']} enter / {conf['exit']} exit, long only"
+
+    # ---- KPI cards ----
+    def kpi(label, value, ctx_line, ctx_cls=""):
+        return (f'<div class="kpi"><p class="lbl">{label}</p>'
+                f'<p class="val">{value}</p>'
+                f'<p class="ctx {ctx_cls}">{ctx_line}</p></div>')
+
+    if cagr_delta is not None:
+        delta_cls = "up" if cagr_delta >= 0 else "down"
+        delta_txt = f"{'+' if cagr_delta >= 0 else '−'}{abs(cagr_delta):.1f} pts vs benchmark"
+    else:
+        delta_cls, delta_txt = "", "annualized"
+    cards = [
+        kpi("CAGR", f"{stats.cagr:.1%}", delta_txt, delta_cls),
+        kpi("Final balance", f"${stats.final_balance:,.0f}", f"from ${balance:,.0f} start"),
+        kpi("System quality (SQN)", f"{stats.sqn:.2f}<span class=\"badge\">{sqn_badge}</span>", "Van Tharp scale"),
+        kpi("Win rate", f"{stats.win_rate:.0f}%",
+            f"{trades_num} trades" + (f" &middot; ~{trades_yr:.0f}/yr" if trades_yr else "")),
+        kpi("Max drawdown", f"{stats.max_drawdown:.1f}%", "Monte Carlo, worst path"),
+        kpi("R mean", _fmt_signed_r(rmean) if rmean is not None else "&ndash;",
+            (f"avg loss {_fmt_signed_r(rmean_loss)}" if rmean_loss is not None else "per trade")),
+    ]
+    kpi_html = "".join(cards)
+
+    # ---- strategy vs benchmark bars ----
+    benchmark_bars = ""
+    if val_out is not None:
+        m = max(stats.final_balance, val_out) or 1.0
+        sp = stats.final_balance / m * 100
+        bp = val_out / m * 100
+        benchmark_bars = f"""
+        <div class="cmp">
+          <div class="cmprow">
+            <div class="name">Strategy<small>{conf['enter']}, long only</small></div>
+            <div class="track"><div class="bar s" style="width:{sp:.0f}%">${stats.final_balance:,.0f}</div></div>
+            <div class="cagr">{stats.cagr:.1%}<br><span class="mut">CAGR</span></div>
+          </div>
+          <div class="cmprow">
+            <div class="name">Buy &amp; hold<small>{bm_label}</small></div>
+            <div class="track"><div class="bar b" style="width:{bp:.0f}%">${val_out:,.0f}</div></div>
+            <div class="cagr">{f'{bm_cagr:.1%}' if bm_cagr is not None else '&ndash;'}<br><span class="mut">CAGR</span></div>
+          </div>
+        </div>"""
+
+    # ---- trade statistics tables ----
+    def row(k, v, cls=""):
+        return f"<tr><td class='k'>{k}</td><td class='num {cls}'>{v}</td></tr>"
+
+    stats_left = "".join([
+        row("Trades", trades_num),
+        row("Winners / losers", f"{winners} / {losers}"),
+        row("Win rate", f"{stats.win_rate:.1f}%"),
+        row("R mean", _fmt_signed_r(rmean) if rmean is not None else "&ndash;", "pos" if (rmean or 0) >= 0 else "neg"),
+        row("R standard deviation", f"{rstd:.2f}" if rstd is not None else "&ndash;"),
+    ])
+    stats_right = "".join([
+        row("Best trade", _fmt_signed_r(rmax) + " R" if rmax is not None else "&ndash;", "pos"),
+        row("Worst trade", _fmt_signed_r(rmin) + " R" if rmin is not None else "&ndash;", "neg"),
+        row("Avg holding (win)", f"{len_win:.0f} days" if len_win is not None else "&ndash;"),
+        row("Avg holding (loss)", f"{len_loss:.0f} days" if len_loss is not None else "&ndash;"),
+        row("Kelly criterion", f"{kelly:.2f}" if kelly is not None else "&ndash;"),
+    ])
+
+    # trading-simulation summary (mirrors the classic report's balance table)
+    sim_rows = "".join([
+        row("Starting balance", f"${balance:,.0f}"),
+        row("Open trades closed", stats.open_trades_closed),
+        row("Average investment", f"${stats.avg_invested:,.0f}"),
+        row("Average balance", f"${stats.avg_balance:,.0f}"),
+        row("Average risk", f"${stats.avg_risk:,.2f} ({stats.avg_risk_per:.2f}%)"),
+        row("Final balance", f"${stats.final_balance:,.0f}"),
+        row("CAGR", f"{stats.cagr:.1%}", "pos" if stats.cagr >= 0 else "neg"),
+    ])
+
+    # ---- selected trades (largest + smallest outcomes) ----
+    trades_table_html = ""
+    try:
+        tt = pd.read_csv(ctx.outpath('tables', 'trades_table.csv'))
+        for c in ('PriceIn', 'PriceOut', 'Length', 'Rmul'):
+            tt[c] = pd.to_numeric(tt[c], errors='coerce')
+        ttc = tt.dropna(subset=['PriceOut', 'Rmul', 'Length'])
+        sel = pd.concat([ttc.nlargest(4, 'Rmul'), ttc.nsmallest(3, 'Rmul')])
+        rows_html = ""
+        for _, r in sel.iterrows():
+            cls = "pos" if r['Rmul'] >= 0 else "neg"
+            reason = "stop loss" if r['Signal'] == 'STOPLOSS' else "exit signal"
+            rows_html += (
+                f"<tr><td>{r['Ticker']}</td><td class='num'>{str(r['Enter'])[:10]}</td>"
+                f"<td class='num'>{str(r['Exit'])[:10]}</td>"
+                f"<td class='num'>{float(r['PriceIn']):,.2f}</td>"
+                f"<td class='num'>{float(r['PriceOut']):,.2f}</td>"
+                f"<td class='num'>{int(r['Length'])}</td>"
+                f"<td class='num {cls}'>{_fmt_signed_r(float(r['Rmul']))}</td>"
+                f"<td class='tag'>{reason}</td></tr>")
+        trades_table_html = f"""
+        <table class="wide">
+          <thead><tr><th>Ticker</th><th class="num">Enter</th><th class="num">Exit</th>
+          <th class="num">In</th><th class="num">Out</th><th class="num">Days</th>
+          <th class="num">R-multiple</th><th>Exit reason</th></tr></thead>
+          <tbody>{rows_html}</tbody>
+        </table>
+        <p class="cap">Selected trades &mdash; four largest and three smallest outcomes.</p>"""
+    except Exception as e:
+        logger.debug(f"styled report: skipping selected-trades table ({e})")
+
+    # ---- charts (embedded as data-URIs) ----
+    img_equity = _data_uri(ctx.outpath('images', 'balance_plot.png'))
+    img_bars = _data_uri(ctx.outpath('images', 'system_trades_plot.png'))
+    img_dist = _data_uri(ctx.outpath('images', 'system_trades_dist_plot.png'))
+    img_mc = _data_uri(ctx.outpath('images', 'monte_carlo_plot.png'))
+
+    mc_section = ""
+    if conf.get('montecarlo', True) and img_mc:
+        mc_section = f"""
+        <h2>Monte Carlo simulation</h2>
+        <p>Resampling the realised R-multiples over {conf.get('iterations', 0):,} randomised
+        trade sequences estimates the spread of outcomes the system could produce from the
+        same edge in a different order.</p>
+        <figure><img src="{img_mc}" alt="Monte Carlo simulated equity paths">
+        <figcaption>Simulated equity paths (a subset shown) with the median outcome in
+        purple and the buy-and-hold benchmark as the dashed grey line.</figcaption></figure>
+        <div class="statgrid">
+          <table><tbody>{row("Iterations", f"{conf.get('iterations', 0):,}")}
+          {row("Risk per trade", f"{stats.avg_risk / balance * 100:.2f}%")}
+          {row("Avg loss streak", f"{stats.avg_loss_streak:.0f} trades")}
+          {row("Max loss streak", f"{stats.max_loss_streak} trades")}</tbody></table>
+          <table><tbody>{row("Max drawdown", f"{stats.max_drawdown:.1f}%", "neg")}
+          {row("Minimum balance", f"${stats.min_balance:,.0f}")}
+          {row("System quality (SQN)", f"{stats.sqn:.2f}")}
+          {row("R-average (sim / real)", f"{stats.rmul_avg_sampled:.2f} / {rmean:.2f}" if rmean is not None else "&ndash;")}</tbody></table>
+        </div>"""
+
+    # ---- benchmark detail table (both single-ticker and quote-lst basket) ----
+    benchmark_detail = ""
+    if benchmark_enabled:
+        cagr_cell = f"{bm_cagr:.1%}" if bm_cagr is not None else "&ndash;"
+        if bm_ticker == 'quote-lst':
+            if ctx.benchmark_df is None:
+                ctx.benchmark_df = _build_basket_benchmark_df(conf, ctx)
+            bdf = ctx.benchmark_df
+            invested_total = bdf['Invested'].sum()
+            buy_d = bdf.attrs.get('buy_date', ''); sell_d = bdf.attrs.get('sell_date', '')
+            brows = "".join(
+                f"<tr><td class='num'>{int(r['#'])}</td><td>{r['Ticker']}</td>"
+                f"<td class='num'>{r['Buy']:,.2f}</td><td class='num'>{r['Invested']:,.2f}</td>"
+                f"<td class='num'>{r['Units']:,.2f}</td><td class='num'>{r['Sell']:,.2f}</td>"
+                f"<td class='num'>{r['Net Value (incl. fee)']:,.2f}</td></tr>"
+                for _, r in bdf.iterrows())
+            brows += (f"<tr class='tot'><td></td><td>Total</td><td></td>"
+                      f"<td class='num'>{invested_total:,.2f}</td><td></td><td></td>"
+                      f"<td class='num'>{val_out:,.2f}</td></tr>"
+                      f"<tr class='tot'><td colspan='6' class='num'>CAGR</td><td class='num'>{cagr_cell}</td></tr>")
+            quotefile = os.path.basename(conf.get('quotefile', ''))
+            benchmark_detail = f"""
+            <h2 class="pbreak">Benchmark &mdash; buy-and-hold basket ({quotefile})</h2>
+            <table class="wide"><thead><tr>
+              <th class="num">#</th><th>Ticker</th>
+              <th class="num">Buy<span class="subd">{buy_d}</span></th>
+              <th class="num">Invested</th><th class="num">Units</th>
+              <th class="num">Sell<span class="subd">{sell_d}</span></th>
+              <th class="num">Net value</th></tr></thead>
+              <tbody>{brows}</tbody></table>"""
+        else:
+            sdf = pd.read_csv(ctx.outpath('data', f"{bm_ticker}_ohlc_raw.csv")).dropna(subset=['Close'])
+            p_in = sdf['Close'].iloc[0]; p_out = sdf['Close'].iloc[-1]
+            buy_d = str(sdf['Date'].iloc[0])[:10]; sell_d = str(sdf['Date'].iloc[-1])[:10]
+            units = balance / p_in; value = units * p_out
+            benchmark_detail = f"""
+            <h2 class="pbreak">Benchmark &mdash; buy-and-hold ({bm_ticker})</h2>
+            <table class="wide"><thead><tr>
+              <th>Ticker</th><th class="num">Buy<span class="subd">{buy_d}</span></th>
+              <th class="num">Invested</th><th class="num">Units</th>
+              <th class="num">Sell<span class="subd">{sell_d}</span></th>
+              <th class="num">Value</th></tr></thead>
+              <tbody>
+              <tr><td>{bm_ticker}</td><td class="num">{p_in:,.2f}</td>
+              <td class="num">{balance:,.2f}</td><td class="num">{units:,.2f}</td>
+              <td class="num">{p_out:,.2f}</td><td class="num">{value:,.2f}</td></tr>
+              <tr class="tot"><td colspan="5" class="num">CAGR</td><td class="num">{cagr_cell}</td></tr>
+              </tbody></table>"""
+
+    # ---- appendix: config + quotes ----
+    def two_col(items, k_hdr, v_hdr):
+        half = (len(items) + 1) // 2
+        def body(chunk):
+            return "".join(f"<tr><td class='k'>{k}</td><td>{v}</td></tr>" for k, v in chunk)
+        return (f"<table class='appendix'><thead><tr><th>{k_hdr}</th><th>{v_hdr}</th></tr></thead>"
+                f"<tbody>{body(items[:half])}</tbody></table>"
+                f"<table class='appendix'><thead><tr><th>{k_hdr}</th><th>{v_hdr}</th></tr></thead>"
+                f"<tbody>{body(items[half:])}</tbody></table>")
+
+    conf_items = [(k, ", ".join(v) if isinstance(v, list) else v) for k, v in conf.items()]
+    conf_html = two_col(conf_items, "Key", "Value")
+    quotes_html = two_col(list(quotes.items()), "Ticker", "Description")
+
+    # ---- assemble ----
+    css = f"""
+    @page {{
+        size: A4 portrait; margin: 16mm 14mm 18mm 14mm;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        @bottom-left {{ content: "TradeSysX \\2022 system summary";
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8px; color: {TEXT2}; }}
+        @bottom-center {{ content: "Page " counter(page) " of " counter(pages);
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8px; color: {TEXT2}; }}
+        @bottom-right {{ content: "{gen_ts}";
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8px; color: {TEXT2}; }}
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{ font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: {TEXT};
+        font-size: 12px; line-height: 1.55; margin: 0; }}
+    h1 {{ font-size: 23px; font-weight: 600; margin: 0 0 3px; letter-spacing: -0.01em; }}
+    h2 {{ font-size: 14px; font-weight: 600; margin: 26px 0 11px; padding-bottom: 6px;
+        border-bottom: 1px solid {GRID}; letter-spacing: 0.02em; }}
+    p {{ margin: 0 0 8px; }}
+    .sub {{ color: {TEXT2}; font-size: 12.5px; }}
+    .brandrule {{ height: 3px; width: 52px; background: {ACCENT}; border-radius: 2px; margin: 12px 0; }}
+    .meta {{ color: {TEXT2}; font-size: 11.5px; }}
+    .meta b {{ color: {TEXT}; font-weight: 600; }}
+    .meta span {{ margin-right: 20px; }}
+
+    .kpis {{ margin: 4px 0 10px; }}
+    .kpi {{ display: inline-block; width: 32%; vertical-align: top; border: 1px solid {GRID};
+        border-radius: 4px; padding: 11px 13px; margin: 0 0.4% 8px 0; }}
+    .kpi .lbl {{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+        color: {TEXT2}; margin: 0; }}
+    .kpi .val {{ font-size: 24px; font-weight: 600; margin: 4px 0 1px; letter-spacing: -0.02em; }}
+    .kpi .ctx {{ font-size: 10.5px; margin: 0; color: {TEXT2}; }}
+    .kpi .ctx.up {{ color: {POS}; }}
+    .kpi .ctx.down {{ color: {NEG}; }}
+    .badge {{ display: inline-block; font-size: 9px; padding: 1px 6px; border-radius: 20px;
+        background: #ECEAF7; color: {ACCENT}; font-weight: 600; margin-left: 6px; vertical-align: 2px; }}
+
+    .cmp {{ margin: 2px 0 4px; }}
+    .cmprow {{ margin-bottom: 10px; }}
+    .cmprow .name {{ display: inline-block; width: 20%; vertical-align: middle; font-size: 12px; }}
+    .cmprow .name small {{ display: block; color: {TEXT2}; font-size: 10px; }}
+    .cmprow .track {{ display: inline-block; width: 66%; vertical-align: middle; }}
+    .cmprow .cagr {{ display: inline-block; width: 12%; vertical-align: middle; text-align: right;
+        font-size: 12px; }}
+    .cmprow .cagr .mut {{ color: {TEXT2}; font-size: 9.5px; }}
+    .bar {{ height: 28px; border-radius: 3px; color: #fff; font-size: 12px; font-weight: 600;
+        line-height: 28px; text-align: right; padding-right: 9px; min-width: 64px; }}
+    .bar.s {{ background: {ACCENT}; }}
+    .bar.b {{ background: {NEUTRAL}; color: #3a3934; }}
+
+    figure {{ margin: 6px 0; }}
+    figure img {{ width: 100%; }}
+    figcaption, .cap {{ font-size: 10.5px; color: {TEXT2}; margin-top: 3px; }}
+
+    table {{ border-collapse: collapse; width: 100%; font-size: 12px; }}
+    .statgrid table {{ display: inline-table; width: 48.5%; margin-right: 2%; vertical-align: top; }}
+    .statgrid table:last-child {{ margin-right: 0; }}
+    th {{ text-align: left; color: {TEXT2}; font-weight: 600; font-size: 10px;
+        letter-spacing: 0.04em; text-transform: uppercase; padding: 6px 8px;
+        border-bottom: 1.5px solid {GRID}; vertical-align: top; }}
+    td {{ padding: 5px 8px; border-bottom: 1px solid {GRID}; }}
+    td.num, th.num {{ text-align: right; }}
+    td.k {{ color: {TEXT2}; }}
+    .pos {{ color: {POS}; font-weight: 600; }}
+    .neg {{ color: {NEG}; font-weight: 600; }}
+    td.tag {{ color: {TEXT2}; font-size: 10.5px; }}
+    tr.tot td {{ font-weight: 600; border-top: 1.5px solid {GRID}; }}
+    th .subd {{ display: block; font-weight: 400; text-transform: none;
+        letter-spacing: 0; font-size: 9px; color: {TEXT2}; }}
+    table.wide {{ margin-top: 14px; }}
+    table.appendix {{ display: inline-table; width: 49%; vertical-align: top; }}
+    table.appendix:first-of-type {{ margin-right: 1.5%; }}
+
+    .pbreak {{ page-break-before: always; }}
+    """
+
+    body = f"""
+    <h1>TradeSysX system summary</h1>
+    <p class="sub">{strategy_desc}</p>
+    <div class="brandrule"></div>
+    <p class="meta">
+      <span><b>Period</b> {date_range}</span>
+      <span><b>Universe</b> {len(quotes)} tickers</span>
+      <span><b>Benchmark</b> {bm_desc if benchmark_enabled else '&ndash;'}</span>
+      <span><b>Generated</b> {gen_ts}</span>
+    </p>
+
+    <h2>Executive summary</h2>
+    <div class="kpis">{kpi_html}</div>
+    {f'<h2>Strategy vs benchmark</h2>{benchmark_bars}' if benchmark_bars else ''}
+
+    <h2>Equity curve</h2>
+    <figure><img src="{img_equity}" alt="Account value over time">
+    <figcaption>Simulated account value with {conf['pos_sizing']} position sizing,
+    against the buy-and-hold benchmark (dashed).</figcaption></figure>
+
+    <h2>Trade statistics</h2>
+    <div class="statgrid">
+      <table><tbody>{stats_left}</tbody></table>
+      <table><tbody>{stats_right}</tbody></table>
+    </div>
+    {trades_table_html}
+
+    <h2 class="pbreak">Trade distribution</h2>
+    <figure><img src="{img_bars}" alt="R-multiple of each trade in sequence">
+    <figcaption>R-multiple of each trade in sequence (wins green, losses red) with the
+    30-trade rolling average.</figcaption></figure>
+    <figure><img src="{img_dist}" alt="Histogram of trade R-multiples">
+    <figcaption>Distribution of trade outcomes in R-multiples.</figcaption></figure>
+
+    <h2>Trading balance simulation</h2>
+    <div class="statgrid">
+      <table><tbody>{sim_rows}</tbody></table>
+      <table><tbody></tbody></table>
+    </div>
+
+    {mc_section}
+
+    {benchmark_detail}
+
+    <h2 class="pbreak">Appendix &mdash; configuration</h2>
+    {conf_html}
+    <h2>Appendix &mdash; quotes list</h2>
+    {quotes_html}
+    """
+
+    if full:
+        rows = "".join(
+            f'<img src="{_data_uri(ctx.outpath("plots", f"{ticker}_plot.png"))}" style="width:100%">'
+            for ticker in quotes
+        )
+        body += f'<h2 class="pbreak">Ticker plots</h2>{rows}'
+
+    html_content = f"<html><head><meta charset=\"utf-8\"><style>{css}</style></head><body>{body}</body></html>"
+
+    pdf_name = "system_summary_full.pdf" if full else "system_summary.pdf"
+    pdf_path = ctx.outpath(pdf_name)
+    HTML(string=html_content).write_pdf(pdf_path)
+
+    logger.info(f"Report saved: {pdf_path}")
+
 
 def format_to_2_decimals(x):
     # Matches numbers, including negatives and decimals
@@ -1096,6 +1512,9 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
     # store values for use by later pipeline steps
     stats.max_drawdown = 100.0 - float(min_balance/conf['balance'] * 100)
     stats.min_balance = min_balance
+    stats.avg_loss_streak = avg_neg_run
+    stats.max_loss_streak = max_neg_run
+    stats.rmul_avg_sampled = float(np.mean(Rmul_sample))
 
     last_row = mc_result_df.iloc[-1]
     logger.info("==== simulation results ====")
@@ -1131,6 +1550,11 @@ def ann_return(start_capital: float, end_capital: float, years: float) -> float:
 def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_avg, Rmul_avg_sampled, avg_neg_run, max_neg_run,
                                       output_filename="monte_carlo_plot.png", benchmark=None):
     ''' plot the results of the monte carlo simulation '''
+
+    if conf.get('report_style', 'classic') == 'styled':
+        rp.styled_montecarlo_plot(mc_result_df, conf, ctx, stats, risk, benchmark,
+                                  output_filename=output_filename)
+        return
 
     # only plot a fraction of the simulated iterations (all iterations still count towards the stats below)
     plot_fraction = conf.get('plot_frac', 0.1)
@@ -1574,6 +1998,10 @@ def balance_plot(df, conf, ctx):
     benchmark_enabled = conf.get('benchmark', True)
     val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
 
+    if conf.get('report_style', 'classic') == 'styled':
+        rp.styled_balance_plot(df, conf, ctx, val_out)
+        return
+
     fig = plt.figure(figsize = (10, 5))
     plot_title = f"Trading simulation [{conf['pos_sizing']}]"
     fig.suptitle(plot_title, fontsize=16)
@@ -1643,8 +2071,13 @@ def balance_plot(df, conf, ctx):
     plt.savefig(ctx.outpath("images", "balance_plot.png"), dpi=150)
     plt.close(fig)
 
-def trades_plot(trades_lst, Rmul30_lst, sys_stats, ctx, stats):
+def trades_plot(trades_lst, Rmul30_lst, sys_stats, conf, ctx, stats):
     ''' plot trades histograms '''
+
+    if conf.get('report_style', 'classic') == 'styled':
+        rp.styled_trades_plot(trades_lst, Rmul30_lst, ctx)
+        rp.styled_distribution_plot(trades_lst, ctx)
+        return
 
     trades_tot = len(trades_lst)
     pos_cnt = sum(1 for value in trades_lst if value > 0)

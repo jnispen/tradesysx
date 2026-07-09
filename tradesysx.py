@@ -169,7 +169,7 @@ def update_quotes(conf, ctx):
         # 9. generate some system statistics
         logger.info('==== [4/8] Generating system statistics ====')
         trading_period = (last_close_date - first_close_date).days
-        system_stat = ut.generate_system_stats(total_trades_table.df, trading_period, ctx, stats)
+        system_stat = ut.generate_system_stats(total_trades_table.df, trading_period, conf, ctx, stats)
         system_stats = system_stat.to_string(index=False)
         logger.info(system_stats)
 
@@ -186,9 +186,14 @@ def update_quotes(conf, ctx):
         else:
             logger.info('==== [6/8] Running Monte Carlo simulation: skipped (montecarlo=false) ====')
 
-        # 11. generate a complete system summary report in a single pdf
+        # 11. generate a complete system summary report (classic pdf, or the
+        # styled pdf + self-contained html, selected by conf['report_style'])
         logger.info('==== [7/8] Generating summary report ====')
-        ut.generate_summary_report(system_stat, conf, quotes, ctx, stats, full=(conf.get('report_type', 'short') == 'full'))
+        report_full = conf.get('report_type', 'short') == 'full'
+        if conf.get('report_style', 'classic') == 'styled':
+            ut.generate_styled_report(system_stat, conf, quotes, ctx, stats, full=report_full)
+        else:
+            ut.generate_summary_report(system_stat, conf, quotes, ctx, stats, full=report_full)
     else:
         logger.info('==== [4/8] Generating system statistics: skipped (process_data=false) ====')
         logger.info('==== [5/8] Running trading balance simulation (backtest): skipped (process_data=false) ====')
@@ -279,6 +284,7 @@ def main():
     ut.validate_plot_indicators(conf)
     ut.validate_ta_custom(conf)
     ut.validate_report_type(conf)
+    ut.validate_report_style(conf)
     ut.validate_gen_ta_custom(conf)
 
     # load telegram chat id and bot token if configured (follow_only
