@@ -1113,8 +1113,9 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
             p_in = sdf['Close'].iloc[0]; p_out = sdf['Close'].iloc[-1]
             buy_d = str(sdf['Date'].iloc[0])[:10]; sell_d = str(sdf['Date'].iloc[-1])[:10]
             units = balance / p_in; value = units * p_out
+            _bm_head = f"{bm_desc} &ndash; {bm_ticker}" if bm_desc and bm_desc != bm_ticker else bm_ticker
             benchmark_detail = f"""
-            <h2 class="pbreak">Benchmark &mdash; buy-and-hold ({bm_ticker})</h2>
+            <h2 class="pbreak">Benchmark &mdash; buy-and-hold ({_bm_head})</h2>
             <table class="wide"><thead><tr>
               <th>Ticker</th><th class="num">Buy<span class="subd">{buy_d}</span></th>
               <th class="num">Invested</th><th class="num">Units</th>
