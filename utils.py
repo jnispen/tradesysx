@@ -1009,19 +1009,33 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     trades_table_html = ""
     try:
         tt = pd.read_csv(ctx.outpath('tables', 'trades_table.csv'))
-        for c in ('PriceIn', 'PriceOut', 'Length', 'Rmul'):
-            tt[c] = pd.to_numeric(tt[c], errors='coerce')
-        ttc = tt.dropna(subset=['PriceOut', 'Rmul', 'Length'])
+        tt['PriceIn'] = pd.to_numeric(tt['PriceIn'], errors='coerce')
+        tt['Length'] = pd.to_numeric(tt['Length'], errors='coerce')
+        tt['Rmul'] = pd.to_numeric(tt['Rmul'], errors='coerce')
+        # still-open trades have no realised Exit/PriceOut; they are valued at
+        # LastClose and that unrealised R is what the system stats also count
+        # (e.g. the "Best trade" KPI), so include them here instead of dropping
+        # them - otherwise the table can miss the largest/smallest R-multiple
+        tt['OutPrice'] = pd.to_numeric(tt['PriceOut'], errors='coerce').fillna(
+            pd.to_numeric(tt['LastClose'], errors='coerce'))
+        tt['IsOpen'] = tt['Exit'].astype(str).str.strip().eq('-')
+        ttc = tt.dropna(subset=['Rmul', 'Length', 'OutPrice'])
         sel = pd.concat([ttc.nlargest(4, 'Rmul'), ttc.nsmallest(3, 'Rmul')])
         rows_html = ""
         for _, r in sel.iterrows():
             cls = "pos" if r['Rmul'] >= 0 else "neg"
-            reason = "stop loss" if r['Signal'] == 'STOPLOSS' else "exit signal"
+            if r['IsOpen']:
+                reason = "open"
+            elif r['Signal'] == 'STOPLOSS':
+                reason = "stop loss"
+            else:
+                reason = "exit signal"
+            exit_txt = "&mdash;" if r['IsOpen'] else str(r['Exit'])[:10]
             rows_html += (
                 f"<tr><td>{r['Ticker']}</td><td class='num'>{str(r['Enter'])[:10]}</td>"
-                f"<td class='num'>{str(r['Exit'])[:10]}</td>"
+                f"<td class='num'>{exit_txt}</td>"
                 f"<td class='num'>{float(r['PriceIn']):,.2f}</td>"
-                f"<td class='num'>{float(r['PriceOut']):,.2f}</td>"
+                f"<td class='num'>{float(r['OutPrice']):,.2f}</td>"
                 f"<td class='num'>{int(r['Length'])}</td>"
                 f"<td class='num {cls}'>{_fmt_signed_r(float(r['Rmul']))}</td>"
                 f"<td class='tag'>{reason}</td></tr>")
