@@ -57,7 +57,7 @@ List of extra indicator panels to plot, one panel each. Only used when `gen_ta_c
 Selects the summary report variant; both write `out/system_summary.pdf` (`full` additionally appends every ticker's plot).
 
 **report_style** — [`classic`/`styled`]\
-Selects the look of `out/system_summary.pdf`. `classic` is the original report; `styled` produces a professionally formatted report with KPI cards, a strategy-vs-benchmark comparison, restyled charts and a benchmark table. Defaults to `classic` when absent.
+Selects the look of `out/system_summary.pdf`. `classic` is the original report; `styled` produces a professionally formatted report with KPI cards, a strategy-vs-benchmark comparison, restyled charts and a benchmark table. Defaults to `styled` when absent.
 
 **stloss** — [`3atr`/`percent`]\
 Stop-loss strategy. `3atr` = 3×ATR below the close, `percent` = stoploss set as a percentage below the entry price (see `stoploss`).

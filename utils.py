@@ -190,8 +190,8 @@ VALID_REPORT_TYPES = {'short', 'full'}
 VALID_REPORT_STYLES = {'classic', 'styled'}
 
 def validate_report_style(conf):
-    ''' validates conf['report_style'] (defaults to 'classic' if absent) '''
-    report_style = conf.get('report_style', 'classic')
+    ''' validates conf['report_style'] (defaults to 'styled' if absent) '''
+    report_style = conf.get('report_style', 'styled')
     if report_style not in VALID_REPORT_STYLES:
         logger.critical("The report_style '{}' does not exist! Valid options: {}".format(report_style, sorted(VALID_REPORT_STYLES)))
         sys.exit(1)
@@ -1596,7 +1596,7 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
                                       output_filename="monte_carlo_plot.png", benchmark=None):
     ''' plot the results of the monte carlo simulation '''
 
-    if conf.get('report_style', 'classic') == 'styled':
+    if conf.get('report_style', 'styled') == 'styled':
         rp.styled_montecarlo_plot(mc_result_df, conf, ctx, stats, risk, benchmark,
                                   output_filename=output_filename)
         return
@@ -2105,7 +2105,7 @@ def balance_plot(df, conf, ctx):
     benchmark_enabled = conf.get('benchmark', True)
     val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
 
-    if conf.get('report_style', 'classic') == 'styled':
+    if conf.get('report_style', 'styled') == 'styled':
         rp.styled_balance_plot(df, conf, ctx, val_out)
         return
 
@@ -2181,7 +2181,7 @@ def balance_plot(df, conf, ctx):
 def trades_plot(trades_lst, Rmul30_lst, sys_stats, conf, ctx, stats):
     ''' plot trades histograms '''
 
-    if conf.get('report_style', 'classic') == 'styled':
+    if conf.get('report_style', 'styled') == 'styled':
         rp.styled_trades_plot(trades_lst, Rmul30_lst, ctx)
         rp.styled_distribution_plot(trades_lst, ctx)
         return
@@ -2312,7 +2312,7 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
         plot_indicators overlay (SMA225 bull/bear line and/or Bollinger Bands) as
         a visual aid, matching the overlays on the traded tickers' charts. '''
 
-    if conf.get('report_style', 'classic') == 'styled':
+    if conf.get('report_style', 'styled') == 'styled':
         rp.styled_benchmark_price(df, ticker, description, conf, ctx)
         return
 
@@ -2356,7 +2356,7 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
 def ticker_plot(df, ticker, description, conf, ctx):
     ''' plot ticker + enter and exits points '''
 
-    if conf.get('report_style', 'classic') == 'styled':
+    if conf.get('report_style', 'styled') == 'styled':
         rp.styled_ticker_plot(df, ticker, description, conf, ctx)
         return
 
@@ -2427,7 +2427,7 @@ def ticker_plot(df, ticker, description, conf, ctx):
 def ticker_plot_ta(df, ticker, description, conf, ctx):
     ''' plot ticker +ta indicators + enter and exits points '''
 
-    if conf.get('report_style', 'classic') == 'styled':
+    if conf.get('report_style', 'styled') == 'styled':
         rp.styled_ticker_plot_ta(df, ticker, description, conf, ctx)
         return
 
@@ -2529,7 +2529,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
 def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
     ''' ad-hoc plot: price panel + one stacked panel per conf['ta_custom'] entry '''
 
-    if conf.get('report_style', 'classic') == 'styled':
+    if conf.get('report_style', 'styled') == 'styled':
         rp.styled_ticker_plot_ta_custom(df, ticker, description, conf, ctx)
         return
 

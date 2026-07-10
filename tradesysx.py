@@ -190,7 +190,7 @@ def update_quotes(conf, ctx):
         # styled pdf + self-contained html, selected by conf['report_style'])
         logger.info('==== [7/8] Generating summary report ====')
         report_full = conf.get('report_type', 'short') == 'full'
-        if conf.get('report_style', 'classic') == 'styled':
+        if conf.get('report_style', 'styled') == 'styled':
             ut.generate_styled_report(system_stat, conf, quotes, ctx, stats, full=report_full)
         else:
             ut.generate_summary_report(system_stat, conf, quotes, ctx, stats, full=report_full)
