@@ -18,7 +18,7 @@ development written by [Dr. Van K. Tharp](https://vantharp.com/).
   - [3.3 Running from a single executable](#33-running-from-a-single-executable)
 - [4. Data output](#4-data-output)
   - [4.1 Example plots and graphs](#41-example-plots-and-graphs)
-  - [4.2 Example summary report](#42-example-summary-report)
+  - [4.2 Example report](#42-example-report)
 
 ## 1. Processing steps
 
