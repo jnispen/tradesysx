@@ -66,7 +66,7 @@ The behaviour of `tradesysx` is controlled via JSON config files in `config/`:
   `notify` is `true`.
 - `quotes/quotes_sp500.lst`, `quotes/quotes_nasdaq.lst`, `quotes/quotes_dow30.lst` — example lists of tickers to process.
 
-The full list of settings in `config/system_conf.json` is explained in more detail [here](docs/system_conf_reference.md).
+The full list of settings in `config/system_conf.json` is explained in the [system configuration reference](docs/system_conf_reference.md).
 
 ### 2.1 Plot indicators
 
@@ -134,11 +134,11 @@ Cd into the directory where `tradesysx` has been cloned or extracted:
 
 ### 3.2 Running from a Docker container
 
-An alternative way to run `tradesysx` is from a Docker container. The steps involved are described in more detail [here](scripts/README.md#running-tradesysx-from-a-docker-container).
+An alternative way to run `tradesysx` is from a Docker container. The steps involved are described in more detail in the [Docker setup guide](scripts/README.md#running-tradesysx-from-a-docker-container), or you can download a ready-made image from [Docker Hub](https://hub.docker.com/r/mooncat911/tradesysx-head).
 
 ### 3.3 Running from a single executable
 
-To bypass the need for the creation of a Python virtual environment a third way to run `tradesysx` is from a single executable. The steps involved can be found [here](scripts/README.md#running-tradesysx-from-a-single-executable).
+To bypass the need for the creation of a Python virtual environment a third way to run `tradesysx` is from a single executable. The steps involved are described in the [single-executable setup guide](scripts/README.md#running-tradesysx-from-a-single-executable).
    
 ## 4. Data output
 
@@ -194,7 +194,7 @@ In the picture below, an Monte Carlo simulation with 10 000 iterations was run. 
 
 <img src="docs/examples/monte_carlo_plot.png" alt="Monte Carlo simulation" width="900">
 
-The Monte Carlo simulator can also be configured and run in standalone mode. In this mode the simulator reads the R-multiple distribution from a .csv file. This mode allows for experimenting with different R-multiple distributions. The standalone mode is described in more detail [here](tst/README.md#monte-carlo-simulator-standalone).
+The Monte Carlo simulator can also be configured and run in standalone mode. In this mode the simulator reads the R-multiple distribution from a .csv file. This mode allows for experimenting with different R-multiple distributions. The standalone mode is described in more detail in the [standalone simulator guide](tst/README.md#monte-carlo-simulator-standalone).
 
 #### Telegram notification (*Optional*)
 
