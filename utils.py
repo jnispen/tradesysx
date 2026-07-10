@@ -917,6 +917,10 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
     bm_cagr = ann_return(balance, val_out, stats.trades_len / 365) if (val_out and stats.trades_len) else None
     cagr_delta = (stats.cagr - bm_cagr) * 100 if bm_cagr is not None else None
+    # max drawdown over the holding period, for the strategy equity curve and
+    # the buy-and-hold benchmark (both single-ticker and basket modes)
+    strat_dd = _strategy_drawdown_pct(ctx)
+    bm_dd = _benchmark_drawdown_pct(conf, ctx) if benchmark_enabled else None
 
     # ---- header date range (from the saved trades table) ----
     date_range = ""
@@ -956,6 +960,10 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     kpi_html = "".join(cards)
 
     # ---- strategy vs benchmark bars ----
+    def _dd_cell(v):
+        val = f"−{v:.1f}%" if v is not None else "&ndash;"
+        return f'<div class="maxdd">{val}<br><span class="mut">Max DD</span></div>'
+
     benchmark_bars = ""
     if val_out is not None:
         m = max(stats.final_balance, val_out) or 1.0
@@ -967,13 +975,16 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
             <div class="name">Strategy<small>{conf['enter']}, long only</small></div>
             <div class="track"><div class="bar s" style="width:{sp:.0f}%">${stats.final_balance:,.0f}</div></div>
             <div class="cagr">{stats.cagr:.1%}<br><span class="mut">CAGR</span></div>
+            {_dd_cell(strat_dd)}
           </div>
           <div class="cmprow">
             <div class="name">Buy &amp; hold<small>{bm_label}</small></div>
             <div class="track"><div class="bar b" style="width:{bp:.0f}%">${val_out:,.0f}</div></div>
             <div class="cagr">{f'{bm_cagr:.1%}' if bm_cagr is not None else '&ndash;'}<br><span class="mut">CAGR</span></div>
+            {_dd_cell(bm_dd)}
           </div>
-        </div>"""
+        </div>
+        <p class="cap">Max DD is the maximum peak-to-trough decline in value over the holding period.</p>"""
 
     # ---- trade statistics tables ----
     def row(k, v, cls=""):
@@ -1183,10 +1194,13 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     .cmprow {{ margin-bottom: 10px; }}
     .cmprow .name {{ display: inline-block; width: 20%; vertical-align: middle; font-size: 12px; }}
     .cmprow .name small {{ display: block; color: {TEXT2}; font-size: 10px; }}
-    .cmprow .track {{ display: inline-block; width: 66%; vertical-align: middle; }}
-    .cmprow .cagr {{ display: inline-block; width: 12%; vertical-align: middle; text-align: right;
+    .cmprow .track {{ display: inline-block; width: 50%; vertical-align: middle; }}
+    .cmprow .cagr {{ display: inline-block; width: 13%; vertical-align: middle; text-align: right;
         font-size: 12px; }}
     .cmprow .cagr .mut {{ color: {TEXT2}; font-size: 9.5px; }}
+    .cmprow .maxdd {{ display: inline-block; width: 13%; vertical-align: middle; text-align: right;
+        font-size: 12px; color: {NEG}; }}
+    .cmprow .maxdd .mut {{ color: {TEXT2}; font-size: 9.5px; }}
     .bar {{ height: 28px; border-radius: 3px; color: #fff; font-size: 12px; font-weight: 600;
         line-height: 28px; text-align: right; padding-right: 9px; min-width: 64px; }}
     .bar.s {{ background: {ACCENT}; }}
@@ -1262,10 +1276,10 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     {benchmark_detail}
 
-    <h2 class="pbreak">Appendix &mdash; configuration</h2>
-    {conf_html}
-    <h2>Appendix &mdash; quotes list</h2>
+    <h2 class="pbreak">Appendix &mdash; quotes list</h2>
     {quotes_html}
+    <h2>Appendix &mdash; configuration</h2>
+    {conf_html}
     """
 
     if full:
@@ -2014,6 +2028,68 @@ def _build_basket_benchmark_df(conf, ctx):
                  bm_df.to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
     logger.debug(f"Quote list benchmark final value: {bm_df['Net Value (incl. fee)'].sum():,.2f}")
     return bm_df
+
+
+def _series_max_drawdown_pct(values):
+    ''' maximum peak-to-trough decline of a value series, as a positive
+        percentage (0.0 means the series never dipped below a prior peak). '''
+    peak = float('-inf')
+    max_dd = 0.0
+    for v in values:
+        if v is None:
+            continue
+        if v > peak:
+            peak = v
+        if peak > 0:
+            dd = (peak - v) / peak
+            if dd > max_dd:
+                max_dd = dd
+    return max_dd * 100.0
+
+
+def _strategy_drawdown_pct(ctx):
+    ''' max drawdown of the simulated account over the holding period, from the
+        mark-to-market Value curve in trades_list.csv, ending on the final
+        liquidated balance (mirrors the equity curve in styled_balance_plot). '''
+    try:
+        tl = pd.read_csv(ctx.outpath('tables', 'trades_list.csv'))
+    except Exception as e:
+        logger.debug(f"strategy drawdown: cannot read trades_list.csv ({e})")
+        return None
+    vals = pd.to_numeric(tl['Value'], errors='coerce').dropna().tolist()
+    bal = pd.to_numeric(tl['Balance'], errors='coerce').dropna()
+    if len(bal):
+        vals.append(float(bal.iloc[-1]))
+    return _series_max_drawdown_pct(vals) if vals else None
+
+
+def _benchmark_drawdown_pct(conf, ctx):
+    ''' max drawdown of the buy-and-hold benchmark over the holding period: the
+        single ticker's close path, or the equal-weight basket's aggregate
+        mark-to-market value when bm_ticker == 'quote-lst'. '''
+    bm_ticker = conf.get('bm_ticker', 'URTH')
+    try:
+        if bm_ticker == 'quote-lst':
+            with open(ctx.path(conf['quotefile'])) as f:
+                tickers = list(json.loads(f.read()).keys())
+            capital_per_stock = float(conf['balance']) / len(tickers)
+            series = []
+            for ticker in tickers:
+                df = pd.read_csv(ctx.outpath('data', f"{ticker}_ohlc_raw.csv")).dropna(subset=['Close'])
+                units = capital_per_stock / df['Close'].iloc[0]
+                series.append(pd.Series((units * df['Close']).values,
+                                        index=pd.to_datetime(df['Date'], errors='coerce')))
+            mat = pd.concat(series, axis=1).sort_index()
+            # before a ticker's first close it is held as cash (its equal
+            # allocation); carry the last known value forward over any gaps
+            mat = mat.ffill().fillna(capital_per_stock)
+            return _series_max_drawdown_pct(mat.sum(axis=1).tolist())
+        sdf = pd.read_csv(ctx.outpath('data', f"{bm_ticker}_ohlc_raw.csv")).dropna(subset=['Close'])
+        return _series_max_drawdown_pct(sdf['Close'].tolist())
+    except Exception as e:
+        logger.debug(f"benchmark drawdown: skipped ({e})")
+        return None
+
 
 def balance_plot(df, conf, ctx):
     ''' plot paper trading simulation results '''
