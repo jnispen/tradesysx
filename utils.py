@@ -1010,7 +1010,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Starting balance", f"${balance:,.0f}"),
         row("Open trades closed", stats.open_trades_closed),
         row("Average investment", f"${stats.avg_invested:,.0f}"),
-        row("Average balance", f"${stats.avg_balance:,.0f}"),
+        row("Average cash balance", f"${stats.avg_balance:,.0f}"),
         row("Average risk", f"${stats.avg_risk:,.2f} ({stats.avg_risk_per:.2f}%)"),
         row("Final balance", f"${stats.final_balance:,.0f}"),
         row("CAGR", f"{stats.cagr:.1%}", "pos" if stats.cagr >= 0 else "neg"),
@@ -1255,30 +1255,28 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     <div class="kpis">{kpi_html}</div>
     {f'<h2>Strategy vs benchmark</h2>{benchmark_bars}' if benchmark_bars else ''}
 
-    <h2>Equity curve</h2>
+    <h2>Account performance</h2>
     <figure><img src="{img_equity}" alt="Account value over time">
-    <figcaption>Simulated account value with {conf['pos_sizing']} position sizing,
+    <figcaption>Simulated account value (equity curve) with {conf['pos_sizing']} position sizing,
     against the buy-and-hold benchmark (dashed).</figcaption></figure>
+    <div class="statgrid" style="margin-top:1.2em">
+      <table><tbody>{sim_rows}</tbody></table>
+      <table><tbody></tbody></table>
+    </div>
 
-    <h2>Trade statistics</h2>
+    <h2 class="pbreak">Trade statistics</h2>
     <div class="statgrid">
       <table><tbody>{stats_left}</tbody></table>
       <table><tbody>{stats_right}</tbody></table>
     </div>
     {trades_table_html}
 
-    <h2 class="pbreak">Trade distribution</h2>
+    <h2>Trade distribution</h2>
     <figure><img src="{img_bars}" alt="R-multiple of each trade in sequence">
     <figcaption>R-multiple of each trade in sequence (wins green, losses red) with the
     30-trade rolling average.</figcaption></figure>
     <figure><img src="{img_dist}" alt="Histogram of trade R-multiples">
     <figcaption>Distribution of trade outcomes in R-multiples.</figcaption></figure>
-
-    <h2>Trading balance simulation</h2>
-    <div class="statgrid">
-      <table><tbody>{sim_rows}</tbody></table>
-      <table><tbody></tbody></table>
-    </div>
 
     {mc_section}
 
