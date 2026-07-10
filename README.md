@@ -182,9 +182,9 @@ Two notable system statistics characterizing the trading system include the aver
 
 One of the steps in the pipeline performs a backtest on the downloaded data. This step basically answers the question: *"What would have happened to the balance in the trading account if the trading system had been applied from start to finish using a selected position sizing strategy?"*
 
-The plot below shows the balance (dotted brown line) and the total value (solid green line) of the trading account from the data start date to the end date. The red and green triangles shown in the bottom show the trade entry end exit signals. The size of each individual trade position is determined by the position sizing strategy (here the total risk taken per trade is a percentage of the balance at the enter date).
+The plot below shows the total account value of the trading account (the *Strategy* line) from the data start date to the end date. The size of each individual trade position is determined by the position sizing strategy (here the total risk taken per trade is a percentage of the balance at the enter date). The dotted line at the bottom marks the starting account balance.
 
-The trading account end balance is also (optionally) compared against a configurable benchmark which, is show as "Buy-and-Hold" (HODL). The HODL value shown in the bottom right corner of the plot is the total value of the benchmark stock at the end date, given that 100% of the account balance was used to buy the benchmark stock at the start date, with no active trading in between. 
+The trading account end value is also (optionally) compared against a configurable benchmark, shown as the dashed *Buy & hold* line. This is the total value of the benchmark stock at the end date, given that 100% of the account balance was used to buy the benchmark stock at the start date, with no active trading in between. The final value of both the strategy and the benchmark is labelled at the right-hand side of the plot.
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
