@@ -54,7 +54,10 @@ Generate the ad-hoc custom TA panels defined by `ta_custom`. Must be `false` if 
 List of extra indicator panels to plot, one panel each. Only used when `gen_ta_custom` is `true`.
 
 **report_type** — [`short`/`full`]\
-Selects the summary report variant (`out/system_summary.pdf` vs `out/system_summary_full.pdf`).
+Selects the summary report variant; both write `out/system_summary.pdf` (`full` additionally appends every ticker's plot).
+
+**report_style** — [`classic`/`styled`]\
+Selects the look of `out/system_summary.pdf`. `classic` is the original report; `styled` produces a professionally formatted report with KPI cards, a strategy-vs-benchmark comparison, restyled charts and a benchmark table. Defaults to `classic` when absent.
 
 **stloss** — [`3atr`/`percent`]\
 Stop-loss strategy. `3atr` = 3×ATR below the close, `percent` = stoploss set as a percentage below the entry price (see `stoploss`).

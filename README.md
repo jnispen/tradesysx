@@ -150,7 +150,7 @@ All data output is written to the output directory. The following data, plots an
 - `<outdir>/plots/TA-custom/` — generates custom TA plots (`gen_ta_custom=true`)
 - `<outdir>/images/` — system-level plots (trades distribution, balance, Monte Carlo)
 - `<outdir>/tables/` — trades table and trades list as CSV files
-- `<outdir>/system_summary.pdf`, `full_system_summary.pdf` (`report_type=full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
+- `<outdir>/system_summary.pdf` (same filename for `report_type=short` or `full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
 
 ### 4.1 Example plots and graphs
 
@@ -160,27 +160,31 @@ Shown below are some typical plots generated after running `tradesysx`.
 
 The plot below shows the price chart of Google (Alphabet Inc.). For the triple moving average (3EMA) strategy,
 the plot is overlayed with 3 colored moving average lines. The resulting ENTER and EXIT trading signals are also shown on
-the plot (green and red triangles). Displayed in the bottom part are the current R-average and trade statistics.
+the plot (green and red triangles). The latest signal and trade details are annotated at the top, and the overall R-average and trade count at the bottom.
 
-<img src="docs/examples/GOOGL_plot.png" alt="GOOGLE price chart" width="900">
+<img src="docs/examples/GOOG_plot.png" alt="Google (Alphabet Inc.) price chart" width="900">
 
 #### R-multiple distribution
 
 When applied to the downloaded data, the combination of a specific ticker set, timerange and trading strategy incl. the parameters, results in 
 a set of trading outcomes that can be expressed as a multiple of the initial risk taken (R-multiple) per trade, where the initial risk per unit is called 1R.
-This set of trading outcomes can be shown as in the figure below, which shows all individual trade results from left to right expressed as R-multiples.
-Also shown in the top right corner of the figure is a summary of the system statistics, which are calculated from the set of trading outcomes. Two notable system
-statistics characterizing the trading system include the average R-multiple (R-mean) and the System Quality Number (SQN).
+This set of trading outcomes can be shown as in the figure below, which shows all individual trade results from left to right expressed as R-multiples
+(green for winning trades, red for losing trades), with the 30-trade rolling average (Rmul30) overlaid.
 
 <img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
+
+The system statistics calculated from this set of trading outcomes are summarized in the table below, as shown in the summary report.
+Two notable system statistics characterizing the trading system include the average R-multiple (R mean) and the System Quality Number (SQN).
+
+<img src="docs/examples/trade_stats.png" alt="Trade statistics table" width="900">
 
 #### Trading backtest
 
 One of the steps in the pipeline performs a backtest on the downloaded data. This step basically answers the question: *"What would have happened to the balance in the trading account if the trading system had been applied from start to finish using a selected position sizing strategy?"*
 
-The plot below shows the balance (dotted brown line) and the total value (solid green line) of the trading account from the data start date to the end date. The red and green triangles shown in the bottom show the trade entry end exit signals. The size of each individual trade position is determined by the position sizing strategy (here the total risk taken per trade is a percentage of the balance at the enter date).
+The plot below shows the total account value of the trading account (the *Strategy* line) from the data start date to the end date. The size of each individual trade position is determined by the position sizing strategy (here the total risk taken per trade is a percentage of the balance at the enter date). The dotted line at the bottom marks the starting account balance.
 
-The trading account end balance is also (optionally) compared against a configurable benchmark which, is show as "Buy-and-Hold" (HODL). The HODL value shown in the bottom right corner of the plot is the total value of the benchmark stock at the end date, given that 100% of the account balance was used to buy the benchmark stock at the start date, with no active trading in between. 
+The trading account end value is also (optionally) compared against a configurable benchmark, shown as the dashed *Buy & hold* line. This is the total value of the benchmark stock at the end date, given that 100% of the account balance was used to buy the benchmark stock at the start date, with no active trading in between. The final value of both the strategy and the benchmark is labelled at the right-hand side of the plot.
 
 <img src="docs/examples/balance_plot.png" alt="Balance simulation" width="900">
 
@@ -190,9 +194,13 @@ After obtaining the R-multiple distribution, a Monte Carlo simulation can be use
 
 For each simulated trade series, the simulation samples a series with the length of the number of trades or less if `sim_len_max` is smaller and repeats this process N times (set by the `iterations` parameter). Furthermore, it is assumed that at each trade a 1R risk equal to the average risk percentage calculated from the backtest is taken. The average risk is taken here in an attempt to simulate simultaneous trades, as will happen during real trading, in contrast to running the simulation as a series of sequential trades (where the full balance will be available for each trade).
 
-In the picture below, an Monte Carlo simulation with 10 000 iterations was run. Starting with the configured starting balance in the trading account, only 5% of all resampled sequences have been plotted (for clarity, configurable with the `plot_frac` parameter). However, the numbers in the figure represent the values obtained for the full set. On the right-hand side of the figure, the median values of the outcomes (dotted line) as well as the 95 and 5 percentile markers are shown. If configured, the line for the benchmark value (HODL) is also shown. The percentile values between the round brackets show the CAGR (annualized growth rate) of the starting capital. The text box in the upper left corner shows some more computed values, of which the average loss streak, the maximum loss streak, and the maximum drawdown percentage might be of interest. To accommodate for a very skewed outcome distribution, the y-axis is cut off from a value above 4 times the standard deviation from the median, which is set by the `outlier` parameter.
+In the picture below, a Monte Carlo simulation with 10 000 iterations was run. Starting with the configured starting balance in the trading account, only 5% of all resampled sequences have been plotted (for clarity, configurable with the `plot_frac` parameter). However, the numbers in the figure represent the values obtained for the full set. On the right-hand side of the figure, the median outcome (solid line) as well as the 95 and 5 percentile markers are shown, with the account value at each percentile given between the round brackets. If configured, the dashed line for the benchmark value (buy &amp; hold) is also shown. To accommodate for a very skewed outcome distribution, the y-axis is cut off from a value above 4 times the standard deviation from the median, which is set by the `outlier` parameter.
 
 <img src="docs/examples/monte_carlo_plot.png" alt="Monte Carlo simulation" width="900">
+
+<img src="docs/examples/sim_table.png" alt="Monte Carlo simulation statistics table" width="900">
+
+In the table above some additional computed values for the full set of resampled sequences are displayed, of which the average and maximum loss streak, and the maximum drawdown percentage might be of interest.
 
 The Monte Carlo simulator can also be configured and run in standalone mode. In this mode the simulator reads the R-multiple distribution from a .csv file. This mode allows for experimenting with different R-multiple distributions. The standalone mode is described in more detail in the [standalone simulator guide](tst/README.md#monte-carlo-simulator-standalone).
 

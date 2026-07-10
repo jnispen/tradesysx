@@ -36,6 +36,10 @@ class SystemStats:
     avg_risk: float = 0.0
     min_balance: float = 0.0
     max_drawdown: float = 0.0
+    # Monte Carlo results (set by run_monte_carlo_sampled)
+    avg_loss_streak: float = 0.0
+    max_loss_streak: int = 0
+    rmul_avg_sampled: float = 0.0
     # balance-simulation results, consumed by the summary report's balance table
     open_trades_closed: int = 0
     avg_invested: float = 0.0
