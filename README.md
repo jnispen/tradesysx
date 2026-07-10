@@ -18,6 +18,7 @@ development written by [Dr. Van K. Tharp](https://vantharp.com/).
   - [3.3 Running from a single executable](#33-running-from-a-single-executable)
 - [4. Data output](#4-data-output)
   - [4.1 Example plots and graphs](#41-example-plots-and-graphs)
+  - [4.2 Example summary report](#42-example-summary-report)
 
 ## 1. Processing steps
 
@@ -211,3 +212,8 @@ After running the pipeline, a notification can be sent to a Telegram bot. This o
 <p align="center">
   <img src="docs/examples/telegram.png" alt="Telegram notification" width="270" height="400">
 </p>
+
+### 4.2 Example report
+
+The final step of the pipeline combines the configuration, system statistics and key charts into a
+single report. An example of a generated report is available here: [system_summary.pdf](docs/examples/system_summary.pdf).
