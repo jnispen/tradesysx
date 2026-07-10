@@ -1177,6 +1177,9 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     .meta {{ color: {TEXT2}; font-size: 11.5px; }}
     .meta b {{ color: {TEXT}; font-weight: 600; }}
     .meta span {{ margin-right: 20px; }}
+    .disclaimer {{ color: {TEXT2}; font-size: 9.5px; line-height: 1.5; background: #FAFAF8;
+        border: 1px solid {GRID}; border-left: 3px solid {ACCENT}; border-radius: 4px;
+        padding: 8px 11px; margin: 12px 0 4px; }}
 
     .kpis {{ margin: 4px 0 10px; }}
     .kpi {{ display: inline-block; width: 32%; vertical-align: top; border: 1px solid {GRID};
@@ -1242,6 +1245,11 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
       <span><b>Benchmark</b> {bm_desc if benchmark_enabled else '&ndash;'}</span>
       <span><b>Generated</b> {gen_ts}</span>
     </p>
+
+    <p class="disclaimer">This report is generated for system evaluation and research purposes only.
+    It presents backtested results with simulated execution and does not constitute financial advice
+    or a recommendation to buy, sell or hold any security, or to pursue any course of action.
+    Past performance does not guarantee future results.</p>
 
     <h2>Executive summary</h2>
     <div class="kpis">{kpi_html}</div>
