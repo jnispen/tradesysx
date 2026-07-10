@@ -1,7 +1,8 @@
-''' Styled system-level report charts (used when report_style="styled").
+''' Styled report charts (used when report_style="styled").
 
-These are the redesigned versions of the equity/balance, trades, trade
-distribution and Monte Carlo charts, following the report-styling palette and
+These are the redesigned versions of the system-level charts (equity/balance,
+trades, trade distribution, Monte Carlo) and the per-ticker charts (price,
+TA, custom-TA and benchmark price), following the report-styling palette and
 rules (no boxed stat overlays inside the axes, wins green / losses red, equity
 in the accent colour, benchmark as a dashed neutral reference line, thousands
 separators on money axes). Each function saves a PNG to the same path its
@@ -9,19 +10,36 @@ classic counterpart uses, so the rest of the pipeline is unaffected; the
 styled summary report then embeds those PNGs.
 
 All plotting runs inside `report_style()` so the styling is scoped to these
-charts only and the per-ticker / TA plots stay untouched. '''
+charts only and any classic-style plots generated in the same run stay
+untouched. The per-ticker / TA charts keep the wide monitoring format and pass
+explicit larger font sizes (the shared rcParams are tuned for the narrower
+system-level report figures). '''
 
 import logging
 
 import numpy as np
 import pandas as pd
+import talib as ta
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import StrMethodFormatter
 
-from tradesysx.report_style import report_style, ACCENT, NEUTRAL, POS, NEG, TEXT2, FIG_WIDTH
+from tradesysx.report_style import (report_style, ACCENT, NEUTRAL, POS, NEG, GRID, TEXT2,
+                                    IND_GREEN, IND_BROWN, IND_CHARCOAL, IND_GOLD,
+                                    FIG_WIDTH)
 
 logger = logging.getLogger(__name__)
+
+# The per-ticker / TA charts keep the classic wide monitoring format (28in) so a
+# full multi-year daily history stays legible. The shared report rcParams set
+# small type sizes tuned for the narrow report figures, so these charts pass
+# explicit larger sizes to stay readable at the wider scale.
+_TITLE_FS = 22   # figure suptitle
+_SIG_FS = 17     # signal callout
+_ANN_FS = 13     # corner annotations (trade details, R-average, date)
+_AX_FS = 14      # axis labels
+_TICK_FS = 12    # tick labels
+_LEG_FS = 12     # legend
 
 
 def _thousands(ax):
@@ -197,4 +215,287 @@ def styled_montecarlo_plot(mc_result_df, conf, ctx, stats, risk, benchmark,
         ax.set_ylabel('Account value (USD)')
         ax.legend(loc='upper left')
         fig.savefig(ctx.outpath('images', output_filename))
+        plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# Per-ticker price / TA charts - styled counterparts of ticker_plot,
+# ticker_plot_ta, ticker_plot_ta_custom and plot_benchmark_price in utils.py.
+# These keep the wide monitoring format and all of the information the classic
+# charts show; only the visual treatment changes (report palette, muted
+# indicator overlays, horizontal hairline grid, %b %Y dates, and the boxed stat
+# overlays replaced by plain unboxed text).
+# ---------------------------------------------------------------------------
+
+def _ensure_datetime_index(df):
+    if not pd.api.types.is_datetime64_any_dtype(df.index):
+        df.index = pd.to_datetime(df.index)
+    return df
+
+
+def _legend_if_multi(ax, **kw):
+    ''' add a legend only when the axis carries 2+ labelled series (report rule);
+    single-series panels are named by their y-axis label instead. '''
+    if len(ax.get_legend_handles_labels()[1]) > 1:
+        ax.legend(**kw)
+
+
+def _style_price_axis(ax):
+    ''' shared cosmetics for a price panel: horizontal-only hairline grid,
+    thousands-separated y axis, larger ticks/label for the wide format. '''
+    ax.grid(axis='y'); ax.grid(axis='x', visible=False)
+    _thousands(ax)
+    ax.set_ylabel('Price (USD)', fontsize=_AX_FS)
+    ax.tick_params(labelsize=_TICK_FS)
+
+
+def _format_date_axis(ax):
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+
+
+def _styled_price_overlays(ax, df, conf):
+    ''' price-panel overlays (BB / SMA225 / EMA / SMA / Chandelier exits) + Close
+    + Enter/Exit markers, styled with the report palette. Muted indicator
+    colours, accent Close line, green ^ / red v trade markers. Mirrors the
+    classic _plot_price_overlays in utils.py so the two stay in sync. '''
+    plot_indicators = conf.get('plot_indicators', [])
+
+    if conf['enter'] == 'BBRSI' or 'BB' in plot_indicators:
+        ax.plot(df.index, df[['BBu', 'BBl', 'BBm']], color=NEUTRAL, linewidth=.6)
+        ax.fill_between(df.index, df['BBl'], df['BBu'], color=GRID, alpha=.45)
+
+    if 'SMA225' in plot_indicators:
+        # 45-week SMA: the bull/bear regime line - allowed to stand out a little
+        ax.plot(df.index, df['SMA225'], color=IND_GOLD, linewidth=1.6, linestyle='--', label='SMA225')
+
+    if conf['enter'] == '3EMA':
+        ax.plot(df.index, df['EMA20'], color=IND_GREEN, linewidth=1.1, label='EMA20')
+        ax.plot(df.index, df['EMA50'], color=IND_BROWN, linewidth=1.1, label='EMA50')
+        ax.plot(df.index, df['EMA100'], color=IND_CHARCOAL, linewidth=1.1, label='EMA100')
+
+    if conf['enter'] == 'SMA':
+        ax.plot(df.index, df['SMAfast'], color=IND_GREEN, linewidth=1.1, label=f"SMA{conf['sma_fast']}")
+        ax.plot(df.index, df['SMAslow'], color=IND_BROWN, linewidth=1.1, label=f"SMA{conf['sma_slow']}")
+
+    if conf['exit'] == 'CE':
+        ax.plot(df.index, df['CE'], color=IND_CHARCOAL, linewidth=1.0, linestyle='--', label='CEexit')
+    if conf['exit'] == 'CEE':
+        ax.plot(df.index, df['CE'], color=IND_CHARCOAL, linewidth=1.0, linestyle='--', label='CEexit')
+        ax.plot(df.index, df['CE2'], color=IND_BROWN, linewidth=1.0, linestyle='--', label='CE2exit')
+        ax.plot(df.index, df['CE15'], color=IND_GOLD, linewidth=1.0, linestyle=':', label='CE15exit')
+
+    ax.plot(df.index, df['Close'], color=ACCENT, linewidth=1.4, label='Close')
+
+    if df['Enter'].value_counts().any():
+        ax.scatter(df.index, df['Enter'], color=POS, label='Enter', marker='^', s=90, zorder=5)
+    if df['Exit'].value_counts().any():
+        ax.scatter(df.index, df['Exit'], color=NEG, label='Exit', marker='v', s=90, zorder=5)
+
+
+def _styled_price_annotations(ax, df):
+    ''' the unboxed text callouts on the price panel: last-close value label,
+    signal (coloured by outcome), trade-details line, floating date and
+    R-average. Same information as the classic ticker_plot annotations, minus
+    the boxes. '''
+    last = df.iloc[-1]
+
+    # last close value, printed just past the final point
+    ax.annotate('{:,.2f}'.format(last['Close']),
+                xy=(df.index[-1], last['Close']), xytext=(6, 0),
+                textcoords='offset points', va='center',
+                color=ACCENT, fontsize=_TICK_FS, fontweight='medium')
+
+    # signal, coloured green (bullish / winning) / red (stop / losing) / grey
+    signal = last['Signal']
+    col, Rstr = TEXT2, ''
+    if signal == 'ENTER':
+        col = POS
+    elif (signal == 'STOPLOSS') or (signal == 'EXIT' and last['Rmul'] <= 0):
+        col = NEG
+        Rstr = '({:,.1f}R)'.format(last['Rmul'])
+    elif signal == 'EXIT':
+        col = POS
+        Rstr = '({:,.1f}R)'.format(last['Rmul'])
+    ax.annotate('Signal: {} {}'.format(signal, Rstr),
+                xy=(0.01, 1), xycoords='axes fraction', xytext=(0, -8),
+                textcoords='offset points', fontsize=_SIG_FS, fontweight='medium',
+                color=col, ha='left', va='top')
+
+    # trade details, second line under the signal
+    risk = last['Risk']
+    Rmul = last['Profit'] / risk if risk != 0 else 0.0
+    ax.annotate('{} days, enter: {:,.2f}, stoploss: {:,.2f}, risk: {:,.2f}, profit: {:,.2f} ({:,.1f}R)'.format(
+                    int(last['InTrade']), last['PriceIn'], last['STLoss'], risk, last['Profit'], Rmul),
+                xy=(0.01, 1), xycoords='axes fraction', xytext=(0, -32),
+                textcoords='offset points', fontsize=_ANN_FS, color=TEXT2, ha='left', va='top')
+
+    # floating date, top-right
+    ax.annotate(df.index[-1].strftime('%a %d %b %Y'),
+                xy=(0.99, 1), xycoords='axes fraction', xytext=(0, -8),
+                textcoords='offset points', fontsize=_ANN_FS, color=TEXT2, ha='right', va='top')
+
+    # R-average, bottom-left
+    if 'Rmul' in df.columns:
+        n = df['Rmul'].count()
+        r_avg = df['Rmul'].sum() / n if n else 0.0
+        ax.annotate('R-average: {:,.2f} ({} trades)'.format(r_avg, n),
+                    xy=(0.01, 0.01), xycoords='axes fraction', xytext=(0, 4),
+                    textcoords='offset points', fontsize=_ANN_FS, color=TEXT2, ha='left', va='bottom')
+
+
+def _indicator_panel(ax, df, conf, name):
+    ''' draw one named indicator panel (styled). Shared by the styled TA and
+    custom-TA charts; mirrors the panel definitions in utils.ticker_plot_ta /
+    ticker_plot_ta_custom. '''
+    if name == 'RSI':
+        ax.plot(df.index, df['RSI'], color=ACCENT, linewidth=1.2, label='RSI')
+        ax.axhline(conf['rsi_low'], color=NEUTRAL, linewidth=1.0, linestyle='--')
+        ax.axhline(conf['rsi_high'], color=NEUTRAL, linewidth=1.0, linestyle='--')
+        ax.fill_between(df.index, conf['rsi_low'], df['RSI'], color=GRID, alpha=.5)
+        ax.set_ylabel('RSI', fontsize=_AX_FS)
+    elif name == 'ADX':
+        ax.plot(df.index, df['ADX'], color=ACCENT, linewidth=1.2, label='ADX')
+        ax.axhline(conf['adx_trend'], color=NEUTRAL, linewidth=1.0, linestyle='--')
+        ax.set_ylabel('ADX', fontsize=_AX_FS)
+    elif name == 'DI':
+        ax.plot(df.index, df['P_DI'], color=POS, linewidth=1.2, label='+DI')
+        ax.plot(df.index, df['M_DI'], color=NEG, linewidth=1.2, label='−DI')
+        ax.set_ylabel('DI', fontsize=_AX_FS)
+    elif name == 'MACD':
+        hist_colors = np.where(df['MACDhist'] >= 0, POS, NEG)
+        ax.bar(df.index, df['MACDhist'], color=hist_colors, width=1, alpha=.6, label='Histogram')
+        ax.plot(df.index, df['MACD'], color=ACCENT, linewidth=1.2, label='MACD')
+        ax.plot(df.index, df['MACDsig'], color=IND_GOLD, linewidth=1.2, label='Signal')
+        ax.axhline(0, color=TEXT2, linewidth=0.8)
+        ax.set_ylabel('MACD', fontsize=_AX_FS)
+    elif name == 'ATR':
+        ax.plot(df.index, df['ATR'], color=ACCENT, linewidth=1.2, label='ATR')
+        ax.set_ylabel('ATR', fontsize=_AX_FS)
+    elif name == 'OBV':
+        ax.plot(df.index, df['OBV'], color=ACCENT, linewidth=1.2, label='OBV')
+        ax.set_ylabel('OBV', fontsize=_AX_FS)
+    elif name == 'FI':
+        ax.plot(df.index, df['FI'], color=ACCENT, linewidth=1.2, label='FI')
+        ax.axhline(0, color=TEXT2, linewidth=0.8)
+        ax.set_ylabel('FI', fontsize=_AX_FS)
+    elif name == 'CCI':
+        ax.plot(df.index, df['CCI'], color=ACCENT, linewidth=1.2, label='CCI')
+        ax.axhline(100, color=NEUTRAL, linewidth=1.0, linestyle='--')
+        ax.axhline(-100, color=NEUTRAL, linewidth=1.0, linestyle='--')
+        ax.set_ylabel('CCI', fontsize=_AX_FS)
+    elif name == 'ROC':
+        ax.plot(df.index, df['ROC'], color=ACCENT, linewidth=1.2, label='ROC')
+        ax.axhline(0, color=TEXT2, linewidth=0.8)
+        ax.set_ylabel('ROC', fontsize=_AX_FS)
+    elif name == 'MFI':
+        ax.plot(df.index, df['MFI'], color=ACCENT, linewidth=1.2, label='MFI')
+        ax.axhline(80, color=NEUTRAL, linewidth=1.0, linestyle='--')
+        ax.axhline(20, color=NEUTRAL, linewidth=1.0, linestyle='--')
+        ax.set_ylabel('MFI', fontsize=_AX_FS)
+
+    ax.grid(axis='y'); ax.grid(axis='x', visible=False)
+    ax.tick_params(labelsize=_TICK_FS)
+    _legend_if_multi(ax, loc='upper left', fontsize=_LEG_FS)
+
+
+def styled_ticker_plot(df, ticker, description, conf, ctx):
+    ''' styled counterpart of utils.ticker_plot: price + overlays + enter/exit. '''
+    df = _ensure_datetime_index(df)
+    with report_style():
+        fig, ax = plt.subplots(figsize=(28, 10))
+        fig.suptitle('{} ({})'.format(description, ticker), fontsize=_TITLE_FS, fontweight='medium')
+        _styled_price_overlays(ax, df, conf)
+        _styled_price_annotations(ax, df)
+        _style_price_axis(ax)
+        _format_date_axis(ax)
+        _legend_if_multi(ax, loc='lower right', ncol=3, fontsize=_LEG_FS)
+        fig.savefig(ctx.outpath('plots', f'{ticker}_plot.png'))
+        plt.close(fig)
+
+
+def _styled_ta_figure(df, ticker, description, conf, ctx, panels, out_dir, out_file):
+    ''' price panel (3x height) + one styled indicator panel per entry in
+    `panels`, stacked and sharing the x axis. Shared by styled_ticker_plot_ta
+    (panels derived from the strategy) and styled_ticker_plot_ta_custom. '''
+    df = _ensure_datetime_index(df)
+    n = len(panels)
+    with report_style():
+        fig, axes = plt.subplots(n + 1, 1, sharex=True, figsize=(28, 5 * (n + 1)),
+                                 gridspec_kw={'height_ratios': [3] + [1] * n})
+        axes = np.atleast_1d(axes)
+        fig.suptitle('{} ({})'.format(description, ticker), fontsize=_TITLE_FS, fontweight='medium')
+
+        ax1 = axes[0]
+        _styled_price_overlays(ax1, df, conf)
+        _styled_price_annotations(ax1, df)
+        _style_price_axis(ax1)
+        _legend_if_multi(ax1, loc='lower right', ncol=3, fontsize=_LEG_FS)
+
+        for ax, name in zip(axes[1:], panels):
+            _indicator_panel(ax, df, conf, name)
+
+        _format_date_axis(axes[-1])
+        fig.savefig(ctx.outpath(out_dir, out_file))
+        plt.close(fig)
+
+
+def styled_ticker_plot_ta(df, ticker, description, conf, ctx):
+    ''' styled counterpart of utils.ticker_plot_ta: price panel + the strategy's
+    indicator panels (RSI for BBRSI, MACD for MACD, else ADX + directional
+    indicators). '''
+    if conf['enter'] == 'BBRSI':
+        panels = ['RSI']
+    elif conf['enter'] == 'MACD':
+        panels = ['MACD']
+    else:
+        panels = ['ADX', 'DI']
+    _styled_ta_figure(df, ticker, description, conf, ctx, panels,
+                      'plots/TA', f'{ticker}_plot_ta.png')
+
+
+def styled_ticker_plot_ta_custom(df, ticker, description, conf, ctx):
+    ''' styled counterpart of utils.ticker_plot_ta_custom: price panel + one
+    panel per conf['ta_custom'] indicator. '''
+    _styled_ta_figure(df, ticker, description, conf, ctx, list(conf['ta_custom']),
+                      'plots/TA-custom', f'{ticker}_plot_ta_custom.png')
+
+
+def styled_benchmark_price(df, ticker, description, conf, ctx):
+    ''' styled counterpart of utils.plot_benchmark_price: a plain Close-price
+    chart (no trading signals) with the configured plot_indicators overlay, used
+    for the auto-injected benchmark ticker and for follow_only mode. '''
+    df = _ensure_datetime_index(df)
+    plot_indicators = conf.get('plot_indicators', [])
+
+    with report_style():
+        fig, ax = plt.subplots(figsize=(28, 10))
+        fig.suptitle('{} ({})'.format(description, ticker), fontsize=_TITLE_FS, fontweight='medium')
+
+        if 'BB' in plot_indicators:
+            # reuse precomputed Bollinger columns when present (follow_only), else
+            # compute here (the auto-injected benchmark is charted from raw OHLC)
+            if 'BBu' in df.columns:
+                bbu, bbm, bbl = df['BBu'], df['BBm'], df['BBl']
+            else:
+                bbu, bbm, bbl = ta.BBANDS(df['Close'], timeperiod=20, matype=0)
+            ax.plot(df.index, bbu, color=NEUTRAL, linewidth=.6)
+            ax.plot(df.index, bbm, color=NEUTRAL, linewidth=.6)
+            ax.plot(df.index, bbl, color=NEUTRAL, linewidth=.6)
+            ax.fill_between(df.index, bbl, bbu, color=GRID, alpha=.45)
+
+        if 'SMA225' in plot_indicators:
+            sma225 = df['SMA225'] if 'SMA225' in df.columns else ta.SMA(df['Close'], timeperiod=225)
+            ax.plot(df.index, sma225, color=IND_GOLD, linewidth=1.6, linestyle='--', label='SMA225')
+
+        ax.plot(df.index, df['Close'], color=ACCENT, linewidth=1.4, label='Close')
+        ax.annotate('{:,.2f}'.format(df.iloc[-1]['Close']),
+                    xy=(df.index[-1], df.iloc[-1]['Close']), xytext=(6, 0),
+                    textcoords='offset points', va='center',
+                    color=ACCENT, fontsize=_TICK_FS, fontweight='medium')
+
+        _style_price_axis(ax)
+        _format_date_axis(ax)
+        _legend_if_multi(ax, loc='lower right', fontsize=_LEG_FS)
+        fig.savefig(ctx.outpath('plots', f'{ticker}_plot.png'))
         plt.close(fig)

@@ -160,9 +160,9 @@ Shown below are some typical plots generated after running `tradesysx`.
 
 The plot below shows the price chart of Google (Alphabet Inc.). For the triple moving average (3EMA) strategy,
 the plot is overlayed with 3 colored moving average lines. The resulting ENTER and EXIT trading signals are also shown on
-the plot (green and red triangles). Displayed in the bottom part are the current R-average and trade statistics.
+the plot (green and red triangles). The latest signal and trade details are annotated at the top, and the overall R-average and trade count at the bottom.
 
-<img src="docs/examples/GOOGL_plot.png" alt="GOOGLE price chart" width="900">
+<img src="docs/examples/GOOG_plot.png" alt="Google (Alphabet Inc.) price chart" width="900">
 
 #### R-multiple distribution
 

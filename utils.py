@@ -2312,6 +2312,10 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
         plot_indicators overlay (SMA225 bull/bear line and/or Bollinger Bands) as
         a visual aid, matching the overlays on the traded tickers' charts. '''
 
+    if conf.get('report_style', 'classic') == 'styled':
+        rp.styled_benchmark_price(df, ticker, description, conf, ctx)
+        return
+
     if not pd.api.types.is_datetime64_any_dtype(df.index):
         df.index = pd.to_datetime(df.index)
 
@@ -2351,6 +2355,10 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
 
 def ticker_plot(df, ticker, description, conf, ctx):
     ''' plot ticker + enter and exits points '''
+
+    if conf.get('report_style', 'classic') == 'styled':
+        rp.styled_ticker_plot(df, ticker, description, conf, ctx)
+        return
 
     fig = plt.figure(figsize = (28, 10))
     ax = fig.gca()
@@ -2418,6 +2426,10 @@ def ticker_plot(df, ticker, description, conf, ctx):
 
 def ticker_plot_ta(df, ticker, description, conf, ctx):
     ''' plot ticker +ta indicators + enter and exits points '''
+
+    if conf.get('report_style', 'classic') == 'styled':
+        rp.styled_ticker_plot_ta(df, ticker, description, conf, ctx)
+        return
 
     bbrsi = conf['enter'] == 'BBRSI'
     macd = conf['enter'] == 'MACD'
@@ -2516,6 +2528,10 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
 
 def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
     ''' ad-hoc plot: price panel + one stacked panel per conf['ta_custom'] entry '''
+
+    if conf.get('report_style', 'classic') == 'styled':
+        rp.styled_ticker_plot_ta_custom(df, ticker, description, conf, ctx)
+        return
 
     panels = conf['ta_custom']
     num_axes = 1 + len(panels)
