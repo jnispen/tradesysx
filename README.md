@@ -168,11 +168,30 @@ the plot (green and red triangles). The latest signal and trade details are anno
 
 When applied to the downloaded data, the combination of a specific ticker set, timerange and trading strategy incl. the parameters, results in 
 a set of trading outcomes that can be expressed as a multiple of the initial risk taken (R-multiple) per trade, where the initial risk per unit is called 1R.
-This set of trading outcomes can be shown as in the figure below, which shows all individual trade results from left to right expressed as R-multiples.
-Also shown in the top right corner of the figure is a summary of the system statistics, which are calculated from the set of trading outcomes. Two notable system
-statistics characterizing the trading system include the average R-multiple (R-mean) and the System Quality Number (SQN).
+This set of trading outcomes can be shown as in the figure below, which shows all individual trade results from left to right expressed as R-multiples
+(green for winning trades, red for losing trades), with the 30-trade rolling average (Rmul30) overlaid.
 
 <img src="docs/examples/system_trades_plot.png" alt="System trades distribution" width="900">
+
+The system statistics calculated from this set of trading outcomes are summarized in the table below (the same statistics shown in the summary report).
+Two notable system statistics characterizing the trading system include the average R-multiple (R mean) and the System Quality Number (System Quality).
+
+| Metric | Value |
+| :--- | ---: |
+| Length (days) | 2380 |
+| Trades total | 80 |
+| Trades/yr | 12.27 |
+| R maximum | 73.55 |
+| R minimum | &minus;1.35 |
+| R stdev | 11.05 |
+| R mean | 4.44 (Excellent) |
+| System Quality | 3.60 (Excellent) |
+| R mean (win) | 9.64 |
+| R mean (loss) | &minus;1.03 |
+| Length mean (win) | 284 |
+| Length mean (loss) | 52 |
+| Win Rate (%) | 51 |
+| Kelly criterion | 0.46 |
 
 #### Trading backtest
 
