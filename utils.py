@@ -1083,7 +1083,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
           {row("Risk per trade", f"{stats.avg_risk / balance * 100:.2f}%")}
           {row("Avg loss streak", f"{stats.avg_loss_streak:.0f} trades")}
           {row("Max loss streak", f"{stats.max_loss_streak} trades")}</tbody></table>
-          <table><tbody>{row("Max drawdown", f"{stats.max_drawdown:.1f}%", "neg")}
+          <table><tbody>{row("Max drawdown (peak-to-trough)", f"{stats.max_drawdown:.1f}%", "neg")}
           {row("Minimum balance", f"${stats.min_balance:,.0f}")}
           {row("System quality (SQN)", f"{stats.sqn:.2f}")}
           {row("R-average (sim / real)", f"{stats.rmul_avg_sampled:.2f} / {rmean:.2f}" if rmean is not None else "&ndash;")}</tbody></table>
@@ -1545,6 +1545,12 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
 
     min_balance = min(start_balance, balances.min())
 
+    # worst peak-to-trough decline across all simulated paths: for each path track
+    # the running peak (including the starting balance) and the largest drop from it
+    full_paths = np.vstack([np.full((1, N), start_balance), balances])  # (M+1, N)
+    running_peak = np.maximum.accumulate(full_paths, axis=0)
+    max_drawdown = float(((running_peak - full_paths) / running_peak).max()) * 100.0
+
     mc_result_df = pd.DataFrame(balances, columns=[f'{i}' for i in range(N)])
 
     # insert first row with the starting balance (same for all simulation runs)
@@ -1553,7 +1559,7 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
     mc_result_df = pd.concat([start_row_df, mc_result_df], ignore_index=True)
 
     # store values for use by later pipeline steps
-    stats.max_drawdown = 100.0 - float(min_balance/conf['balance'] * 100)
+    stats.max_drawdown = max_drawdown
     stats.min_balance = min_balance
     stats.avg_loss_streak = avg_neg_run
     stats.max_loss_streak = max_neg_run

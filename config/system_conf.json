@@ -48,6 +48,6 @@
     "montecarlo"   : true,
     "sim_len_max"  : 300,
     "iterations"   : 10000,
-    "plot_frac"    : 0.05,
+    "plot_frac"    : 0.1,
     "outlier"      : 4
 }
