@@ -33,6 +33,9 @@ class SystemStats:
     trades_len: int = 0
     trades_num: int = 0
     win_rate: float = 0.0
+    # longest win/loss streaks over the actual realised trade sequence (set by generate_system_stats)
+    real_max_win_streak: int = 0
+    real_max_loss_streak: int = 0
     avg_risk: float = 0.0
     min_balance: float = 0.0
     max_drawdown: float = 0.0

@@ -557,6 +557,15 @@ def generate_system_stats(trades_df, trading_period, conf, ctx, stats):
     times_lst  = trades_df['Length'].tolist()
     all_trades = list(zip(trades_lst, times_lst))
 
+    # win/loss streaks over the actual trade sequence, in the same order the
+    # report displays (trades_df is already sorted by entry date by
+    # save_trades_table, which is the order shown in the trades-vs-R-multiple
+    # plot), so the streaks reconcile with the runs a reader counts off that plot.
+    max_win_streak, _ = win_streaks(trades_lst)
+    max_loss_streak, _ = loss_streaks(trades_lst)
+    stats.real_max_win_streak = int(max_win_streak)
+    stats.real_max_loss_streak = int(max_loss_streak)
+
     pos_lst = [(r, t) for r, t in all_trades if r > 0]
     neg_lst = [(r, t) for r, t in all_trades if r <= 0]
 
@@ -996,13 +1005,15 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Win rate", f"{stats.win_rate:.1f}%"),
         row("R mean", _fmt_signed_r(rmean) if rmean is not None else "&ndash;", "pos" if (rmean or 0) >= 0 else "neg"),
         row("R standard deviation", f"{rstd:.2f}" if rstd is not None else "&ndash;"),
+        row("Kelly criterion", f"{kelly:.2f}" if kelly is not None else "&ndash;"),
     ])
     stats_right = "".join([
         row("Best trade", _fmt_signed_r(rmax) + " R" if rmax is not None else "&ndash;", "pos"),
         row("Worst trade", _fmt_signed_r(rmin) + " R" if rmin is not None else "&ndash;", "neg"),
         row("Avg holding (win)", f"{len_win:.0f} days" if len_win is not None else "&ndash;"),
         row("Avg holding (loss)", f"{len_loss:.0f} days" if len_loss is not None else "&ndash;"),
-        row("Kelly criterion", f"{kelly:.2f}" if kelly is not None else "&ndash;"),
+        row("Max win streak", f"{stats.real_max_win_streak} trades"),
+        row("Max loss streak", f"{stats.real_max_loss_streak} trades"),
     ])
 
     # trading-simulation summary (mirrors the classic report's balance table)
@@ -1589,6 +1600,34 @@ def longest_negative_streak(values):
         else:
             cur_len = 0
     return max_len
+
+def _run_streaks(flags):
+    ''' longest and average length of consecutive True runs in `flags`.
+    Returns (max, avg), where avg is the mean run length over completed
+    runs (0 if there are none). '''
+    runs = []
+    cur_len = 0
+    for f in flags:
+        if f:
+            cur_len += 1
+        elif cur_len:
+            runs.append(cur_len)
+            cur_len = 0
+    if cur_len:
+        runs.append(cur_len)
+    if not runs:
+        return 0, 0.0
+    return max(runs), sum(runs) / len(runs)
+
+def win_streaks(values):
+    ''' longest and average run of consecutive winning trades (R > 0),
+    matching the winners/losers split used elsewhere in the stats. '''
+    return _run_streaks([v > 0 for v in values])
+
+def loss_streaks(values):
+    ''' longest and average run of consecutive losing trades (R <= 0, so
+    break-even counts as a loss, matching the winners/losers split). '''
+    return _run_streaks([v <= 0 for v in values])
 
 def ann_return(start_capital: float, end_capital: float, years: float) -> float:
     ''' Compute the annualized rate of return (CAGR) '''
