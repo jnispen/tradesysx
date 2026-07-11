@@ -1257,8 +1257,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     <h2>Account performance</h2>
     <figure><img src="{img_equity}" alt="Account value over time">
-    <figcaption>Simulated account value (equity curve) with {conf['pos_sizing']} position sizing,
-    against the buy-and-hold benchmark (dashed).</figcaption></figure>
+    <figcaption>Simulated account value (equity curve) against the buy-and-hold benchmark (dashed).
+    Position sizing: {rp.pos_sizing_label(conf)}.</figcaption></figure>
     <div class="statgrid" style="margin-top:1.2em">
       <table><tbody>{sim_rows}</tbody></table>
       <table><tbody></tbody></table>
