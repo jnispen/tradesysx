@@ -876,6 +876,19 @@ def _data_uri(path):
         return ""
 
 
+def _logo_data_uri():
+    ''' the TradeSysX icon as a base64 SVG data-URI for the styled report header
+    (keeps the report self-contained). Read relative to this module so it works
+    regardless of basedir/cwd; returns "" if the asset is unavailable. '''
+    path = os.path.join(os.path.dirname(__file__), 'docs', 'examples', 'tradesysx-icon.svg')
+    try:
+        with open(path, 'rb') as f:
+            enc = base64.b64encode(f.read()).decode()
+        return f"data:image/svg+xml;base64,{enc}"
+    except OSError:
+        return ""
+
+
 def _fmt_signed_r(x):
     ''' R-multiple with an explicit sign and a true minus sign. '''
     return (f"+{x:.2f}" if x >= 0 else f"−{abs(x):.2f}")
@@ -1190,6 +1203,11 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     body {{ font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: {TEXT};
         font-size: 12px; line-height: 1.55; margin: 0; }}
     h1 {{ font-size: 23px; font-weight: 600; margin: 0 0 3px; letter-spacing: -0.01em; }}
+    .headrow {{ margin: 0 0 2px; }}
+    .headrow .logo {{ width: 46px; height: 46px; vertical-align: middle; margin-right: 14px; }}
+    .headtext {{ display: inline-block; vertical-align: middle; }}
+    .headtext h1 {{ margin: 0 0 2px; white-space: nowrap; }}
+    .headtext .sub {{ margin: 0; }}
     h2 {{ font-size: 14px; font-weight: 600; margin: 26px 0 11px; padding-bottom: 6px;
         border-bottom: 1px solid {GRID}; letter-spacing: 0.02em; }}
     p {{ margin: 0 0 8px; }}
@@ -1256,9 +1274,17 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     .pbreak {{ page-break-before: always; }}
     """
 
+    logo_uri = _logo_data_uri()
+    logo_img = f'<img class="logo" src="{logo_uri}" alt="TradeSysX logo">' if logo_uri else ""
+
     body = f"""
-    <h1>TradeSysX system summary</h1>
-    <p class="sub">{strategy_desc}</p>
+    <div class="headrow">
+      {logo_img}
+      <div class="headtext">
+        <h1>TradeSysX system summary</h1>
+        <p class="sub">{strategy_desc}</p>
+      </div>
+    </div>
     <div class="brandrule"></div>
     <p class="meta">
       <span><b>Period</b> {date_range}</span>
