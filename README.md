@@ -1,4 +1,4 @@
-# TradeSysX <img src="docs/examples/tradesysx_icon.svg" alt="TradeSysX logo" align="left" width="80">
+# TradeSysX <img src="docs/examples/tradesysx-icon.svg" alt="TradeSysX logo" align="left" width="80">
 
 TradeSysX (**T**rading **S**ystem e**X**plorer) is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) data
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
