@@ -1,4 +1,4 @@
-# TradeSysX
+# TradeSysX <img src="docs/examples/TSX.png" alt="TradeSysX logo" align="left" width="90">
 
 TradeSysX (**T**rading **S**ystem e**X**plorer) is a toolkit for backtesting mechanical trading systems. It downloads historical OHLC (Open-High-Low-Close) data
 from [Yahoo Finance](https://finance.yahoo.com/), applies a configurable entry/exit/stoploss strategy,
@@ -198,8 +198,6 @@ For each simulated trade series, the simulation samples a series with the length
 In the picture below, a Monte Carlo simulation with 10 000 iterations was run. Starting with the configured starting balance in the trading account, only 5% of all resampled sequences have been plotted (for clarity, configurable with the `plot_frac` parameter). However, the numbers in the figure represent the values obtained for the full set. On the right-hand side of the figure, the median outcome (solid line) as well as the 95 and 5 percentile markers are shown, with the account value at each percentile given between the round brackets. If configured, the dashed line for the benchmark value (buy &amp; hold) is also shown. To accommodate for a very skewed outcome distribution, the y-axis is cut off from a value above 4 times the standard deviation from the median, which is set by the `outlier` parameter.
 
 <img src="docs/examples/monte_carlo_plot.png" alt="Monte Carlo simulation" width="900">
-
-<img src="docs/examples/sim_table.png" alt="Monte Carlo simulation statistics table" width="900">
 
 In the table above some additional computed values for the full set of resampled sequences are displayed, of which the average and maximum loss streak, and the maximum drawdown percentage might be of interest.
 
