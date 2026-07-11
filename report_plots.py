@@ -114,13 +114,13 @@ def styled_balance_plot(df, conf, ctx, val_out):
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
         ax.set_ylabel('Account value (USD)')
         ax.set_xlim(min(xs), end_x + pd.Timedelta(days=120))
-        # position-sizing method as an unboxed callout in the top-left corner
+        # position-sizing method as an unboxed callout in the lower-right corner
         ax.annotate(f'Position sizing: {pos_sizing_label(conf)}',
-                    xy=(0.012, 0.94), xycoords='axes fraction', ha='left', va='top',
+                    xy=(0.988, 0.06), xycoords='axes fraction', ha='right', va='bottom',
                     fontsize=10, color=TEXT2, fontweight='medium')
         if val_out is not None:
-            # legend in the lower-right so it clears the top-left callout
-            ax.legend(loc='lower right')
+            # legend in the upper-left so it clears the lower-right callout
+            ax.legend(loc='upper left')
         fig.savefig(ctx.outpath('images', 'balance_plot.png'))
         plt.close(fig)
 
