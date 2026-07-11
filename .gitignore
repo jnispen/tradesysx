@@ -10,3 +10,4 @@ docs/*
 !docs/examples/
 !docs/system_conf_reference.md
 build/*
+scripts/publish_head.sh
