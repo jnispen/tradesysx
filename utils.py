@@ -1139,8 +1139,15 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
             buy_d = str(sdf['Date'].iloc[0])[:10]; sell_d = str(sdf['Date'].iloc[-1])[:10]
             units = balance / p_in; value = units * p_out
             _bm_head = f"{bm_desc} &ndash; {bm_ticker}" if bm_desc and bm_desc != bm_ticker else bm_ticker
+            # single-ticker benchmark price chart (mirrors the classic report's
+            # fig_e), embedded above its buy-and-hold breakdown table
+            img_bm = _data_uri(ctx.outpath('plots', f'{bm_ticker}_plot.png'))
+            bm_figure = (f"""<figure style="margin-bottom:26px"><img src="{img_bm}" alt="{bm_ticker} benchmark close price">
+            <figcaption>{_bm_head} close price over the holding period, the buy-and-hold
+            benchmark reference.</figcaption></figure>""" if img_bm else "")
             benchmark_detail = f"""
             <h2 class="pbreak">Benchmark &mdash; buy-and-hold ({_bm_head})</h2>
+            {bm_figure}
             <table class="wide"><thead><tr>
               <th>Ticker</th><th class="num">Buy<span class="subd">{buy_d}</span></th>
               <th class="num">Invested</th><th class="num">Units</th>
