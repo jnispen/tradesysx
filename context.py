@@ -43,6 +43,8 @@ class SystemStats:
     avg_loss_streak: float = 0.0
     max_loss_streak: int = 0
     rmul_avg_sampled: float = 0.0
+    sqn_sampled: float = 0.0
+    min_end_balance: float = 0.0
     # balance-simulation results, consumed by the summary report's balance table
     open_trades_closed: int = 0
     avg_invested: float = 0.0

@@ -962,7 +962,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         kpi("System quality (SQN)", f"{stats.sqn:.2f}<span class=\"badge\">{sqn_badge}</span>", "Van Tharp scale"),
         kpi("Win rate", f"{stats.win_rate:.0f}%",
             f"{trades_num} trades" + (f" &middot; ~{trades_yr:.0f}/yr" if trades_yr else "")),
-        kpi("Max drawdown", f"{stats.max_drawdown:.1f}%", "Monte Carlo, worst path"),
+        kpi("Max drawdown", f"{strat_dd:.1f}%" if strat_dd is not None else "&ndash;",
+            "strategy equity, peak-to-trough"),
         kpi("R mean", _fmt_signed_r(rmean) if rmean is not None else "&ndash;",
             (f"avg loss {_fmt_signed_r(rmean_loss)}" if rmean_loss is not None else "per trade")),
     ]
@@ -1019,6 +1020,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     # trading-simulation summary (mirrors the classic report's balance table)
     sim_rows = "".join([
         row("Starting balance", f"${balance:,.0f}"),
+        row("Position sizing", rp.pos_sizing_label(conf)),
         row("Open trades closed", stats.open_trades_closed),
         row("Average investment", f"${stats.avg_invested:,.0f}"),
         row("Average cash balance", f"${stats.avg_balance:,.0f}"),
@@ -1085,8 +1087,9 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         <p>Resampling the realised R-multiples over {conf.get('iterations', 0):,} randomised
         trade sequences estimates the spread of outcomes the system could produce from the
         same edge in a different order. Each simulated run is a sequence of complete, closed
-        trades applied in order, each risking the per-trade amount shown in the table below.</p>
-        <figure><img src="{img_mc}" alt="Monte Carlo simulated equity paths">
+        trades applied in order, each risking the per-trade amount shown in the table below &mdash;
+        the average dollar risk from the account-value simulation.</p>
+        <figure style="margin-top:18px"><img src="{img_mc}" alt="Monte Carlo simulated equity paths">
         <figcaption>Simulated equity paths (a subset shown) with the median outcome in
         purple and the buy-and-hold benchmark as the dashed grey line.</figcaption></figure>
         <div class="statgrid">
@@ -1095,8 +1098,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
           {row("Avg loss streak", f"{stats.avg_loss_streak:.0f} trades")}
           {row("Max loss streak", f"{stats.max_loss_streak} trades")}</tbody></table>
           <table><tbody>{row("Max drawdown (peak-to-trough)", f"{stats.max_drawdown:.1f}%", "neg")}
-          {row("Minimum balance", f"${stats.min_balance:,.0f}")}
-          {row("System quality (SQN)", f"{stats.sqn:.2f}")}
+          {row("Minimum ending balance", f"${stats.min_end_balance:,.0f}")}
+          {row("System quality (sim / real)", f"{stats.sqn_sampled:.2f} / {stats.sqn:.2f}")}
           {row("R-average (sim / real)", f"{stats.rmul_avg_sampled:.2f} / {rmean:.2f}" if rmean is not None else "&ndash;")}</tbody></table>
         </div>"""
 
@@ -1362,6 +1365,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
 
     balance = total_balance = float(conf['balance'])
     logger.info(f"Starting balance  : {balance:,.2f}")
+    logger.info(f"Position sizing   : {rp.pos_sizing_label(conf)}")
 
     ohlc_cache = load_ohlc_cache(dframe['Ticker'].unique(), ctx)
 
@@ -1536,6 +1540,11 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
 
     max_neg_run = 0
     avg_neg_run = 0.0
+    sqn_sum = 0.0
+    # SQN of each simulated run of M trades, derived exactly like the real SQN
+    # (mean/stdev of the run's R-multiples, capped at 100 trades), so the mean
+    # sim SQN is directly comparable to the real one
+    sqn_factor = math.sqrt(min(M, 100))
 
     # Monte Carlo balance simulation
     for it in range(0, N):
@@ -1548,6 +1557,11 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
         avg_neg_run = ((avg_neg_run * it) + neg_run) / (it+1)
         if neg_run > max_neg_run:
             max_neg_run = neg_run
+
+        # SQN of this run (sample stdev, ddof=1, to match the real SQN)
+        run_std = Rmul_sampled.std(ddof=1)
+        if run_std > 0:
+            sqn_sum += (Rmul_sampled.mean() / run_std) * sqn_factor
 
         # cumulative balance path for this iteration (balance *= 1 + risk*Rmul each trade)
         factors = 1.0 + risk * Rmul_sampled
@@ -1571,9 +1585,13 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
     # store values for use by later pipeline steps
     stats.max_drawdown = max_drawdown
     stats.min_balance = min_balance
+    # lowest final (ending) balance across all simulated runs, as opposed to
+    # min_balance which is the lowest value reached at any point in any run
+    stats.min_end_balance = float(balances[-1].min())
     stats.avg_loss_streak = avg_neg_run
     stats.max_loss_streak = max_neg_run
     stats.rmul_avg_sampled = float(np.mean(Rmul_sample))
+    stats.sqn_sampled = sqn_sum / N
 
     last_row = mc_result_df.iloc[-1]
     logger.info("==== simulation results ====")
@@ -1585,6 +1603,7 @@ def run_monte_carlo_sampled(Rmul_arr, conf, ctx, stats, risk, output_filename="m
     logger.info(f"Loss streak max        : {max_neg_run:.0f}")
     logger.info(f"Minimum balance        : {stats.min_balance:,.0f}")
     logger.info(f"Max drawdown (%)       : {stats.max_drawdown:.1f}")
+    logger.info(f"Sampled SQN            : {stats.sqn_sampled:.2f} (real {stats.sqn:.2f})")
 
     # save the balances and plot the result (see simulation plot)
     plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, np.mean(Rmul_arr), np.mean(Rmul_sample), avg_neg_run, max_neg_run,
