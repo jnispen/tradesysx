@@ -29,7 +29,7 @@
     "min_invest"   : 20,
     "risk_percent" : 0.02,
     "risk_amount"  : 250,
-    "balance"      : 10000,
+    "balance"      : 50000,
     "pos_sizing"   : "core_equity_risk",
     "pos_ratio"    : 5,
     "pos_amount"   : 3000,
@@ -50,6 +50,6 @@
     "montecarlo"   : true,
     "sim_len_max"  : 300,
     "iterations"   : 10000,
-    "plot_frac"    : 0.05,
+    "plot_frac"    : 0.1,
     "outlier"      : 4
 }
