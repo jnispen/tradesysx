@@ -168,7 +168,7 @@ def get_quotes_data(quotes, conf, outfile, ctx):
 
         dfr.to_csv(ctx.outpath('data',f"{ticker}_{outfile}"))
 
-VALID_PLOT_INDICATORS = {'BB', 'SMA225'}
+VALID_PLOT_INDICATORS = {'BB', 'SMA225', 'DON'}
 
 def validate_plot_indicators(conf):
     ''' validates the conf['plot_indicators'] list against the known indicator names '''
@@ -288,6 +288,10 @@ def add_technical_indicators(dframe, conf):
     dframe['CE2'] = dframe['CEHigh'] - atr22 * 2
     dframe['CE15'] = dframe['CEHigh'] - atr22 * 1.5
     dframe.drop(['CEHigh'], axis=1, inplace=True)
+
+    # Donchian Channel (breakout entry/exit) — prior-day channels, exclude today
+    dframe['DONup'] = dframe['High'].rolling(conf['donch_enter']).max().shift(1)
+    dframe['DONdn'] = dframe['Low'].rolling(conf['donch_exit']).min().shift(1)
 
     return dframe
 
@@ -2376,6 +2380,11 @@ def _plot_price_overlays(ax, df, conf):
         # SMA 45wk indicator of bear/bull stock market
         ax.plot(df.index, df['SMA225'], color='orange', linewidth=2, linestyle='-.', label='SMA225')
 
+    if conf['enter'] == 'DONCH' or 'DON' in plot_indicators:
+        ax.plot(df.index, df['DONup'], color='green', linewidth=.6, linestyle='--', label='DONup')
+        ax.plot(df.index, df['DONdn'], color='brown', linewidth=.6, linestyle='--', label='DONdn')
+        ax.fill_between(df.index, df['DONdn'], df['DONup'], color='grey', alpha=.05)
+
     if conf['enter'] == '3EMA':
         ax.plot(df.index, df['EMA20'], color='green', linewidth=.5, label='EMA20')
         ax.plot(df.index, df['EMA50'], color='brown', linewidth=.5, label='EMA50')
@@ -2436,6 +2445,13 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
     if 'SMA225' in plot_indicators:
         sma225 = df['SMA225'] if 'SMA225' in df.columns else ta.SMA(df['Close'], timeperiod=225)
         ax.plot(df.index, sma225, color='orange', linewidth=2, linestyle='-.', label='SMA225')
+
+    if 'DON' in plot_indicators:
+        donup = df['DONup'] if 'DONup' in df.columns else df['High'].rolling(conf['donch_enter']).max().shift(1)
+        dondn = df['DONdn'] if 'DONdn' in df.columns else df['Low'].rolling(conf['donch_exit']).min().shift(1)
+        ax.plot(df.index, donup, color='green', linewidth=.6, linestyle='--', label='DONup')
+        ax.plot(df.index, dondn, color='brown', linewidth=.6, linestyle='--', label='DONdn')
+        ax.fill_between(df.index, dondn, donup, color='grey', alpha=.05)
 
     ax.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')
     plt.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))

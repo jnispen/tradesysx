@@ -30,9 +30,9 @@ configured quotes file:
 3. **Add technical indicators** — compute a set of technical-analysis (TA) indicators (e.g. RSI, ATR, SMA/EMA
    moving averages, Bollinger Bands) over the data.
 4. **Generate ENTER/EXIT signals** — apply the configured entry strategy
-   (`3EMA`, `SMA` or `BBRSI`), exit strategy (`CE`, `CEE`, `RSI`, `XR`,
-   `3EMA`, `SMA` or `BBRSI`) and stoploss method (`3atr` or `percent`) to
-   produce entry or exit trading signals.
+   (`3EMA`, `SMA`, `BBRSI`, `MACD` or `DONCH`), exit strategy (`CE`, `CEE`,
+   `RSI`, `XR`, `3EMA`, `SMA`, `MACD`, `BBRSI` or `DONCH`) and stoploss method
+   (`3atr` or `percent`) to produce entry or exit trading signals.
 5. **Generate ticker plots** — save a price/indicator plot per ticker
    (`<outdir>/plots/`), optionally with a separate technical-analysis panel
    (`<outdir>/plots/TA/`).
@@ -79,11 +79,13 @@ overlays, picked from three tiers:
   always shown;
 - **Strategy** — an indicator set is shown automatically when it
   matches the configured `enter` strategy: EMA20/50/100 for `3EMA`, the
-  fast/slow SMA pair for `SMA`, Bollinger Bands for `BBRSI`. For the Chandelier
+  fast/slow SMA pair for `SMA`, Bollinger Bands for `BBRSI`, the Donchian
+  channel for `DONCH`. For the Chandelier
   Exit level, the levels are shown, based on the `exit` strategy (`CE` or `CEE`).
 - **User-selectable** — the `plot_indicators` list in `system_conf.json` adds
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
-  Bands) and `"SMA225"` (225-day SMA, bull/bear market reference).
+  Bands), `"SMA225"` (225-day SMA, bull/bear market reference) and `"DON"`
+  (Donchian channel).
 
 ## 3. Environment setup and cmdline parameters
 

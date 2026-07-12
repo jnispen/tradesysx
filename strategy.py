@@ -32,8 +32,9 @@ class TradingSignals(object):
     enter_str = {"BBRSI": "_BB_RSI_Enter",
                  "3EMA":  "_3_EMA_Enter",
                  "SMA": "_SMA_Enter",
-                 "MACD": "_MACD_Enter"}
-    
+                 "MACD": "_MACD_Enter",
+                 "DONCH": "_DONCH_Enter"}
+
     exit_str  = {"CE": "_CE_Exit",
                  "CEE": "_CEE_Exit",
                  "RSI": "_RSI_Exit",
@@ -41,7 +42,8 @@ class TradingSignals(object):
                  "3EMA": "_3_EMA_Exit",
                  "SMA": "_SMA_Exit",
                  "MACD": "_MACD_Exit",
-                 "BBRSI": "_BB_RSI_Exit"}
+                 "BBRSI": "_BB_RSI_Exit",
+                 "DONCH": "_DONCH_Exit"}
 
     def __init__(self, conf):
         self.conf = conf
@@ -86,6 +88,13 @@ class TradingSignals(object):
             signal = True
         return signal
 
+    def _DONCH_Enter(self, row):
+        # pure Donchian breakout: Close above the prior-N-day high channel
+        signal = False
+        if row['Close'] > row['DONup']:
+            signal = True
+        return signal
+
     def _3_EMA_Exit(self, row, intrade):
         signal = False
         if row['Close'] < row['EMA20']  and \
@@ -118,6 +127,13 @@ class TradingSignals(object):
         signal = False
         if row['Close'] < row['BBu'] and row['RSI'] > float(self.conf['rsi_high']):
             signal = True
+        return signal
+
+    def _DONCH_Exit(self, row, intrade):
+        # pure Donchian breakout: Close below the prior-M-day low channel
+        signal = False
+        if row['Close'] < row['DONdn']:
+             signal = True
         return signal
 
     def _CEE_Exit(self, row, intrade):

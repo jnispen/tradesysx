@@ -1,0 +1,93 @@
+name: system-test
+
+# End-to-end smoke test: run the full tradesysx pipeline against every
+# system_conf in the repo. Each config runs as its own job (matrix leg), so a
+# crash in one strategy doesn't hide the others. The generated
+# out/system_summary.pdf of each run is uploaded as a downloadable artifact.
+#
+# This is a live test: it downloads real OHLC data via yfinance (the configs
+# use quotes/quotes_sp500.lst, ~20 tickers + the injected URTH benchmark), so
+# it asserts on "pipeline exits 0 and produces the expected report", not on
+# any numeric values.
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  run-config:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: default
+            config: config/system_conf.json
+          - name: 3ema
+            config: config/examples/system_conf_3ema.json
+          - name: sma
+            config: config/examples/system_conf_sma.json
+          - name: bbrsi
+            config: config/examples/system_conf_bbrsi.json
+          - name: donch
+            config: config/examples/system_conf_donch.json
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      # WeasyPrint runtime libs (PDF report generation).
+      - name: Install WeasyPrint system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 \
+            libpangocairo-1.0-0 \
+            libgdk-pixbuf-2.0-0 \
+            libffi-dev \
+            shared-mime-info \
+            fonts-liberation
+
+      # TA-Lib C library (required by the TA-Lib pip package). Built from
+      # source, matching scripts/Dockerfile.
+      - name: Build TA-Lib C library
+        run: |
+          wget -q https://github.com/ta-lib/ta-lib/releases/download/v0.4.0/ta-lib-0.4.0-src.tar.gz
+          tar -xzf ta-lib-0.4.0-src.tar.gz
+          cd ta-lib
+          ./configure --prefix=/usr
+          make
+          sudo make install
+          cd ..
+          rm -rf ta-lib ta-lib-0.4.0-src.tar.gz
+
+      - name: Refresh linker cache
+        run: sudo ldconfig
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        run: python tradesysx.py --config ${{ matrix.config }} --outdir out
+
+      - name: Verify report was generated
+        run: |
+          test -f out/system_summary.pdf \
+            || { echo "::error::out/system_summary.pdf was not generated for ${{ matrix.name }}"; exit 1; }
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: system_summary-${{ matrix.name }}
+          path: |
+            out/system_summary.pdf
+            out/trades_table.pdf
+            out/trades_list.pdf
+          if-no-files-found: warn

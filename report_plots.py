@@ -286,6 +286,11 @@ def _styled_price_overlays(ax, df, conf):
         # 45-week SMA: the bull/bear regime line - allowed to stand out a little
         ax.plot(df.index, df['SMA225'], color=IND_GOLD, linewidth=1.6, linestyle='--', label='SMA225')
 
+    if conf['enter'] == 'DONCH' or 'DON' in plot_indicators:
+        ax.plot(df.index, df['DONup'], color=IND_GREEN, linewidth=1.1, linestyle='--', label='DONup')
+        ax.plot(df.index, df['DONdn'], color=IND_BROWN, linewidth=1.1, linestyle='--', label='DONdn')
+        ax.fill_between(df.index, df['DONdn'], df['DONup'], color=GRID, alpha=.45)
+
     if conf['enter'] == '3EMA':
         ax.plot(df.index, df['EMA20'], color=IND_GREEN, linewidth=1.1, label='EMA20')
         ax.plot(df.index, df['EMA50'], color=IND_BROWN, linewidth=1.1, label='EMA50')
@@ -504,6 +509,13 @@ def styled_benchmark_price(df, ticker, description, conf, ctx):
         if 'SMA225' in plot_indicators:
             sma225 = df['SMA225'] if 'SMA225' in df.columns else ta.SMA(df['Close'], timeperiod=225)
             ax.plot(df.index, sma225, color=IND_GOLD, linewidth=1.6, linestyle='--', label='SMA225')
+
+        if 'DON' in plot_indicators:
+            donup = df['DONup'] if 'DONup' in df.columns else df['High'].rolling(conf['donch_enter']).max().shift(1)
+            dondn = df['DONdn'] if 'DONdn' in df.columns else df['Low'].rolling(conf['donch_exit']).min().shift(1)
+            ax.plot(df.index, donup, color=IND_GREEN, linewidth=1.1, linestyle='--', label='DONup')
+            ax.plot(df.index, dondn, color=IND_BROWN, linewidth=1.1, linestyle='--', label='DONdn')
+            ax.fill_between(df.index, dondn, donup, color=GRID, alpha=.45)
 
         ax.plot(df.index, df['Close'], color=ACCENT, linewidth=1.4, label='Close')
         ax.annotate('{:,.2f}'.format(df.iloc[-1]['Close']),
