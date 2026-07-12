@@ -44,8 +44,8 @@ Generate the per-ticker price plots.
 **gen_ta_plots** — [`true`/`false`]\
 Generate the per-ticker technical-analysis (TA) plots (indicator panels).
 
-**plot_indicators** — [`BB`/`SMA225`]\
-List of overlays drawn on the price panel. `BB` = Bollinger Bands, `SMA225` = 225-period SMA. Example: `["SMA225"]`.
+**plot_indicators** — [`BB`/`SMA225`/`DON`]\
+List of overlays drawn on the price panel. `BB` = Bollinger Bands, `SMA225` = 225-period SMA, `DON` = Donchian channel (`donch_enter`-day high / `donch_exit`-day low). Example: `["SMA225"]`. The Donchian channel is drawn automatically on traded-ticker charts whenever `enter` is `DONCH`; add `DON` here to force it onto other charts (e.g. the benchmark).
 
 **gen_ta_custom** — [`true`/`false`]\
 Generate the ad-hoc custom TA panels defined by `ta_custom`. Must be `false` if `ta_custom` is empty.
@@ -62,11 +62,11 @@ Selects the look of `out/system_summary.pdf`. `classic` is the original report; 
 **stloss** — [`3atr`/`percent`]\
 Stop-loss strategy. `3atr` = 3×ATR below the close, `percent` = stoploss set as a percentage below the entry price (see `stoploss`).
 
-**enter** — [`3EMA`/`SMA`/`BBRSI`/`MACD`]\
-Entry strategy.
+**enter** — [`3EMA`/`SMA`/`BBRSI`/`MACD`/`DONCH`]\
+Entry strategy. `DONCH` = Donchian breakout: enter when the close breaks above the prior `donch_enter`-day high channel (a pure breakout, no ADX/trend filter).
 
-**exit** — [`CE`/`CEE`/`RSI`/`XR`/`3EMA`/`SMA`/`MACD`/`BBRSI`]\
-Exit strategy.
+**exit** — [`CE`/`CEE`/`RSI`/`XR`/`3EMA`/`SMA`/`MACD`/`BBRSI`/`DONCH`]\
+Exit strategy. `DONCH` = Donchian breakout: exit when the close breaks below the prior `donch_exit`-day low channel (fires immediately, no `intrade_wait`).
 
 **start** — [`date`]\
 History start date, `YYYY-MM-DD`. Data is downloaded from this date to today.
@@ -148,6 +148,12 @@ Slow EMA period for MACD.
 
 **macd_signal** — [`integer`]\
 Signal-line period for MACD.
+
+**donch_enter** — [`integer`]\
+Look-back period (bars) for the Donchian entry channel — the prior-day high the close must break above to enter. Only used by the `DONCH` entry.
+
+**donch_exit** — [`integer`]\
+Look-back period (bars) for the Donchian exit channel — the prior-day low the close must break below to exit. Only used by the `DONCH` exit.
 
 **montecarlo** — [`true`/`false`]\
 Run the Monte Carlo simulation step on the resulting trades.
