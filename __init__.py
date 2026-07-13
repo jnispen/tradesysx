@@ -1,4 +1,4 @@
 ''' TradeSysX package metadata '''
 
 __app_name__ = "TradeSysX"
-__version__ = "1.5.0"
+__version__ = "1.6.0"
