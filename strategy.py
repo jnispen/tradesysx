@@ -13,15 +13,17 @@ class Stoploss():
 
     def get_stoploss(self, row):
         if self.conf['stloss'] == '3atr':
-            return self._ATRStoploss(row)
+            return self._ATRStoploss(row, 3)
+        elif self.conf['stloss'] == '2atr':
+            return self._ATRStoploss(row, 2)
         elif self.conf['stloss'] == 'percent':
             return self._PercentageStoploss(row)
         else:
             logger.critical("The Stoploss strategy {} does not exist!".format(self.conf['stloss']))
             sys.exit(1)
 
-    def _ATRStoploss(self, row):
-        return row['Close'] - 3 * row['ATR']
+    def _ATRStoploss(self, row, mult):
+        return row['Close'] - mult * row['ATR']
 
     def _PercentageStoploss(self, row,):
         return row['Close'] * float(self.conf['stoploss'])

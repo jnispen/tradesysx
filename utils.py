@@ -1023,7 +1023,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Win rate", f"{stats.win_rate:.1f}%"),
         row("R mean", _fmt_signed_r(rmean) if rmean is not None else "&ndash;", "pos" if (rmean or 0) >= 0 else "neg"),
         row("R standard deviation", f"{rstd:.2f}" if rstd is not None else "&ndash;"),
-        row("Kelly criterion", f"{kelly:.2f}" if kelly is not None else "&ndash;"),
+        row("R mean (win)", _fmt_signed_r(rmean_win) if rmean_win is not None else "&ndash;", "pos"),
+        row("R mean (loss)", _fmt_signed_r(rmean_loss) if rmean_loss is not None else "&ndash;", "neg"),
     ])
     stats_right = "".join([
         row("Best trade", _fmt_signed_r(rmax) + " R" if rmax is not None else "&ndash;", "pos"),
@@ -1032,6 +1033,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Avg holding (loss)", f"{len_loss:.0f} days" if len_loss is not None else "&ndash;"),
         row("Max win streak", f"{stats.real_max_win_streak} trades"),
         row("Max loss streak", f"{stats.real_max_loss_streak} trades"),
+        row("Kelly criterion", f"{kelly:.2f}" if kelly is not None else "&ndash;"),
     ])
 
     # trading-simulation summary (mirrors the classic report's balance table)

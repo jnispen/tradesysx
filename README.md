@@ -12,7 +12,7 @@ development written by [Dr. Van K. Tharp](https://vantharp.com/).
 - [1. Processing steps](#1-processing-steps)
 - [2. Configuration](#2-configuration)
   - [2.1 Plot indicators](#21-plot-indicators)
-- [3. Environment setup and cmdline parameters](#3-environment-setup-and-tradesysx-cmdline-parameters)
+- [3. Environment setup and cmdline parameters](#3-environment-setup-and-cmdline-parameters)
   - [3.1 Running from a Python virtual environment](#31-running-from-a-python-virtual-environment)
   - [3.2 Running from a Docker container](#32-running-from-a-docker-container)
   - [3.3 Running from a single executable](#33-running-from-a-single-executable)
@@ -32,7 +32,7 @@ configured quotes file:
 4. **Generate ENTER/EXIT signals** — apply the configured entry strategy
    (`3EMA`, `SMA`, `BBRSI`, `MACD` or `DONCH`), exit strategy (`CE`, `CEE`,
    `RSI`, `XR`, `3EMA`, `SMA`, `MACD`, `BBRSI` or `DONCH`) and stoploss method
-   (`3atr` or `percent`) to produce entry or exit trading signals.
+   (`3atr`, `2atr` or `percent`) to produce entry or exit trading signals.
 5. **Generate ticker plots** — save a price/indicator plot per ticker
    (`<outdir>/plots/`), optionally with a separate technical-analysis panel
    (`<outdir>/plots/TA/`).

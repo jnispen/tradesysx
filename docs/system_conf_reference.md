@@ -59,8 +59,8 @@ Selects the summary report variant; both write `out/system_summary.pdf` (`full` 
 **report_style** — [`classic`/`styled`]\
 Selects the look of `out/system_summary.pdf`. `classic` is the original report; `styled` produces a professionally formatted report with KPI cards, a strategy-vs-benchmark comparison, restyled charts and a benchmark table. Defaults to `styled` when absent.
 
-**stloss** — [`3atr`/`percent`]\
-Stop-loss strategy. `3atr` = 3×ATR below the close, `percent` = stoploss set as a percentage below the entry price (see `stoploss`).
+**stloss** — [`3atr`/`2atr`/`percent`]\
+Stop-loss strategy. `3atr` = 3×ATR below the close, `2atr` = 2×ATR below the close, `percent` = stoploss set as a percentage below the entry price (see `stoploss`).
 
 **enter** — [`3EMA`/`SMA`/`BBRSI`/`MACD`/`DONCH`]\
 Entry strategy.
@@ -84,7 +84,7 @@ Rename to `interval` to set the bar interval (e.g. `1d`, `1wk`). Defaults to `1d
 Spacing, in days, between date ticks on the plot x-axes.
 
 **stoploss** — [`float`]\
-Multiplier of the close used as the stop when `stloss` is `percent` (e.g. `0.92` = stop 8% below the close). Ignored when `stloss` is `3atr`.
+Multiplier of the close used as the stop when `stloss` is `percent` (e.g. `0.92` = stop 8% below the close). Ignored when `stloss` is `3atr`/`2atr`.
 
 **intrade_wait** — [`integer`]\
 Minimum number of bars a position must be held before the `CE`, `CEE`, and `XR` exits are allowed to trigger.
