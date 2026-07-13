@@ -43,7 +43,7 @@ configured quotes file:
    Kelly criterion, average R per win/loss, trades/year, etc.
 9. **Run a balance simulation** — starting with an initial trading account balance, run a
     paper-trade (backtest) using the enter/exit signals generated (step 3), and a configured position sizing strategy
-   (`core_equity_risk`, `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) to track
+   (`core_equity_risk`, `total_equity_risk`, `fixed_dollar_risk`, `fixed_ratio`, `fixed_amount` or `kelly`) to track
    the balance and the total value of the trading account over time.
 11. **Run a Monte Carlo simulation** — draw series of trade histories by resampling from the R-multiple distribution obtained
    from the trades (step 5) to estimate the range of possible outcomes (empirical resampling with replacement),

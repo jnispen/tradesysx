@@ -95,11 +95,14 @@ Transaction fee as a percentage of the gross trade value, charged on both entry 
 **min_invest** — [`float`]\
 Minimum capital per trade; if the sized position would invest less than this, the trade is skipped.
 
+**max_alloc_frac** — [`float`]\
+Maximum fraction of total equity (cash + open positions) allocated to a single trade (e.g. `0.20` = 20%). If the sized position would invest more than this, it is capped to the limit.
+
 **balance** — [`float`]\
 Starting account balance for the paper-trading simulation.
 
-**pos_sizing** — [`core_equity_risk`/`fixed_dollar_risk`/`fixed_ratio`/`fixed_amount`/`kelly`]\
-Position-sizing method. `core_equity_risk` = risk `risk_percent` of equity, `fixed_dollar_risk` = risk `risk_amount`, `fixed_ratio` = invest `balance / pos_ratio`, `fixed_amount` = invest `pos_amount`, `kelly` = Kelly-fraction of equity.
+**pos_sizing** — [`core_equity_risk`/`total_equity_risk`/`fixed_dollar_risk`/`fixed_ratio`/`fixed_amount`/`kelly`]\
+Position-sizing method. `core_equity_risk` = risk `risk_percent` of the cash balance, `total_equity_risk` = risk `risk_percent` of total equity (cash + open positions), `fixed_dollar_risk` = risk `risk_amount`, `fixed_ratio` = invest `balance / pos_ratio`, `fixed_amount` = invest `pos_amount`, `kelly` = Kelly-fraction of equity.
 
 **risk_percent** — [`float`]\
 Fraction of equity risked per trade (e.g. `0.01` = 1%). Only used when `pos_sizing` is `core_equity_risk`.

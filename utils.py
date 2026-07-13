@@ -1363,13 +1363,15 @@ def format_to_2_decimals(x):
         return f"{float(x):.2f}"
     return x
 
-def compute_position_size(conf, balance, stats):
+def compute_position_size(conf, balance, total_equity, stats):
     '''return the amount of capital to allocate per trade.'''
 
     ps = conf["pos_sizing"]
 
     if ps == "core_equity_risk":
-        return balance * conf["risk_percent"] # risk expressed as a % of total equity
+        return balance * conf["risk_percent"] # risk expressed as a % of cash balance
+    elif ps == "total_equity_risk":
+        return total_equity * conf["risk_percent"] # risk expressed as a % of total equity
     elif ps == "fixed_dollar_risk":
         return conf["risk_amount"]            # total risk per trade in dollars
     elif ps == "fixed_ratio":
@@ -1411,7 +1413,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     for row in dframe.itertuples(index=False):
 
         if row.Enter != '-':
-            units, cap_invested = _get_capital_invested(row, conf, balance, stats)
+            units, cap_invested = _get_capital_invested(row, conf, balance, total_balance, stats)
             active_trades[row.Ticker] = units
             units_lst.append(round(units, 2))
             gain_lst.append('-')
@@ -1913,14 +1915,14 @@ def plot_monte_carlo_results_sampled(mc_result_df, conf, ctx, stats, risk, Rmul_
     plt.savefig(ctx.outpath("images", output_filename), dpi=150)
     plt.close()
 
-def _get_capital_invested(row, conf, balance, stats):
+def _get_capital_invested(row, conf, balance, total_equity, stats):
     ''' return the invested capital and the no. of units bought'''
 
     # capital allocated for this trade
-    capital_per_trade = compute_position_size(conf, balance, stats)
+    capital_per_trade = compute_position_size(conf, balance, total_equity, stats)
 
     # number of units for the position sizing strategy
-    if conf["pos_sizing"] in {"core_equity_risk", "fixed_dollar_risk"}:
+    if conf["pos_sizing"] in {"core_equity_risk", "fixed_dollar_risk", "total_equity_risk"}:
         divisor = row.Risk
     else:
         divisor = row.Enter
@@ -1933,6 +1935,14 @@ def _get_capital_invested(row, conf, balance, stats):
     fee = units * row.Enter * float(conf["trading_fee"]) / 100
     cap_invested = units * row.Enter - fee
     #logger.debug(f"Trading fee (enter): {fee:.2f} ({row.Ticker})")
+
+    # cap the capital allocation to a maximum percentage of total equity
+    max_cap = conf['max_alloc_frac'] * total_equity
+    if cap_invested > max_cap:
+        logger.warning(f"Investment exceeds {conf['max_alloc_frac'] * 100:.1f}% of equity, capping... ({row.Ticker})")
+        units = max_cap / row.Enter
+        fee = units * row.Enter * float(conf["trading_fee"]) / 100
+        cap_invested = units * row.Enter - fee
 
     # do not enter trades where the invested amount is too low, and scale down if the investement requires > current balance
     if cap_invested < conf['min_invest']:
