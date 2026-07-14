@@ -982,7 +982,9 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         kpi("Max drawdown", f"{strat_dd:.1f}%" if strat_dd is not None else "&ndash;",
             "strategy equity, peak-to-trough"),
         kpi("R mean", _fmt_signed_r(rmean) if rmean is not None else "&ndash;",
-            (f"avg loss {_fmt_signed_r(rmean_loss)}" if rmean_loss is not None else "per trade")),
+            (f'avg win <span class="pos">{_fmt_signed_r(rmean_win)}</span> '
+             f'&middot; avg loss <span class="neg">{_fmt_signed_r(rmean_loss)}</span>'
+             if (rmean_win is not None and rmean_loss is not None) else "per trade")),
     ]
     kpi_html = "".join(cards)
 
