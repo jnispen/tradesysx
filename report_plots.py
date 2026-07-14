@@ -464,12 +464,14 @@ def _styled_ta_figure(df, ticker, description, conf, ctx, panels, out_dir, out_f
 
 def styled_ticker_plot_ta(df, ticker, description, conf, ctx):
     ''' styled counterpart of utils.ticker_plot_ta: price panel + the strategy's
-    indicator panels (RSI for BBRSI, MACD for MACD, else ADX + directional
-    indicators). '''
+    indicator panels (RSI for BBRSI, MACD for MACD, ATR + ADX for DONCH, else
+    ADX + directional indicators). '''
     if conf['enter'] == 'BBRSI':
         panels = ['RSI']
     elif conf['enter'] == 'MACD':
         panels = ['MACD']
+    elif conf['enter'] == 'DONCH':
+        panels = ['ATR', 'ADX']
     else:
         panels = ['ADX', 'DI']
     _styled_ta_figure(df, ticker, description, conf, ctx, panels,

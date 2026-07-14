@@ -2557,6 +2557,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
 
     bbrsi = conf['enter'] == 'BBRSI'
     macd = conf['enter'] == 'MACD'
+    donch = conf['enter'] == 'DONCH'
     if bbrsi or macd:
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize = (28, 10))
     else:
@@ -2611,6 +2612,13 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
         ax2.plot(df.index, df['MACDsig'], color='orange', linewidth=.8, label='Signal')
         ax2.axhline(y=0, color='black', linewidth=1, linestyle='--')
         ax2.set_ylabel('MACD')
+    elif donch:
+        ax2.plot(df.index, df['ATR'], color='blue', linewidth=.8, label='ATR')
+        ax2.set_ylabel('ATR')
+
+        ax3.plot(df.index, df['ADX'], color='blue', linewidth=.8, label='ADX')
+        ax3.axhline(y=conf['adx_trend'], color='red', linewidth=1, linestyle='-.')
+        ax3.set_ylabel('ADX')
     else:
         ax2.plot(df.index, df['ADX'], color='blue', linewidth=.8, label='ADX')
         ax2.axhline(y=conf['adx_trend'], color='red', linewidth=1, linestyle='-.')
