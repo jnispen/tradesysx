@@ -31,7 +31,7 @@ configured quotes file:
    moving averages, Bollinger Bands) over the data.
 4. **Generate ENTER/EXIT signals** — apply the configured entry strategy
    (`3EMA`, `SMA`, `BBRSI`, `MACD` or `DONCH`), exit strategy (`CE`, `CEE`,
-   `RSI`, `XR`, `3EMA`, `SMA`, `MACD`, `BBRSI`, `DONCH` or `TEXIT`) and stoploss method
+   `RSI`, `XR`, `3EMA`, `SMA`, `MACD`, `BBRSI`, `DONCH` or `TIME`) and stoploss method
    (`3atr`, `2atr` or `percent`) to produce entry or exit trading signals.
 5. **Generate ticker plots** — save a price/indicator plot per ticker
    (`<outdir>/plots/`), optionally with a separate technical-analysis panel
