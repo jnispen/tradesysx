@@ -25,6 +25,7 @@
     "date_int"     : 180,
     "stoploss"     : 0.92,
     "intrade_wait" : 10,
+    "exit_on_day"  : 20,
     "trading_fee"  : 0.2,
     "min_invest"   : 20,
     "max_alloc_frac": 0.25,

@@ -65,8 +65,8 @@ Stop-loss strategy. `3atr` = 3×ATR below the close, `2atr` = 2×ATR below the c
 **enter** — [`3EMA`/`SMA`/`BBRSI`/`MACD`/`DONCH`]\
 Entry strategy.
 
-**exit** — [`CE`/`CEE`/`RSI`/`XR`/`3EMA`/`SMA`/`MACD`/`BBRSI`/`DONCH`]\
-Exit strategy.
+**exit** — [`CE`/`CEE`/`RSI`/`XR`/`3EMA`/`SMA`/`MACD`/`BBRSI`/`DONCH`/`TIME`]\
+Exit strategy. `TIME` is a time-based exit that unconditionally closes the trade after `exit_on_day` days.
 
 **start** — [`date`]\
 History start date, `YYYY-MM-DD`. Data is downloaded from this date to today.
@@ -157,6 +157,9 @@ Look-back period (bars) for the Donchian entry channel — the prior-day high th
 
 **donch_exit** — [`integer`]\
 Look-back period (bars) for the Donchian exit channel — the prior-day low the close must break below to exit.
+
+**exit_on_day** — [`integer`]\
+Number of days a position is held before the `TIME` exit unconditionally closes it (counting the entry day as day 1). Only used by the `TIME` exit strategy.
 
 **montecarlo** — [`true`/`false`]\
 Run the Monte Carlo simulation step on the resulting trades.
