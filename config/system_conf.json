@@ -6,7 +6,7 @@
     "bm_ticker"    : "URTH",
     "bm_desc"      : "iShares MSCI World ETF",
     "notify"       : false,
-    "update_data"  : false,
+    "update_data"  : true,
     "process_data" : true,
     "gen_plots"    : true,
     "gen_ta_plots" : true,
