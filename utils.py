@@ -1421,12 +1421,19 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
         if row.Enter != '-':
             units, cap_invested = _get_capital_invested(row, conf, balance, total_balance, stats)
             active_trades[row.Ticker] = units
-            units_lst.append(round(units, 2))
             gain_lst.append('-')
-            abs_risk_pct = units * row.Risk if balance else 0
-            risk_pct = ((units * row.Risk) / balance) * 100 if balance else 0
-            abs_risk_lst.append(round(abs_risk_pct, 2))
-            risk_lst.append(round(risk_pct, 2))
+            if units == 0:
+                # trade not taken (below min_invest or balance too low) - blank the
+                # units/risk so this dead row is excluded from the risk averages
+                units_lst.append('-')
+                abs_risk_lst.append('-')
+                risk_lst.append('-')
+            else:
+                units_lst.append(round(units, 2))
+                abs_risk_pct = units * row.Risk if balance else 0
+                risk_pct = ((units * row.Risk) / balance) * 100 if balance else 0
+                abs_risk_lst.append(round(abs_risk_pct, 2))
+                risk_lst.append(round(risk_pct, 2))
 
         if row.Exit != '-':
             units = active_trades[row.Ticker]
@@ -1435,7 +1442,8 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
             cap_invested = -(units * row.Exit - exit_fee)
             #logger.debug(f"Trading fee (exit ): {exit_fee:.2f} ({row.Ticker})")
             active_trades[row.Ticker] = 0
-            gain_lst.append(round(tot_profit, 2))
+            # units == 0 means the paired entry was never taken - blank its gain too
+            gain_lst.append(round(tot_profit, 2) if units != 0 else '-')
             units_lst.append('-')
             abs_risk_lst.append('-')
             risk_lst.append('-')
@@ -1961,7 +1969,10 @@ def _get_capital_invested(row, conf, balance, total_equity, stats):
         fee = units * row.Enter * float(conf["trading_fee"]) / 100
         cap_invested = units * row.Enter - fee
         #logger.debug(f"Trading fee (scaled down): {fee:.2f} ({row.Ticker})")
-        if units <= 0:
+        # re-apply the min_invest floor: a scale-down against a near-exhausted
+        # balance can leave a negligible position (also covers units <= 0)
+        if cap_invested < conf['min_invest']:
+            logger.warning(f"Scaled-down investment below minimum, not entering trade! ({row.Ticker})")
             units = 0
             cap_invested = 0
 
