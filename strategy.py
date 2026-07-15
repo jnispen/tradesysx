@@ -16,6 +16,8 @@ class Stoploss():
             return self._ATRStoploss(row, 3)
         elif self.conf['stloss'] == '2atr':
             return self._ATRStoploss(row, 2)
+        elif self.conf['stloss'] == 'xatr':
+            return self._ATRStoploss(row, float(self.conf['atr_factor']))
         elif self.conf['stloss'] == 'percent':
             return self._PercentageStoploss(row)
         else:

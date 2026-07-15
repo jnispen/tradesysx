@@ -49,6 +49,7 @@ class SystemStats:
     open_trades_closed: int = 0
     avg_invested: float = 0.0
     avg_balance: float = 0.0
+    avg_value: float = 0.0
     avg_risk_per: float = 0.0
     final_balance: float = 0.0
     cagr: float = 0.0

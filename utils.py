@@ -487,6 +487,7 @@ def generate_trading_table(df, ticker):
     priceout_lst = exit_rows['Exit'].round(2).tolist()
     profit_lst   = np.round(profit_arr, 2).tolist()
     rmul_lst     = exit_rows['Rmul'].round(2).tolist()
+    mae_lst      = exit_rows['MAE'].round(2).tolist()   # whole-trade MAE (ATR) at exit
     duration_lst = exit_rows['TLen'].round(0).astype(int).tolist()
     signal_lst   = exit_rows['Signal'].tolist()
     lastclose_lst = ['-'] * n_exit
@@ -518,6 +519,7 @@ def generate_trading_table(df, ticker):
         priceout_lst.append("-")
         profit_lst.append(round(last_row['Profit'], 2))
         rmul_lst.append(round((last_row['Close']-last_row['PriceIn'])/last_row['Risk'], 2))
+        mae_lst.append(round(last_row['MAE'], 2) if pd.notna(last_row['MAE']) else np.nan)
         duration_lst.append(int(round(last_row['InTrade'], 0)))
         signal_lst.append(last_row['Signal'])
         lastclose_lst.append(round(last_row['Close'], 2))
@@ -530,6 +532,7 @@ def generate_trading_table(df, ticker):
     trades_table.df['Risk']     = risk_lst
     trades_table.df['Length']   = duration_lst
     trades_table.df['Rmul']     = rmul_lst
+    trades_table.df['MAE']      = mae_lst
     trades_table.df['Profit']   = profit_lst
     trades_table.df['Signal']   = signal_lst
     trades_table.df['LastClose'] = lastclose_lst
@@ -653,6 +656,7 @@ def generate_system_stats(trades_df, trading_period, conf, ctx, stats):
     ])
 
     trades_plot(trades_lst, trades_df['Rmul30'].tolist(), stat_str, conf, ctx, stats)
+    mae_scatter_plot(trades_df, conf, ctx)
 
     return stats_df
 
@@ -688,6 +692,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             "Starting balance",
             "Open trades closed",
             "Average investment",
+            "Average value",
             "Average balance",
             "Average risk ($)",
             "Average risk (%)",
@@ -698,6 +703,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             f"{float(conf['balance']):,.2f}",
             f"{stats.open_trades_closed}",
             f"{stats.avg_invested:,.2f}",
+            f"{stats.avg_value:,.2f}",
             f"{stats.avg_balance:,.2f}",
             f"{stats.avg_risk:,.2f}",
             f"{stats.avg_risk_per:.2f}",
@@ -1044,6 +1050,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Position sizing", rp.pos_sizing_label(conf)),
         row("Open trades closed", stats.open_trades_closed),
         row("Average investment", f"${stats.avg_invested:,.0f}"),
+        row("Average equity value", f"${stats.avg_value:,.0f}"),
         row("Average cash balance", f"${stats.avg_balance:,.0f}"),
         row("Average risk", f"${stats.avg_risk:,.2f} ({stats.avg_risk_per:.2f}%)"),
         row("Final balance", f"${stats.final_balance:,.0f}"),
@@ -1417,12 +1424,19 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
         if row.Enter != '-':
             units, cap_invested = _get_capital_invested(row, conf, balance, total_balance, stats)
             active_trades[row.Ticker] = units
-            units_lst.append(round(units, 2))
             gain_lst.append('-')
-            abs_risk_pct = units * row.Risk if balance else 0
-            risk_pct = ((units * row.Risk) / balance) * 100 if balance else 0
-            abs_risk_lst.append(round(abs_risk_pct, 2))
-            risk_lst.append(round(risk_pct, 2))
+            if units == 0:
+                # trade not taken (below min_invest or balance too low) - blank the
+                # units/risk so this dead row is excluded from the risk averages
+                units_lst.append('-')
+                abs_risk_lst.append('-')
+                risk_lst.append('-')
+            else:
+                units_lst.append(round(units, 2))
+                abs_risk_pct = units * row.Risk if balance else 0
+                risk_pct = ((units * row.Risk) / balance) * 100 if balance else 0
+                abs_risk_lst.append(round(abs_risk_pct, 2))
+                risk_lst.append(round(risk_pct, 2))
 
         if row.Exit != '-':
             units = active_trades[row.Ticker]
@@ -1431,7 +1445,8 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
             cap_invested = -(units * row.Exit - exit_fee)
             #logger.debug(f"Trading fee (exit ): {exit_fee:.2f} ({row.Ticker})")
             active_trades[row.Ticker] = 0
-            gain_lst.append(round(tot_profit, 2))
+            # units == 0 means the paired entry was never taken - blank its gain too
+            gain_lst.append(round(tot_profit, 2) if units != 0 else '-')
             units_lst.append('-')
             abs_risk_lst.append('-')
             risk_lst.append('-')
@@ -1454,6 +1469,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
 
     # average balance and investment before open trade closure
     avg_balance = dframe["Balance"].mean()
+    avg_value = dframe["Value"].mean()
 
     invested_lst = dframe["Invested"].tolist()
     pos_inv_lst = [x for x in invested_lst if x > 0]
@@ -1507,12 +1523,14 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     stats.open_trades_closed = closed_open_trades
     stats.avg_invested = avg_invested
     stats.avg_balance = avg_balance
+    stats.avg_value = avg_value
     stats.avg_risk_per = avg_risk_per
     stats.final_balance = balance
     stats.cagr = cagr
 
     logger.info(f"Open trades closed: {closed_open_trades}")
     logger.info(f"Average investment: {avg_invested:,.2f}")
+    logger.info(f"Average value     : {avg_value:,.2f}")
     logger.info(f"Average balance   : {avg_balance:,.2f}")
     logger.info(f"Average risk ($)  : {avg_risk_abs:,.2f}")
     logger.info(f"Average risk (%)  : {avg_risk_per:.2f}")
@@ -1957,7 +1975,10 @@ def _get_capital_invested(row, conf, balance, total_equity, stats):
         fee = units * row.Enter * float(conf["trading_fee"]) / 100
         cap_invested = units * row.Enter - fee
         #logger.debug(f"Trading fee (scaled down): {fee:.2f} ({row.Ticker})")
-        if units <= 0:
+        # re-apply the min_invest floor: a scale-down against a near-exhausted
+        # balance can leave a negligible position (also covers units <= 0)
+        if cap_invested < conf['min_invest']:
+            logger.warning(f"Scaled-down investment below minimum, not entering trade! ({row.Ticker})")
             units = 0
             cap_invested = 0
 
@@ -2023,7 +2044,9 @@ def save_trades_table(dframe, conf, ctx):
     dframe['Enter'] = pd.to_datetime(dframe['Enter'], errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = pd.to_datetime(dframe['Exit'], format='%Y-%m-%d', errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = dframe['Exit'].where(dframe['Exit'].notna(), "-")
-    html = df_to_html(dframe)
+    # MAE is kept in the CSV for analysis but dropped from the PDF to avoid
+    # widening the printed trades table
+    html = df_to_html(dframe.drop(columns=['MAE'], errors='ignore'))
     HTML(string=html).write_pdf(ctx.outpath("trades_table.pdf"))
 
 def table_style_css(font_px: int = 10) -> str:
@@ -2289,6 +2312,12 @@ def balance_plot(df, conf, ctx):
     plt.legend(loc='upper left')
     plt.savefig(ctx.outpath("images", "balance_plot.png"), dpi=150)
     plt.close(fig)
+
+def mae_scatter_plot(trades_df, conf, ctx):
+    ''' standalone research plot: MAE (ATR) vs R-multiple per closed trade, to
+    help choose the stop distance. Not part of either report variant, so it
+    always uses the report palette. See rp.styled_mae_scatter_plot. '''
+    rp.styled_mae_scatter_plot(trades_df, conf, ctx)
 
 def trades_plot(trades_lst, Rmul30_lst, sys_stats, conf, ctx, stats):
     ''' plot trades histograms '''

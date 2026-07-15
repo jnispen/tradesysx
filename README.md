@@ -151,7 +151,7 @@ All data output is written to the output directory. The following data, plots an
 - `<outdir>/plots/` — per-ticker price charts
 - `<outdir>/plots/TA/` — next to price, includes indicator panels
 - `<outdir>/plots/TA-custom/` — generates custom TA plots (`gen_ta_custom=true`)
-- `<outdir>/images/` — system-level plots (trades distribution, balance, Monte Carlo)
+- `<outdir>/images/` — system-level plots (trades distribution, balance, Monte Carlo, MAE-vs-R scatter)
 - `<outdir>/tables/` — trades table and trades list as CSV files
 - `<outdir>/system_summary.pdf` (same filename for `report_type=short` or `full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
 
