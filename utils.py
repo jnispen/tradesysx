@@ -692,6 +692,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             "Starting balance",
             "Open trades closed",
             "Average investment",
+            "Average value",
             "Average balance",
             "Average risk ($)",
             "Average risk (%)",
@@ -702,6 +703,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             f"{float(conf['balance']):,.2f}",
             f"{stats.open_trades_closed}",
             f"{stats.avg_invested:,.2f}",
+            f"{stats.avg_value:,.2f}",
             f"{stats.avg_balance:,.2f}",
             f"{stats.avg_risk:,.2f}",
             f"{stats.avg_risk_per:.2f}",
@@ -1048,6 +1050,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Position sizing", rp.pos_sizing_label(conf)),
         row("Open trades closed", stats.open_trades_closed),
         row("Average investment", f"${stats.avg_invested:,.0f}"),
+        row("Average equity value", f"${stats.avg_value:,.0f}"),
         row("Average cash balance", f"${stats.avg_balance:,.0f}"),
         row("Average risk", f"${stats.avg_risk:,.2f} ({stats.avg_risk_per:.2f}%)"),
         row("Final balance", f"${stats.final_balance:,.0f}"),
@@ -1466,6 +1469,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
 
     # average balance and investment before open trade closure
     avg_balance = dframe["Balance"].mean()
+    avg_value = dframe["Value"].mean()
 
     invested_lst = dframe["Invested"].tolist()
     pos_inv_lst = [x for x in invested_lst if x > 0]
@@ -1519,12 +1523,14 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     stats.open_trades_closed = closed_open_trades
     stats.avg_invested = avg_invested
     stats.avg_balance = avg_balance
+    stats.avg_value = avg_value
     stats.avg_risk_per = avg_risk_per
     stats.final_balance = balance
     stats.cagr = cagr
 
     logger.info(f"Open trades closed: {closed_open_trades}")
     logger.info(f"Average investment: {avg_invested:,.2f}")
+    logger.info(f"Average value     : {avg_value:,.2f}")
     logger.info(f"Average balance   : {avg_balance:,.2f}")
     logger.info(f"Average risk ($)  : {avg_risk_abs:,.2f}")
     logger.info(f"Average risk (%)  : {avg_risk_per:.2f}")
