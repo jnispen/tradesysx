@@ -30,7 +30,7 @@
     "trading_fee"  : 0.2,
     "min_invest"   : 20,
     "max_alloc_frac": 0.25,
-    "risk_percent" : 0.02,
+    "risk_percent" : 0.01,
     "risk_amount"  : 250,
     "balance"      : 50000,
     "pos_sizing"   : "total_equity_risk",
