@@ -26,6 +26,7 @@
     "stoploss"     : 0.92,
     "atr_factor"   : 3.0,
     "intrade_wait" : 10,
+    "exit_on_day"  : 20,
     "trading_fee"  : 0.2,
     "min_invest"   : 20,
     "max_alloc_frac": 0.25,

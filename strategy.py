@@ -47,7 +47,8 @@ class TradingSignals(object):
                  "SMA": "_SMA_Exit",
                  "MACD": "_MACD_Exit",
                  "BBRSI": "_BB_RSI_Exit",
-                 "DONCH": "_DONCH_Exit"}
+                 "DONCH": "_DONCH_Exit",
+                 "TIME": "_TIME_Exit"}
 
     def __init__(self, conf):
         self.conf = conf
@@ -165,6 +166,14 @@ class TradingSignals(object):
     def _RSI_Exit(self, row, intrade):
         signal = False
         if row['RSI'] > float(self.conf['rsi_high']):
+            signal = True
+        return signal
+
+    def _TIME_Exit(self, row, intrade):
+        # time-based exit: unconditionally exit once the trade has been held
+        # for 'exit_on_day' days (intrade is 1 on the entry day)
+        signal = False
+        if intrade >= int(self.conf['exit_on_day']):
             signal = True
         return signal
 
