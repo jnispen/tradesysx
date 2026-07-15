@@ -487,6 +487,7 @@ def generate_trading_table(df, ticker):
     priceout_lst = exit_rows['Exit'].round(2).tolist()
     profit_lst   = np.round(profit_arr, 2).tolist()
     rmul_lst     = exit_rows['Rmul'].round(2).tolist()
+    mae_lst      = exit_rows['MAE'].round(2).tolist()   # whole-trade MAE (ATR) at exit
     duration_lst = exit_rows['TLen'].round(0).astype(int).tolist()
     signal_lst   = exit_rows['Signal'].tolist()
     lastclose_lst = ['-'] * n_exit
@@ -518,6 +519,7 @@ def generate_trading_table(df, ticker):
         priceout_lst.append("-")
         profit_lst.append(round(last_row['Profit'], 2))
         rmul_lst.append(round((last_row['Close']-last_row['PriceIn'])/last_row['Risk'], 2))
+        mae_lst.append(round(last_row['MAE'], 2) if pd.notna(last_row['MAE']) else np.nan)
         duration_lst.append(int(round(last_row['InTrade'], 0)))
         signal_lst.append(last_row['Signal'])
         lastclose_lst.append(round(last_row['Close'], 2))
@@ -530,6 +532,7 @@ def generate_trading_table(df, ticker):
     trades_table.df['Risk']     = risk_lst
     trades_table.df['Length']   = duration_lst
     trades_table.df['Rmul']     = rmul_lst
+    trades_table.df['MAE']      = mae_lst
     trades_table.df['Profit']   = profit_lst
     trades_table.df['Signal']   = signal_lst
     trades_table.df['LastClose'] = lastclose_lst
@@ -653,6 +656,7 @@ def generate_system_stats(trades_df, trading_period, conf, ctx, stats):
     ])
 
     trades_plot(trades_lst, trades_df['Rmul30'].tolist(), stat_str, conf, ctx, stats)
+    mae_scatter_plot(trades_df, conf, ctx)
 
     return stats_df
 
@@ -2023,7 +2027,9 @@ def save_trades_table(dframe, conf, ctx):
     dframe['Enter'] = pd.to_datetime(dframe['Enter'], errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = pd.to_datetime(dframe['Exit'], format='%Y-%m-%d', errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = dframe['Exit'].where(dframe['Exit'].notna(), "-")
-    html = df_to_html(dframe)
+    # MAE is kept in the CSV for analysis but dropped from the PDF to avoid
+    # widening the printed trades table
+    html = df_to_html(dframe.drop(columns=['MAE'], errors='ignore'))
     HTML(string=html).write_pdf(ctx.outpath("trades_table.pdf"))
 
 def table_style_css(font_px: int = 10) -> str:
@@ -2289,6 +2295,12 @@ def balance_plot(df, conf, ctx):
     plt.legend(loc='upper left')
     plt.savefig(ctx.outpath("images", "balance_plot.png"), dpi=150)
     plt.close(fig)
+
+def mae_scatter_plot(trades_df, conf, ctx):
+    ''' standalone research plot: MAE (ATR) vs R-multiple per closed trade, to
+    help choose the stop distance. Not part of either report variant, so it
+    always uses the report palette. See rp.styled_mae_scatter_plot. '''
+    rp.styled_mae_scatter_plot(trades_df, conf, ctx)
 
 def trades_plot(trades_lst, Rmul30_lst, sys_stats, conf, ctx, stats):
     ''' plot trades histograms '''

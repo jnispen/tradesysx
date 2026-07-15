@@ -88,6 +88,4 @@ jobs:
           name: system_summary-${{ matrix.name }}
           path: |
             out/system_summary.pdf
-            out/trades_table.pdf
-            out/trades_list.pdf
           if-no-files-found: warn

@@ -169,6 +169,85 @@ def styled_distribution_plot(trades_lst, ctx):
         plt.close(fig)
 
 
+def styled_mae_scatter_plot(trades_df, conf, ctx):
+    ''' scatter of each closed trade's Maximum Adverse Excursion (MAE, in ATR)
+    against its final R-multiple, wins green / losses red. A research aid for
+    choosing the stop distance: read how far winners typically dip against you
+    before recovering, versus where the losers sit. Only trustworthy when the
+    run's stop was wide enough not to truncate the MAE distribution - a stop of
+    N ATR caps every stopped-out trade's MAE near N, so run a deliberately wide
+    (percent) stop to get an uncensored picture. Saved as a standalone PNG; not
+    embedded in the summary report. '''
+
+    # completed trades only: the open trailing trade has Exit == "-" and an
+    # unrealised outcome, so it is excluded
+    closed = trades_df[trades_df['Exit'] != "-"]
+    mae = pd.to_numeric(closed['MAE'], errors='coerce')
+    rmul = pd.to_numeric(closed['Rmul'], errors='coerce')
+    ok = mae.notna() & rmul.notna()
+    mae = mae[ok].to_numpy()
+    rmul = rmul[ok].to_numpy()
+    if mae.size == 0:
+        logger.warning("MAE scatter: no closed trades with MAE data - skipping plot")
+        return
+
+    win = rmul >= 0   # breakeven counts as a winner, matching the y=0 line
+
+    with report_style():
+        fig, ax = plt.subplots(figsize=(FIG_WIDTH, 3.6))
+        ax.scatter(mae[win], rmul[win], color=POS, s=16, alpha=0.8, zorder=3,
+                   label=f'Winners ({int(win.sum())})')
+        ax.scatter(mae[~win], rmul[~win], color=NEG, s=16, alpha=0.8, zorder=3,
+                   label=f'Losers ({int((~win).sum())})')
+        ax.axhline(0, color=TEXT2, lw=0.8)
+
+        # winners' MAE percentiles: each marks the tightest stop (in ATR) that
+        # would still have kept ~that share of the winning trades - candidate
+        # stops to read against the current one. Only shown for a percent stop:
+        # the ATR stops already draw their own fixed reference line instead
+        win_mae = mae[win]
+        if conf.get('stloss') == 'percent' and win_mae.size:
+            for pct in (90, 95):
+                pv = float(np.percentile(win_mae, pct))
+                ax.axvline(pv, color=ACCENT, lw=1.0, ls='--', alpha=0.65)
+                ax.text(pv, 0.98, f"Winners P{pct}: {pv:.2f} ATR ",
+                        transform=ax.get_xaxis_transform(), rotation=90,
+                        ha='right', va='top', fontsize=8, color=ACCENT)
+
+        # vertical reference line at the active stop, but only for ATR stops:
+        # a fixed-percent stop maps to a different ATR count per trade, so a
+        # single vertical line would be meaningless - it's named in the
+        # annotation instead
+        stloss = conf.get('stloss')
+        if stloss == '3atr':
+            ax.axvline(3, color=NEUTRAL, lw=1.0, ls='--')
+            stop_label = 'Stop loss: 3 × ATR'
+        elif stloss == '2atr':
+            ax.axvline(2, color=NEUTRAL, lw=1.0, ls='--')
+            stop_label = 'Stop loss: 2 × ATR'
+        elif stloss == 'xatr':
+            factor = float(conf.get('atr_factor', 0))
+            ax.axvline(factor, color=NEUTRAL, lw=1.0, ls='--')
+            stop_label = f"Stop loss: {factor:g} × ATR"
+        elif stloss == 'percent':
+            stop_label = f"Stop loss: {float(conf.get('stoploss', 0)) * 100:.1f}%"
+        else:
+            stop_label = f"Stop loss: {stloss}"
+
+        # provenance: the plot is only interpretable against the stop that
+        # produced it (a censored 3-ATR run and an uncensored wide-percent run
+        # look alike otherwise), so name the stop on the chart
+        ax.text(0.99, 0.02, stop_label, transform=ax.transAxes,
+                ha='right', va='bottom', fontsize=9, color=TEXT2)
+
+        ax.set_xlabel('Maximum Adverse Excursion (ATR)')
+        ax.set_ylabel('R-multiple')
+        ax.set_xlim(left=0)
+        ax.legend(loc='upper right')
+        fig.savefig(ctx.outpath('images', 'mae_scatter_plot.png'))
+        plt.close(fig)
+
+
 def styled_montecarlo_plot(mc_result_df, conf, ctx, stats, risk, benchmark,
                            output_filename='monte_carlo_plot.png'):
     ''' Monte Carlo fan chart: a subset of simulated equity paths in the accent

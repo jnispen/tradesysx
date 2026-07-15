@@ -32,7 +32,7 @@ configured quotes file:
 4. **Generate ENTER/EXIT signals** — apply the configured entry strategy
    (`3EMA`, `SMA`, `BBRSI`, `MACD` or `DONCH`), exit strategy (`CE`, `CEE`,
    `RSI`, `XR`, `3EMA`, `SMA`, `MACD`, `BBRSI` or `DONCH`) and stoploss method
-   (`3atr`, `2atr` or `percent`) to produce entry or exit trading signals.
+   (`3atr`, `2atr`, `xatr` or `percent`) to produce entry or exit trading signals.
 5. **Generate ticker plots** — save a price/indicator plot per ticker
    (`<outdir>/plots/`), optionally with a separate technical-analysis panel
    (`<outdir>/plots/TA/`).
@@ -151,7 +151,7 @@ All data output is written to the output directory. The following data, plots an
 - `<outdir>/plots/` — per-ticker price charts
 - `<outdir>/plots/TA/` — next to price, includes indicator panels
 - `<outdir>/plots/TA-custom/` — generates custom TA plots (`gen_ta_custom=true`)
-- `<outdir>/images/` — system-level plots (trades distribution, balance, Monte Carlo)
+- `<outdir>/images/` — system-level plots (trades distribution, balance, Monte Carlo, MAE-vs-R scatter)
 - `<outdir>/tables/` — trades table and trades list as CSV files
 - `<outdir>/system_summary.pdf` (same filename for `report_type=short` or `full`), `trades_table.pdf` and `trades_list.pdf` — combined PDF reports
 

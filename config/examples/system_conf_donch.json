@@ -24,6 +24,7 @@
     "_interval"    : "1d",
     "date_int"     : 180,
     "stoploss"     : 0.92,
+    "atr_factor"   : 3.0,
     "intrade_wait" : 10,
     "trading_fee"  : 0.2,
     "min_invest"   : 20,
