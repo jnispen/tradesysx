@@ -54,9 +54,13 @@ _POS_SIZING_LABELS = {
 
 def pos_sizing_label(conf):
     ''' friendly name for conf['pos_sizing'], falling back to a de-underscored
-    title-case of the raw key for any method not in the map. '''
+    title-case of the raw key for any method not in the map. For the kelly
+    method the configured kelly fraction is appended between brackets. '''
     key = conf.get('pos_sizing', '')
-    return _POS_SIZING_LABELS.get(key, key.replace('_', ' ').capitalize())
+    label = _POS_SIZING_LABELS.get(key, key.replace('_', ' ').capitalize())
+    if key == 'kelly':
+        label += f" ({conf['kelly_ratio']})"
+    return label
 
 
 def _thousands(ax):
