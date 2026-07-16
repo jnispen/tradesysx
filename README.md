@@ -137,7 +137,7 @@ Cd into the directory where `tradesysx` has been cloned or extracted:
 
 ### 3.2 Running from a Docker container
 
-An alternative way to run `tradesysx` is from a Docker container. The steps involved are described in more detail in the [Docker setup guide](scripts/README.md#running-tradesysx-from-a-docker-container), or you can download a ready-made image from [Docker Hub](https://hub.docker.com/r/mooncat911/tradesysx-head).
+An alternative way to run `tradesysx` is from a Docker container. The steps involved are described in more detail in the [Docker setup guide](scripts/README.md#running-tradesysx-from-a-docker-container), or you can download a ready-made image from [Docker Hub](https://hub.docker.com/r/mooncat911/tradesysx), built and published automatically from every push to `main`.
 
 ### 3.3 Running from a single executable
 
