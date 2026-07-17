@@ -9,6 +9,7 @@ plotting block and is fully restored afterwards, leaving any classic-style
 plots generated in the same run untouched. '''
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 from cycler import cycler
 
 # ---- palette (single accent, single neutral, two semantic colours) ----
@@ -19,6 +20,13 @@ NEG = "#A32D2D"      # losses
 GRID = "#E5E3DC"     # gridlines / hairlines
 TEXT = "#2C2C2A"     # body text
 TEXT2 = "#5F5E5A"    # secondary text
+
+# Diverging ramp for signed "share" measures that run loss -> gain (e.g. the
+# fraction of its peak a trade kept). Built from the two semantic colours
+# through a paper-toned midpoint, so it stays inside the palette and keeps the
+# usual reading: red is adverse, green is favorable, pale is neutral/zero.
+DIVERGING_CMAP = LinearSegmentedColormap.from_list("pos_neg_diverging",
+                                                   [NEG, "#EFEDE6", POS])
 
 # ---- secondary palette for the per-ticker and TA charts ----
 # The per-ticker price / TA charts carry several overlay and indicator lines

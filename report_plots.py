@@ -22,11 +22,15 @@ import pandas as pd
 import talib as ta
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import matplotlib.patches as mpatches
 from matplotlib.ticker import StrMethodFormatter
+from matplotlib.offsetbox import TextArea, DrawingArea, HPacker, AnchoredOffsetbox
 
-from tradesysx.report_style import (report_style, ACCENT, NEUTRAL, POS, NEG, GRID, TEXT2,
-                                    IND_GREEN, IND_BROWN, IND_CHARCOAL, IND_GOLD,
-                                    FIG_WIDTH)
+from matplotlib.colors import TwoSlopeNorm
+
+from tradesysx.report_style import (report_style, ACCENT, NEUTRAL, POS, NEG, GRID,
+                                    TEXT, TEXT2, IND_GREEN, IND_BROWN, IND_CHARCOAL,
+                                    IND_GOLD, DIVERGING_CMAP, FIG_WIDTH)
 
 logger = logging.getLogger(__name__)
 
@@ -174,14 +178,19 @@ def styled_distribution_plot(trades_lst, ctx):
 
 
 def styled_mae_scatter_plot(trades_df, conf, ctx):
-    ''' scatter of each closed trade's Maximum Adverse Excursion (MAE, in ATR)
+    ''' scatter of each closed trade's Maximum Adverse Excursion (MAE, in R)
     against its final R-multiple, wins green / losses red. A research aid for
     choosing the stop distance: read how far winners typically dip against you
-    before recovering, versus where the losers sit. Only trustworthy when the
-    run's stop was wide enough not to truncate the MAE distribution - a stop of
-    N ATR caps every stopped-out trade's MAE near N, so run a deliberately wide
-    (percent) stop to get an uncensored picture. Saved as a standalone PNG; not
-    embedded in the summary report. '''
+    before recovering, versus where the losers sit.
+
+    MAE is censored at 1.0 R by construction, whatever the stloss method: the
+    stop always sits exactly 1R below entry (risk_oneR = entry - stoploss), so
+    a close past it exits the trade and only a gap through it can land beyond
+    1.0. Losers therefore pile up against that wall and the MAE distribution is
+    truncated - run a deliberately wide stop to get an uncensored picture.
+    Winners are unaffected: a stopped-out trade is a loser, so the winners' MAE
+    spread below 1.0 is real. Saved as a standalone PNG; not embedded in the
+    summary report. '''
 
     # completed trades only: the open trailing trade has Exit == "-" and an
     # unrealised outcome, so it is excluded
@@ -197,58 +206,199 @@ def styled_mae_scatter_plot(trades_df, conf, ctx):
 
     win = rmul >= 0   # breakeven counts as a winner, matching the y=0 line
 
+    # keep the 1 R stop band on the axis even if nothing was stopped out
+    x_max = max(float(mae.max()) * 1.08, 1.2)
+
     with report_style():
         fig, ax = plt.subplots(figsize=(FIG_WIDTH, 3.6))
+        # shade the stopped-out region (MAE > 1 R), matching the MFE/MAE scatter
+        ax.axvspan(1.0, x_max, color=GRID, alpha=0.45, lw=0, zorder=0)
         ax.scatter(mae[win], rmul[win], color=POS, s=16, alpha=0.8, zorder=3,
                    label=f'Winners ({int(win.sum())})')
         ax.scatter(mae[~win], rmul[~win], color=NEG, s=16, alpha=0.8, zorder=3,
                    label=f'Losers ({int((~win).sum())})')
         ax.axhline(0, color=TEXT2, lw=0.8)
 
-        # winners' MAE percentiles: each marks the tightest stop (in ATR) that
-        # would still have kept ~that share of the winning trades - candidate
-        # stops to read against the current one. Only shown for a percent stop:
-        # the ATR stops already draw their own fixed reference line instead
+        # winners' MAE 90th percentile: marks the tightest stop (in R) that
+        # would still have kept ~90% of the winning trades - a candidate stop to
+        # read directly against the 1.0 R line. Meaningful for every stloss
+        # method in R (in ATR it only was for a percent stop, since the ATR
+        # stops drew their own fixed line instead)
         win_mae = mae[win]
-        if conf.get('stloss') == 'percent' and win_mae.size:
-            for pct in (90, 95):
-                pv = float(np.percentile(win_mae, pct))
-                ax.axvline(pv, color=ACCENT, lw=1.0, ls='--', alpha=0.65)
-                ax.text(pv, 0.98, f"Winners P{pct}: {pv:.2f} ATR ",
-                        transform=ax.get_xaxis_transform(), rotation=90,
-                        ha='right', va='top', fontsize=8, color=ACCENT)
+        if win_mae.size:
+            pv = float(np.percentile(win_mae, 90))
+            ax.axvline(pv, color=ACCENT, lw=1.0, ls='--', alpha=0.65)
+            ax.text(pv, 0.98, f"Winners P90: {pv:.2f} R ",
+                    transform=ax.get_xaxis_transform(), rotation=90,
+                    ha='right', va='top', fontsize=8, color=ACCENT)
 
-        # vertical reference line at the active stop, but only for ATR stops:
-        # a fixed-percent stop maps to a different ATR count per trade, so a
-        # single vertical line would be meaningless - it's named in the
-        # annotation instead
+        # the stop is exactly 1R below entry however stloss computed it, so one
+        # reference line serves every method - and it doubles as the censoring
+        # wall the losers bunch against
+        ax.axvline(1.0, color=NEUTRAL, lw=1.0, ls='--')
+
         stloss = conf.get('stloss')
-        if stloss == '3atr':
-            ax.axvline(3, color=NEUTRAL, lw=1.0, ls='--')
-            stop_label = 'Stop loss: 3 × ATR'
-        elif stloss == '2atr':
-            ax.axvline(2, color=NEUTRAL, lw=1.0, ls='--')
-            stop_label = 'Stop loss: 2 × ATR'
+        if stloss in ('3atr', '2atr'):
+            stop_label = f"Stoploss: {stloss[0]} × ATR  (= 1R)"
         elif stloss == 'xatr':
-            factor = float(conf.get('atr_factor', 0))
-            ax.axvline(factor, color=NEUTRAL, lw=1.0, ls='--')
-            stop_label = f"Stop loss: {factor:g} × ATR"
+            stop_label = f"Stoploss: {float(conf.get('atr_factor', 0)):g} × ATR  (= 1R)"
         elif stloss == 'percent':
-            stop_label = f"Stop loss: {float(conf.get('stoploss', 0)) * 100:.1f}%"
+            stop_label = f"Stoploss: {float(conf.get('stoploss', 0)) * 100:.1f}%  (= 1R)"
         else:
-            stop_label = f"Stop loss: {stloss}"
+            stop_label = f"Stoploss: {stloss}  (= 1R)"
 
         # provenance: the plot is only interpretable against the stop that
-        # produced it (a censored 3-ATR run and an uncensored wide-percent run
-        # look alike otherwise), so name the stop on the chart
+        # produced it (a censored tight run and an uncensored wide one look
+        # alike otherwise), so name the stop on the chart
         ax.text(0.99, 0.02, stop_label, transform=ax.transAxes,
                 ha='right', va='bottom', fontsize=9, color=TEXT2)
 
-        ax.set_xlabel('Maximum Adverse Excursion (ATR)')
+        ax.set_title('Maximum Adverse Excursion vs. R-multiple',
+                     loc='center', fontsize=10, pad=14)
+        ax.set_xlabel('MAE (R)')
         ax.set_ylabel('R-multiple')
-        ax.set_xlim(left=0)
+        ax.set_xlim(-0.02, x_max)
+        # extra headroom below the lowest trade so the stop-loss label in the
+        # bottom corner always clears the data points
+        y_lo, y_hi = float(rmul.min()), float(rmul.max())
+        span = max(y_hi - y_lo, 1.0)
+        ax.set_ylim(y_lo - 0.20 * span, y_hi + 0.05 * span)
         ax.legend(loc='upper right')
         fig.savefig(ctx.outpath('images', 'mae_scatter_plot.png'))
+        plt.close(fig)
+
+
+# Below this peak a trade had nothing worth keeping, and the kept fraction
+# (Rmul / MFE) stops meaning anything: a -1 R stop-out off a 0.05 R peak scores
+# -2000%. Those trades are drawn hollow instead of being given a colour that
+# would only be ratio noise.
+_MIN_PEAK_R = 0.25
+
+
+def styled_mfe_mae_scatter_plot(trades_df, conf, ctx):
+    ''' scatter of each closed trade's two excursions: how far it ran against
+    you (MAE, x) against how far it ran for you (MFE, y), both in R, coloured by
+    how much of that peak the exit actually kept (Rmul / MFE).
+
+    The colour is the point of the chart. Position alone is largely
+    definitional - a winner has MFE >= Rmul > 0 so it is forced up the y axis,
+    and every trade past MAE = 1 R was stopped out (the stop sits exactly 1 R
+    below entry, whatever the stloss method) so it is a loser by construction;
+    the shaded band marks that structural region. What is *not* structural is
+    how pale the points are: a trade that peaked at 10 R and closed at 1 R sits
+    in the same place as one that closed at 9 R, and only the colour separates
+    them. Read the pale and red points at high MFE - those ran well into profit
+    and handed it back, which is an exit problem, not an entry one.
+
+    The ramp is clipped at +/-100%: past "gave it all back" the exact negative
+    multiple carries nothing and would wash out the rest of the scale. Trades
+    peaking below _MIN_PEAK_R are drawn hollow (see above).
+
+    MFE is heavy-tailed, so the y axis is symlog: linear below 1 R, logarithmic
+    above. A percent stop in particular makes 1 R a small fixed fraction of
+    price, so a long trend can reach 100R+ while the median trade sits near 1 R
+    - a linear axis would squash the whole distribution flat to fit the few
+    trades that carry the system. The linear stretch below 1 R keeps trades that
+    never moved favorably plotted honestly at 0 instead of dropping out as
+    log(0). Saved as a standalone PNG; not embedded in the summary report. '''
+
+    # completed trades only: the open trailing trade has Exit == "-" and an
+    # unrealised outcome, so it is excluded
+    closed = trades_df[trades_df['Exit'] != "-"]
+    mae = pd.to_numeric(closed['MAE'], errors='coerce')
+    mfe = pd.to_numeric(closed['MFE'], errors='coerce')
+    rmul = pd.to_numeric(closed['Rmul'], errors='coerce')
+    ok = mae.notna() & mfe.notna() & rmul.notna()
+    mae = mae[ok].to_numpy()
+    mfe = mfe[ok].to_numpy()
+    rmul = rmul[ok].to_numpy()
+    if mae.size == 0:
+        logger.warning("MFE/MAE scatter: no closed trades with excursion data - skipping plot")
+        return
+
+    win = rmul >= 0   # same convention as styled_mae_scatter_plot, so the two agree
+    has_peak = mfe > _MIN_PEAK_R
+    kept = np.full(mfe.shape, np.nan)
+    kept[has_peak] = np.clip(rmul[has_peak] / mfe[has_peak], -1.0, 1.0)
+
+    win_kept = kept[has_peak & win]
+    med_kept = float(np.median(win_kept)) if win_kept.size else np.nan
+
+    # the stop band always begins at 1 R, so keep it on the axis even in a run
+    # where nothing was stopped out
+    x_max = max(float(mae.max()) * 1.08, 1.2)
+    y_max = max(float(mfe.max()) * 1.6, 2.0)
+
+    with report_style():
+        fig, ax = plt.subplots(figsize=(FIG_WIDTH, 4.4))
+
+        ax.axvspan(1.0, x_max, color=GRID, alpha=0.45, lw=0, zorder=0)
+        ax.axvline(1.0, color=NEUTRAL, lw=1.1, ls='--', zorder=2)
+        ax.axhline(1.0, color=GRID, lw=0.9, zorder=1)
+
+        sc = ax.scatter(mae[has_peak], mfe[has_peak], c=kept[has_peak],
+                        cmap=DIVERGING_CMAP, norm=TwoSlopeNorm(vmin=-1, vcenter=0, vmax=1),
+                        s=34, alpha=0.95, zorder=3, edgecolors='white', linewidths=0.4)
+        if (~has_peak).any():
+            ax.scatter(mae[~has_peak], mfe[~has_peak], facecolors='none',
+                       edgecolors=TEXT2, s=24, lw=0.7, alpha=0.6, zorder=3)
+
+        ax.set_yscale('symlog', linthresh=1.0, linscale=0.7)
+        # 0 and 1 anchor the linear stretch, then one tick per decade of tail
+        decades = [10 ** k for k in range(1, int(np.log10(max(y_max, 10))) + 1)]
+        ax.set_yticks([0, 1] + decades)
+        ax.yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+        ax.set_ylim(-0.15, y_max)
+        ax.set_xlim(-0.08, x_max)
+
+        # name the shaded region inside its own top corner. Not guaranteed empty
+        # - a trade can peak high and still be stopped out later - but in
+        # practice stop-outs cluster low, so this is the safest spot for it
+        ax.text(1.05, 0.96, 'stop fired  (MAE > 1 R)',
+                transform=ax.get_xaxis_transform(), ha='left', va='top',
+                fontsize=8, color=TEXT2)
+
+        ax.set_xlabel('MAE (R)')
+        ax.set_ylabel('MFE (R)')
+
+        ax.set_title("Maximum Adverse Excursion vs. Maximum Favorable Excursion",
+                     loc='center', fontsize=10, pad=14)
+
+        # win/loss tally and the winners' median capture (ER = share of the peak
+        # kept at exit) below the axes: the low-MFE trades run along the bottom
+        # of the plot, so there is no in-axes corner wide enough for it. Packed
+        # with HPacker so the win/loss colour dots sit inline with the text (a
+        # single text artist cannot colour individual glyphs)
+        med_str = f"{med_kept:.0%}" if np.isfinite(med_kept) else "n/a"
+        tp = dict(color=TEXT2, fontsize=8)
+
+        def _dot(color, rad=3):
+            da = DrawingArea(2 * rad, 2 * rad, 0, 0)
+            da.add_artist(mpatches.Circle((rad, rad), rad, color=color))
+            return da
+
+        row = HPacker(align='center', pad=0, sep=3, children=[
+            _dot(POS), TextArea(f"Winners ({int(win.sum())})", textprops=tp),
+            _dot(NEG), TextArea(f"Losers ({int((~win).sum())})", textprops=tp),
+            TextArea(f"-   Efficiency Ratio: {med_str}", textprops=tp),
+        ])
+        # anchor below the x-axis label (tick labels + 'MAE (R)' sit above -0.18)
+        ax.add_artist(AnchoredOffsetbox(loc='upper left', child=row, pad=0,
+                                        borderpad=0, frameon=False,
+                                        bbox_to_anchor=(0.0, -0.20),
+                                        bbox_transform=ax.transAxes))
+
+        cb = fig.colorbar(sc, ax=ax, pad=0.02, ticks=[-1, -0.5, 0, 0.5, 1])
+        cb.ax.set_yticklabels(['≤ −100%', '−50%', '0%', '50%', '100%'], fontsize=7)
+        cb.set_label('Efficiency Ratio (ER)', fontsize=8, labelpad=-4)
+        cb.outline.set_visible(False)
+        cb.ax.tick_params(length=0)
+
+        # winners' median capture marked on the very scale that encodes it
+        if np.isfinite(med_kept):
+            cb.ax.axhline(med_kept, color=TEXT, lw=1.4)
+
+        fig.savefig(ctx.outpath('images', 'mfe_mae_scatter_plot.png'))
         plt.close(fig)
 
 
