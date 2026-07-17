@@ -253,8 +253,8 @@ def styled_mae_scatter_plot(trades_df, conf, ctx):
         ax.text(0.99, 0.02, stop_label, transform=ax.transAxes,
                 ha='right', va='bottom', fontsize=9, color=TEXT2)
 
-        ax.set_title('Maximum Adverse Excursion vs. R-multiple',
-                     loc='center', fontsize=10, pad=14)
+        # no in-figure title: the report gives each scatter a styled heading, so
+        # a baked-in matplotlib title would just duplicate it
         ax.set_xlabel('MAE (R)')
         ax.set_ylabel('R-multiple')
         ax.set_xlim(-0.02, x_max)
@@ -361,8 +361,8 @@ def styled_mfe_mae_scatter_plot(trades_df, conf, ctx):
         ax.set_xlabel('MAE (R)')
         ax.set_ylabel('MFE (R)')
 
-        ax.set_title("Maximum Adverse Excursion vs. Maximum Favorable Excursion",
-                     loc='center', fontsize=10, pad=14)
+        # no in-figure title: the report gives each scatter a styled heading, so
+        # a baked-in matplotlib title would just duplicate it
 
         # win/loss tally and the winners' median capture (ER = share of the peak
         # kept at exit) below the axes: the low-MFE trades run along the bottom

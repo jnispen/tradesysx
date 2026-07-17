@@ -1112,6 +1112,28 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     img_bars = _data_uri(ctx.outpath('images', 'system_trades_plot.png'))
     img_dist = _data_uri(ctx.outpath('images', 'system_trades_dist_plot.png'))
     img_mc = _data_uri(ctx.outpath('images', 'monte_carlo_plot.png'))
+    img_mae_r = _data_uri(ctx.outpath('images', 'mae_scatter_plot.png'))
+    img_mfe_mae = _data_uri(ctx.outpath('images', 'mfe_mae_scatter_plot.png'))
+
+    # ---- appendix: MFE/MAE research scatters (generated in generate_system_stats,
+    # so both PNGs already exist by report time; each is included only if present)
+    mfe_mae_figs = ""
+    if img_mae_r:
+        mfe_mae_figs += (f'<h3>Maximum Adverse Excursion (MAE) vs. R-multiple</h3>'
+                         f'<figure><img src="{img_mae_r}" alt="MAE vs R-multiple per trade">'
+                         f'<figcaption>Each closed trade\'s Maximum Adverse Excursion (how far '
+                         f'it ran against you, in R) versus its realised R-multiple. The shaded '
+                         f'band (MAE &gt; 1 R) is the stopped-out region.</figcaption></figure>')
+    if img_mfe_mae:
+        mfe_mae_figs += (f'<h3>Maximum Adverse Excursion (MAE) vs. Maximum Favorable Excursion (MFE)</h3>'
+                         f'<figure><img src="{img_mfe_mae}" alt="MFE vs MAE per trade">'
+                         f'<figcaption>MFE (how far each trade ran for you) against MAE, both in R, '
+                         f'coloured by the share of the peak kept at exit (the efficiency '
+                         f'ratio).</figcaption></figure>')
+    # one .keep block so the heading and both scatters stay on a single page
+    # (no forced page break before the section, and none between the plots)
+    mfe_mae_section = (f'<div class="keep mfemae"><h2>Appendix &mdash; MFE/MAE plots</h2>'
+                       f'{mfe_mae_figs}</div>' if mfe_mae_figs else "")
 
     mc_section = ""
     if conf.get('montecarlo', True) and img_mc:
@@ -1230,6 +1252,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     .headtext .sub {{ margin: 0; }}
     h2 {{ font-size: 14px; font-weight: 600; margin: 26px 0 11px; padding-bottom: 6px;
         border-bottom: 1px solid {GRID}; letter-spacing: 0.02em; }}
+    h3 {{ font-size: 12px; font-weight: 600; color: {TEXT}; margin: 14px 0 4px;
+        letter-spacing: 0.02em; }}
     p {{ margin: 0 0 8px; }}
     .sub {{ color: {TEXT2}; font-size: 12.5px; }}
     .brandrule {{ height: 3px; width: 52px; background: {ACCENT}; border-radius: 2px; margin: 12px 0; }}
@@ -1271,6 +1295,11 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     figure {{ margin: 6px 0; }}
     figure img {{ width: 100%; }}
     figcaption, .cap {{ font-size: 10.5px; color: {TEXT2}; margin-top: 3px; }}
+    /* keep a block together on one page (no internal page break) */
+    .keep {{ break-inside: avoid; }}
+    /* the MFE/MAE research scatters, sized so both fit one page together */
+    .mfemae figure {{ margin: 2px 0 30px; }}
+    .mfemae figure img {{ width: 92%; display: block; margin: 0 auto; }}
 
     table {{ border-collapse: collapse; width: 100%; font-size: 12px; }}
     .statgrid table {{ display: inline-table; width: 48.5%; margin-right: 2%; vertical-align: top; }}
@@ -1352,6 +1381,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     {quotes_html}
     <h2>Appendix &mdash; configuration</h2>
     {conf_html}
+    {mfe_mae_section}
     """
 
     if full:
