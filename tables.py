@@ -8,4 +8,4 @@ class TotalTradesList:
 
 class TradesTable:
     def __init__(self):
-        self.df = pd.DataFrame(columns=['Enter','Exit','Ticker','PriceIn','PriceOut','Risk','Length','Profit','Rmul','MAE','Rmul30','Signal','LastClose'])
+        self.df = pd.DataFrame(columns=['Enter','Exit','Ticker','PriceIn','PriceOut','Risk','Length','Profit','Rmul','MAE','MFE','Rmul30','Signal','LastClose'])
