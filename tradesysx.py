@@ -28,7 +28,7 @@ def update_quotes(conf, ctx):
     total_trades_table = TradesTable()
     total_trades_list = TotalTradesList()
     stats = SystemStats()
-    telegram_df = pd.DataFrame(columns=['Ticker', 'Close', 'Signal','STLoss'])
+    telegram_df = pd.DataFrame(columns=['Ticker', 'Close', 'Signal','STLoss', 'SLMoved'])
     last_close_date = pd.Timestamp("1900-01-01")
     first_close_date = None
 
@@ -120,7 +120,7 @@ def update_quotes(conf, ctx):
             trades_list_frames.append(trade_list.df)
 
             # add ticker and signals to daily msg
-            cols = ['Close', 'Signal','STLoss']
+            cols = ['Close', 'Signal','STLoss', 'SLMoved']
             last_rec = dft[cols].tail(1).copy()
             last_rec['Ticker'] = ticker
             telegram_frames.append(last_rec)
@@ -205,7 +205,7 @@ def update_quotes(conf, ctx):
         logger.info('==== [8/8] Sending Telegram notification ====')
         telegram_df = telegram_df.sort_values(by='Ticker', ascending=True)
         telegram_df = telegram_df.reset_index(drop=True)
-        telegram_df = telegram_df[['Ticker', 'Close', 'STLoss', 'Signal']]
+        telegram_df = telegram_df[['Ticker', 'Close', 'STLoss', 'SLMoved', 'Signal']]
         logger.debug(telegram_df.to_string(index=False))
 
         asyncio.run(ut.bot_signal_update(ctx, last_close_date, telegram_df))
