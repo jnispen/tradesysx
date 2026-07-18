@@ -67,9 +67,9 @@ class TradingSignals(object):
 
     def _3_EMA_Enter(self, row):
         signal = False
-        if row['Close'] > row['EMA20']  and  \
-           row['EMA20'] > row['EMA50']  and  \
-           row['EMA50'] > row['EMA100'] and  \
+        if row['Close'] > row['EMAfast']  and  \
+           row['EMAfast'] > row['EMAmid'] and  \
+           row['EMAmid'] > row['EMAslow'] and  \
            row['P_DI']  > row['M_DI']   and  \
            row['ADX']   > float(self.conf['adx_trend']):
             signal = True
@@ -102,9 +102,9 @@ class TradingSignals(object):
 
     def _3_EMA_Exit(self, row, intrade):
         signal = False
-        if row['Close'] < row['EMA20']  and \
-           row['EMA20'] < row['EMA50']  and \
-           row['EMA50'] < row['EMA100'] and \
+        if row['Close'] < row['EMAfast']  and \
+           row['EMAfast'] < row['EMAmid'] and \
+           row['EMAmid'] < row['EMAslow'] and \
            row['M_DI']  > row['P_DI']   and \
            row['ADX']   > float(self.conf['adx_trend']):
             signal = True

@@ -78,7 +78,8 @@ overlays, picked from three tiers:
 - **Fixed** — the close price, ENTER/EXIT markers and trade annotations are
   always shown;
 - **Strategy** — an indicator set is shown automatically when it
-  matches the configured `enter` strategy: EMA20/50/100 for `3EMA`, the
+  matches the configured `enter` strategy: the fast/mid/slow EMA triplet for
+  `3EMA` (20/50/100 by default), the
   fast/slow SMA pair for `SMA`, Bollinger Bands for `BBRSI`, the Donchian
   channel for `DONCH`. For the Chandelier
   Exit level, the levels are shown, based on the `exit` strategy (`CE` or `CEE`).

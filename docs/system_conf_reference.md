@@ -146,6 +146,15 @@ Period of the fast SMA (used by the `SMA` strategy).
 **sma_slow** — [`integer`]\
 Period of the slow SMA (used by the `SMA` strategy).
 
+**ema_fast** — [`integer`]\
+Period of the fast EMA (used by the `3EMA` strategy), default `20`.
+
+**ema_mid** — [`integer`]\
+Period of the middle EMA (used by the `3EMA` strategy), default `50`.
+
+**ema_slow** — [`integer`]\
+Period of the slow EMA (used by the `3EMA` strategy), default `100`.
+
 **macd_fast** — [`integer`]\
 Fast EMA period for MACD (used by the `MACD` strategy).
 

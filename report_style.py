@@ -30,15 +30,15 @@ DIVERGING_CMAP = LinearSegmentedColormap.from_list("pos_neg_diverging",
 
 # ---- secondary palette for the per-ticker and TA charts ----
 # The per-ticker price / TA charts carry several overlay and indicator lines
-# (EMA20/50/100, SMA fast/slow, Chandelier exits, RSI/MACD/ADX/DI panels) that
+# (EMA fast/mid/slow, SMA fast/slow, Chandelier exits, RSI/MACD/ADX/DI panels) that
 # must stay distinguishable - more series than the strict 4-colour report
 # palette above allows. These keep the classic charts' distinct green / brown /
 # black moving-average hues (spread across the hue wheel and in value so the
 # lines separate clearly to the eye), lightly refined to sit with the report
 # look; the accent-purple Close line stays the dominant series.
-IND_GREEN = "#1F9E5A"     # fast MA (EMA20 / SMA fast)
-IND_BROWN = "#A5652B"     # mid MA  (EMA50 / SMA slow)
-IND_CHARCOAL = "#454545"  # slow MA (EMA100)
+IND_GREEN = "#1F9E5A"     # fast MA (EMA fast / SMA fast)
+IND_BROWN = "#A5652B"     # mid MA  (EMA mid / SMA slow)
+IND_CHARCOAL = "#454545"  # slow MA (EMA slow)
 IND_GOLD = "#C8952F"      # SMA225 regime line / MACD signal
 
 # rcParams baseline shared by every styled chart
