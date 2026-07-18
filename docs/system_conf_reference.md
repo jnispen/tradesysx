@@ -62,6 +62,12 @@ Selects the look of `out/system_summary.pdf`. `classic` is the original report; 
 **stloss** — [`3atr`/`2atr`/`xatr`/`percent`]\
 Stop-loss strategy. `3atr` = 3×ATR below the close, `2atr` = 2×ATR below the close, `xatr` = `atr_factor`×ATR below the close (see `atr_factor`), `percent` = stoploss set as a percentage below the entry price (see `stoploss`).
 
+**stloss_ladder** — [`true`/`false`]\
+Ratchets the stop up as the trade runs, locking in profit (see `ladder_levels`). Only applies to the `3EMA`, `SMA`, `MACD` and `DONCH` exits — the other exits already protect profit themselves. Defaults to `false` when absent.
+
+**ladder_levels** — [`list of [trigger_R, lock_R] pairs`]\
+Ladder rungs used when `stloss_ladder` is `true`. Once MFE reaches `trigger_R`, the stop moves to `lock_R` above the entry price (e.g. `[[1.0, 0.0], [2.0, 1.0]]` = break-even at 1R, then lock 1R at 2R). The stop only ever moves up.
+
 **enter** — [`3EMA`/`SMA`/`BBRSI`/`MACD`/`DONCH`]\
 Entry strategy.
 
