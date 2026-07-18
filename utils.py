@@ -222,6 +222,13 @@ def validate_strategy_conf(conf):
         logger.critical("The Exit strategy '{}' does not exist! Valid options: {}".format(conf['exit'], sorted(TradingSignals.exit_str)))
         sys.exit(1)
 
+    # the moving-average periods must be ordered fast < slow, otherwise the
+    # SMA/3EMA crossover conditions can never line up as intended
+    if conf['sma_fast'] >= conf['sma_slow']:
+        logger.warning(f"sma_fast ({conf['sma_fast']}) should be smaller than sma_slow ({conf['sma_slow']}) - the SMA strategy may not signal as intended")
+    if not conf['ema_fast'] < conf['ema_mid'] < conf['ema_slow']:
+        logger.warning(f"ema_fast/ema_mid/ema_slow ({conf['ema_fast']}/{conf['ema_mid']}/{conf['ema_slow']}) should be in ascending order - the 3EMA strategy may not signal as intended")
+
 def add_technical_indicators(dframe, conf):
     ''' adds technical indicators as columns to the dataframe '''
     
@@ -234,10 +241,10 @@ def add_technical_indicators(dframe, conf):
     # Bear/Bull indcator (stock above = Bull, Stock below = Bear)
     dframe['SMA225'] = ta.SMA(dframe['Close'], timeperiod=225)
 
-    # Triple Moving Average (3EMA) 20 50 100
-    dframe['EMA20'] = ta.EMA(dframe['Close'], timeperiod=20)
-    dframe['EMA50'] = ta.EMA(dframe['Close'], timeperiod=50)
-    dframe['EMA100'] = ta.EMA(dframe['Close'], timeperiod=100)
+    # Triple Moving Average (3EMA) (default 20 50 100)
+    dframe['EMAfast'] = ta.EMA(dframe['Close'], timeperiod=conf['ema_fast'])
+    dframe['EMAmid'] = ta.EMA(dframe['Close'], timeperiod=conf['ema_mid'])
+    dframe['EMAslow'] = ta.EMA(dframe['Close'], timeperiod=conf['ema_slow'])
 
     # Moving Average Convergence Devergence (MACD)
     dframe['MACD'], dframe['MACDsig'], dframe['MACDhist'] = ta.MACD(dframe['Close'], fastperiod=conf['macd_fast'], slowperiod=conf['macd_slow'], signalperiod=conf['macd_signal'])
@@ -1125,7 +1132,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
                          f'it ran against you, in R) versus its realised R-multiple. The shaded '
                          f'band (MAE &gt; 1 R) is the stopped-out region.</figcaption></figure>')
     if img_mfe_mae:
-        mfe_mae_figs += (f'<h3>MFE vs. MAE vs. Efficiency Ratio</h3>'
+        mfe_mae_figs += (f'<h3>MFE vs. MAE and Efficiency Ratio</h3>'
                          f'<figure><img src="{img_mfe_mae}" alt="MFE vs MAE per trade">'
                          f'<figcaption>MFE (how far each trade ran for you) against MAE, both in R, '
                          f'coloured by the share of the peak kept at exit (the efficiency '
@@ -1471,6 +1478,13 @@ def compute_position_size(conf, balance, total_equity, stats):
         logger.critical(f"The position sizing strategy [{conf['pos_sizing']}] does not exist!")
         sys.exit(1)
 
+def risk_basis(conf, balance, total_equity):
+    ''' returns the capital base the position size was computed against, so the
+    risk percentage per trade is expressed relative to the same capital that
+    compute_position_size used (total equity for total_equity_risk, the cash
+    balance for every other sizing method). '''
+    return total_equity if conf["pos_sizing"] == "total_equity_risk" else balance
+
 def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, stats):
     ''' simulates the virtual account balance for the trades list '''
 
@@ -1511,9 +1525,10 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
                 risk_lst.append('-')
             else:
                 units_lst.append(round(units, 2))
-                abs_risk_pct = units * row.Risk if balance else 0
-                risk_pct = ((units * row.Risk) / balance) * 100 if balance else 0
-                abs_risk_lst.append(round(abs_risk_pct, 2))
+                risk_base = risk_basis(conf, balance, total_balance)
+                abs_risk = units * row.Risk if risk_base else 0
+                risk_pct = (abs_risk / risk_base) * 100 if risk_base else 0
+                abs_risk_lst.append(round(abs_risk, 2))
                 risk_lst.append(round(risk_pct, 2))
 
         if row.Exit != '-':
@@ -2514,9 +2529,9 @@ def _plot_price_overlays(ax, df, conf):
         ax.fill_between(df.index, df['DONdn'], df['DONup'], color='grey', alpha=.05)
 
     if conf['enter'] == '3EMA':
-        ax.plot(df.index, df['EMA20'], color='green', linewidth=.5, label='EMA20')
-        ax.plot(df.index, df['EMA50'], color='brown', linewidth=.5, label='EMA50')
-        ax.plot(df.index, df['EMA100'], color='black', linewidth=.5, label='EMA100')
+        ax.plot(df.index, df['EMAfast'], color='green', linewidth=.5, label=f"EMA{conf['ema_fast']}")
+        ax.plot(df.index, df['EMAmid'], color='brown', linewidth=.5, label=f"EMA{conf['ema_mid']}")
+        ax.plot(df.index, df['EMAslow'], color='black', linewidth=.5, label=f"EMA{conf['ema_slow']}")
 
     if conf['enter'] == 'SMA':
         ax.plot(df.index, df['SMAfast'], color='green', linewidth=.5, label=f"SMA{conf['sma_fast']}")

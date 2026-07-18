@@ -524,9 +524,9 @@ def _styled_price_overlays(ax, df, conf):
         ax.fill_between(df.index, df['DONdn'], df['DONup'], color=GRID, alpha=.45)
 
     if conf['enter'] == '3EMA':
-        ax.plot(df.index, df['EMA20'], color=IND_GREEN, linewidth=1.1, label='EMA20')
-        ax.plot(df.index, df['EMA50'], color=IND_BROWN, linewidth=1.1, label='EMA50')
-        ax.plot(df.index, df['EMA100'], color=IND_CHARCOAL, linewidth=1.1, label='EMA100')
+        ax.plot(df.index, df['EMAfast'], color=IND_GREEN, linewidth=1.1, label=f"EMA{conf['ema_fast']}")
+        ax.plot(df.index, df['EMAmid'], color=IND_BROWN, linewidth=1.1, label=f"EMA{conf['ema_mid']}")
+        ax.plot(df.index, df['EMAslow'], color=IND_CHARCOAL, linewidth=1.1, label=f"EMA{conf['ema_slow']}")
 
     if conf['enter'] == 'SMA':
         ax.plot(df.index, df['SMAfast'], color=IND_GREEN, linewidth=1.1, label=f"SMA{conf['sma_fast']}")
