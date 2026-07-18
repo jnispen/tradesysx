@@ -1115,24 +1115,23 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     img_mae_r = _data_uri(ctx.outpath('images', 'mae_scatter_plot.png'))
     img_mfe_mae = _data_uri(ctx.outpath('images', 'mfe_mae_scatter_plot.png'))
 
-    # ---- appendix: MFE/MAE research scatters (generated in generate_system_stats,
+    # ---- appendix: MFE/MAE scatters (generated in generate_system_stats,
     # so both PNGs already exist by report time; each is included only if present)
     mfe_mae_figs = ""
     if img_mae_r:
-        mfe_mae_figs += (f'<h3>Maximum Adverse Excursion (MAE) vs. R-multiple</h3>'
+        mfe_mae_figs += (f'<h3>R-multiple vs. MAE</h3>'
                          f'<figure><img src="{img_mae_r}" alt="MAE vs R-multiple per trade">'
-                         f'<figcaption>Each closed trade\'s Maximum Adverse Excursion (how far '
+                         f'<figcaption>Each closed trade\'s MAE (how far '
                          f'it ran against you, in R) versus its realised R-multiple. The shaded '
                          f'band (MAE &gt; 1 R) is the stopped-out region.</figcaption></figure>')
     if img_mfe_mae:
-        mfe_mae_figs += (f'<h3>Maximum Adverse Excursion (MAE) vs. Maximum Favorable Excursion (MFE)</h3>'
+        mfe_mae_figs += (f'<h3>MFE vs. MAE vs. Efficiency Ratio</h3>'
                          f'<figure><img src="{img_mfe_mae}" alt="MFE vs MAE per trade">'
                          f'<figcaption>MFE (how far each trade ran for you) against MAE, both in R, '
                          f'coloured by the share of the peak kept at exit (the efficiency '
                          f'ratio).</figcaption></figure>')
     # one .keep block so the heading and both scatters stay on a single page
-    # (no forced page break before the section, and none between the plots)
-    mfe_mae_section = (f'<div class="keep mfemae"><h2>Appendix &mdash; MFE/MAE plots</h2>'
+    mfe_mae_section = (f'<div class="keep mfemae"><h2>Appendix &mdash; MFE and MAE scatterplots</h2>'
                        f'{mfe_mae_figs}</div>' if mfe_mae_figs else "")
 
     mc_section = ""
@@ -1297,7 +1296,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     figcaption, .cap {{ font-size: 10.5px; color: {TEXT2}; margin-top: 3px; }}
     /* keep a block together on one page (no internal page break) */
     .keep {{ break-inside: avoid; }}
-    /* the MFE/MAE research scatters, sized so both fit one page together */
+    /* the MFE/MAE scatters, sized so both fit one page together */
     .mfemae figure {{ margin: 2px 0 30px; }}
     .mfemae figure img {{ width: 92%; display: block; margin: 0 auto; }}
 
@@ -2349,13 +2348,13 @@ def balance_plot(df, conf, ctx):
     plt.close(fig)
 
 def mae_scatter_plot(trades_df, conf, ctx):
-    ''' standalone research plot: MAE (R) vs R-multiple per closed trade, to
+    ''' standalone plot: MAE (R) vs R-multiple per closed trade, to
     help choose the stop distance. Not part of either report variant, so it
     always uses the report palette. See rp.styled_mae_scatter_plot. '''
     rp.styled_mae_scatter_plot(trades_df, conf, ctx)
 
 def mfe_mae_scatter_plot(trades_df, conf, ctx):
-    ''' standalone research plot: MFE vs MAE per closed trade, both in R, to
+    ''' standalone plot: MFE vs MAE per closed trade, both in R, to
     show how much of each trade's favorable run was actually kept. Not part of
     either report variant, so it always uses the report palette. See
     rp.styled_mfe_mae_scatter_plot. '''

@@ -189,8 +189,7 @@ def styled_mae_scatter_plot(trades_df, conf, ctx):
     1.0. Losers therefore pile up against that wall and the MAE distribution is
     truncated - run a deliberately wide stop to get an uncensored picture.
     Winners are unaffected: a stopped-out trade is a loser, so the winners' MAE
-    spread below 1.0 is real. Saved as a standalone PNG; not embedded in the
-    summary report. '''
+    spread below 1.0 is real. '''
 
     # completed trades only: the open trailing trade has Exit == "-" and an
     # unrealised outcome, so it is excluded
@@ -219,16 +218,16 @@ def styled_mae_scatter_plot(trades_df, conf, ctx):
                    label=f'Losers ({int((~win).sum())})')
         ax.axhline(0, color=TEXT2, lw=0.8)
 
-        # winners' MAE 90th percentile: marks the tightest stop (in R) that
-        # would still have kept ~90% of the winning trades - a candidate stop to
+        # winners' MAE 95th percentile: marks the tightest stop (in R) that
+        # would still have kept ~95% of the winning trades - a candidate stop to
         # read directly against the 1.0 R line. Meaningful for every stloss
         # method in R (in ATR it only was for a percent stop, since the ATR
         # stops drew their own fixed line instead)
         win_mae = mae[win]
         if win_mae.size:
-            pv = float(np.percentile(win_mae, 90))
+            pv = float(np.percentile(win_mae, 95))
             ax.axvline(pv, color=ACCENT, lw=1.0, ls='--', alpha=0.65)
-            ax.text(pv, 0.98, f"Winners P90: {pv:.2f} R ",
+            ax.text(pv, 0.98, f"Winners P95: {pv:.2f}R ",
                     transform=ax.get_xaxis_transform(), rotation=90,
                     ha='right', va='top', fontsize=8, color=ACCENT)
 
@@ -239,13 +238,13 @@ def styled_mae_scatter_plot(trades_df, conf, ctx):
 
         stloss = conf.get('stloss')
         if stloss in ('3atr', '2atr'):
-            stop_label = f"Stoploss: {stloss[0]} × ATR  (= 1R)"
+            stop_label = f"Stoploss: {stloss[0]}×ATR (=1R)"
         elif stloss == 'xatr':
-            stop_label = f"Stoploss: {float(conf.get('atr_factor', 0)):g} × ATR  (= 1R)"
+            stop_label = f"Stoploss: {float(conf.get('atr_factor', 0)):g}×ATR (=1R)"
         elif stloss == 'percent':
-            stop_label = f"Stoploss: {float(conf.get('stoploss', 0)) * 100:.1f}%  (= 1R)"
+            stop_label = f"Stoploss: {float(conf.get('stoploss', 0)) * 100:.1f}% (=1R)"
         else:
-            stop_label = f"Stoploss: {stloss}  (= 1R)"
+            stop_label = f"Stoploss: {stloss} (=1R)"
 
         # provenance: the plot is only interpretable against the stop that
         # produced it (a censored tight run and an uncensored wide one look
@@ -255,7 +254,7 @@ def styled_mae_scatter_plot(trades_df, conf, ctx):
 
         # no in-figure title: the report gives each scatter a styled heading, so
         # a baked-in matplotlib title would just duplicate it
-        ax.set_xlabel('MAE (R)')
+        ax.set_xlabel('Maximum Adverse Excursion (R)')
         ax.set_ylabel('R-multiple')
         ax.set_xlim(-0.02, x_max)
         # extra headroom below the lowest trade so the stop-loss label in the
@@ -300,7 +299,7 @@ def styled_mfe_mae_scatter_plot(trades_df, conf, ctx):
     - a linear axis would squash the whole distribution flat to fit the few
     trades that carry the system. The linear stretch below 1 R keeps trades that
     never moved favorably plotted honestly at 0 instead of dropping out as
-    log(0). Saved as a standalone PNG; not embedded in the summary report. '''
+    log(0). '''
 
     # completed trades only: the open trailing trade has Exit == "-" and an
     # unrealised outcome, so it is excluded
@@ -358,8 +357,8 @@ def styled_mfe_mae_scatter_plot(trades_df, conf, ctx):
                 transform=ax.get_xaxis_transform(), ha='left', va='top',
                 fontsize=8, color=TEXT2)
 
-        ax.set_xlabel('MAE (R)')
-        ax.set_ylabel('MFE (R)')
+        ax.set_xlabel('Maximum Adverse Excursion (R)')
+        ax.set_ylabel('Maximum Favorable Excursion (R)')
 
         # no in-figure title: the report gives each scatter a styled heading, so
         # a baked-in matplotlib title would just duplicate it
