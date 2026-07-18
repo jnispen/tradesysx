@@ -1131,13 +1131,14 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
                          f'coloured by the share of the peak kept at exit (the efficiency '
                          f'ratio).</figcaption></figure>')
     # one .keep block so the heading and both scatters stay on a single page
-    mfe_mae_section = (f'<div class="keep mfemae"><h2>Appendix &mdash; MFE and MAE scatterplots</h2>'
+    mfe_mae_title = "Appendix &mdash; MFE and MAE scatterplots"
+    mfe_mae_section = (f'<div class="keep mfemae"><h2 id="sec-mfemae">{mfe_mae_title}</h2>'
                        f'{mfe_mae_figs}</div>' if mfe_mae_figs else "")
 
     mc_section = ""
     if conf.get('montecarlo', True) and img_mc:
         mc_section = f"""
-        <h2>Monte Carlo simulation</h2>
+        <h2 id="sec-montecarlo">Monte Carlo simulation</h2>
         <p>Resampling the realised R-multiples over {conf.get('iterations', 0):,} randomised
         trade sequences estimates the spread of outcomes the system could produce from the
         same edge in a different order. Each simulated run is a sequence of complete, closed
@@ -1178,8 +1179,9 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
                       f"<td class='num'>{val_out:,.2f}</td></tr>"
                       f"<tr class='tot'><td colspan='6' class='num'>CAGR</td><td class='num'>{cagr_cell}</td></tr>")
             quotefile = os.path.basename(conf.get('quotefile', ''))
+            bm_detail_title = f"Benchmark &mdash; buy-and-hold basket ({quotefile})"
             benchmark_detail = f"""
-            <h2 class="pbreak">Benchmark &mdash; buy-and-hold basket ({quotefile})</h2>
+            <h2 id="sec-benchmark-detail" class="pbreak">{bm_detail_title}</h2>
             <table class="wide"><thead><tr>
               <th class="num">#</th><th>Ticker</th>
               <th class="num">Buy<span class="subd">{buy_d}</span></th>
@@ -1199,8 +1201,9 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
             bm_figure = (f"""<figure style="margin-bottom:26px"><img src="{img_bm}" alt="{bm_ticker} benchmark close price">
             <figcaption>{_bm_head} close price over the holding period, the buy-and-hold
             benchmark reference.</figcaption></figure>""" if img_bm else "")
+            bm_detail_title = f"Benchmark &mdash; buy-and-hold ({_bm_head})"
             benchmark_detail = f"""
-            <h2 class="pbreak">Benchmark &mdash; buy-and-hold ({_bm_head})</h2>
+            <h2 id="sec-benchmark-detail" class="pbreak">{bm_detail_title}</h2>
             {bm_figure}
             <table class="wide"><thead><tr>
               <th>Ticker</th><th class="num">Buy<span class="subd">{buy_d}</span></th>
@@ -1227,6 +1230,34 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     conf_items = [(k, ", ".join(v) if isinstance(v, list) else v) for k, v in conf.items()]
     conf_html = two_col(conf_items, "Key", "Value")
     quotes_html = two_col(list(quotes.items()), "Ticker", "Description")
+
+    # ---- table of contents ----
+    # (anchor id, title) in body order, skipping the sections that are switched
+    # off for this run. Page numbers are filled in by WeasyPrint at render time
+    # via target-counter(), so they stay correct however the content paginates.
+    # the executive summary is always the front page, directly above this table,
+    # so it isn't listed
+    toc_entries = []
+    if benchmark_bars:
+        toc_entries.append(("sec-benchmark", "Strategy vs benchmark"))
+    toc_entries += [("sec-account", "Account performance"),
+                    ("sec-trades", "Trade statistics"),
+                    ("sec-distribution", "Trade distribution")]
+    if mc_section:
+        toc_entries.append(("sec-montecarlo", "Monte Carlo simulation"))
+    if benchmark_detail:
+        toc_entries.append(("sec-benchmark-detail", bm_detail_title))
+    toc_entries += [("sec-quotes", "Appendix &mdash; quotes list"),
+                    ("sec-config", "Appendix &mdash; configuration")]
+    if mfe_mae_section:
+        toc_entries.append(("sec-mfemae", mfe_mae_title))
+    if full:
+        toc_entries.append(("sec-tickers", "Ticker plots"))
+
+    toc_html = ("<table class='toc'><tbody>" + "".join(
+        f"<tr><td><a href='#{anchor}'>{title}</a></td>"
+        f"<td class='pg'><a class='pg' href='#{anchor}'></a></td></tr>"
+        for anchor, title in toc_entries) + "</tbody></table>")
 
     # ---- assemble ----
     css = f"""
@@ -1319,6 +1350,15 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     table.appendix {{ display: inline-table; width: 49%; vertical-align: top; }}
     table.appendix:first-of-type {{ margin-right: 1.5%; }}
 
+    /* table of contents - page numbers are resolved by WeasyPrint from the
+       link target, so they follow the real pagination */
+    table.toc {{ margin: 2px 0 4px; }}
+    table.toc td {{ padding: 6px 0; border-bottom: 1px dotted {GRID}; }}
+    table.toc td.pg {{ width: 3em; text-align: right; color: {TEXT2}; }}
+    table.toc a {{ color: {TEXT}; text-decoration: none; }}
+    table.toc a.pg {{ color: {TEXT2}; }}
+    table.toc a.pg::after {{ content: target-counter(attr(href), page); }}
+
     .pbreak {{ page-break-before: always; }}
     """
 
@@ -1348,9 +1388,13 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     <h2>Executive summary</h2>
     <div class="kpis">{kpi_html}</div>
-    {f'<h2>Strategy vs benchmark</h2>{benchmark_bars}' if benchmark_bars else ''}
 
-    <h2>Account performance</h2>
+    <h2>Contents</h2>
+    {toc_html}
+
+    {f'<h2 id="sec-benchmark" class="pbreak">Strategy vs benchmark</h2>{benchmark_bars}' if benchmark_bars else ''}
+
+    <h2 id="sec-account"{'' if benchmark_bars else ' class="pbreak"'}>Account performance</h2>
     <figure><img src="{img_equity}" alt="Account value over time">
     <figcaption>Simulated account value (equity curve) against the buy-and-hold benchmark (dashed).</figcaption></figure>
     <div class="statgrid" style="margin-top:1.2em">
@@ -1358,14 +1402,14 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
       <table><tbody></tbody></table>
     </div>
 
-    <h2 class="pbreak">Trade statistics</h2>
+    <h2 id="sec-trades" class="pbreak">Trade statistics</h2>
     <div class="statgrid">
       <table><tbody>{stats_left}</tbody></table>
       <table><tbody>{stats_right}</tbody></table>
     </div>
     {trades_table_html}
 
-    <h2>Trade distribution</h2>
+    <h2 id="sec-distribution">Trade distribution</h2>
     <figure><img src="{img_bars}" alt="R-multiple of each trade in sequence">
     <figcaption>R-multiple of each trade in sequence (wins green, losses red) with the
     30-trade rolling average.</figcaption></figure>
@@ -1376,9 +1420,9 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     {benchmark_detail}
 
-    <h2 class="pbreak">Appendix &mdash; quotes list</h2>
+    <h2 id="sec-quotes" class="pbreak">Appendix &mdash; quotes list</h2>
     {quotes_html}
-    <h2>Appendix &mdash; configuration</h2>
+    <h2 id="sec-config">Appendix &mdash; configuration</h2>
     {conf_html}
     {mfe_mae_section}
     """
@@ -1388,7 +1432,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
             f'<img src="{_data_uri(ctx.outpath("plots", f"{ticker}_plot.png"))}" style="width:100%">'
             for ticker in quotes
         )
-        body += f'<h2 class="pbreak">Ticker plots</h2>{rows}'
+        body += f'<h2 id="sec-tickers" class="pbreak">Ticker plots</h2>{rows}'
 
     html_content = f"<html><head><meta charset=\"utf-8\"><style>{css}</style></head><body>{body}</body></html>"
 
