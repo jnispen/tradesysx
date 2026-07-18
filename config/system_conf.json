@@ -16,6 +16,8 @@
     "report_type"  : "short",
     "report_style" : "styled",
     "stloss"       : "3atr",
+    "stloss_ladder" : false,
+    "ladder_levels" : [[1.0, 0.0], [2.0, 1.0]],
     "enter"        : "3EMA",
     "exit"         : "3EMA",
     "start"        : "2020-01-01",

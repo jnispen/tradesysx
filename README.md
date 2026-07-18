@@ -32,7 +32,9 @@ configured quotes file:
 4. **Generate ENTER/EXIT signals** — apply the configured entry strategy
    (`3EMA`, `SMA`, `BBRSI`, `MACD` or `DONCH`), exit strategy (`CE`, `CEE`,
    `RSI`, `XR`, `3EMA`, `SMA`, `MACD`, `BBRSI`, `DONCH` or `TIME`) and stoploss method
-   (`3atr`, `2atr` or `percent`) to produce entry or exit trading signals.
+   (`3atr`, `2atr`, `xatr` or `percent`) to produce entry or exit trading signals.
+   Optionally (`stloss_ladder`), the stop is ratcheted up as a trade runs, locking in
+   profit once the trade reaches the R-multiples configured in `ladder_levels`.
 5. **Generate ticker plots** — save a price/indicator plot per ticker
    (`<outdir>/plots/`), optionally with a separate technical-analysis panel
    (`<outdir>/plots/TA/`).
@@ -208,7 +210,7 @@ The Monte Carlo simulator can also be configured and run in standalone mode. In 
 
 #### Telegram notification (*Optional*)
 
-After running the pipeline, a notification can be sent to a Telegram bot. This option is configured by setting `notify=true` in the `config/system_conf.json` file. The current notification includes the close price of all tickers, as well as the stoploss price and the current signal (currently **IN** a trade ⚪, currently **NOT IN** a trade ⚫, **ENTER** 🟢, **EXIT** 🔵, or **STOPLOSS** 🔴). The update also sends a system summary report in PDF format. An example of this is shown in the screenshot below.
+After running the pipeline, a notification can be sent to a Telegram bot. This option is configured by setting `notify=true` in the `config/system_conf.json` file. The current notification includes the close price of all tickers, as well as the stoploss price and the current signal (currently **IN** a trade ⚪, currently **NOT IN** a trade ⚫, **ENTER** 🟢, **EXIT** 🔵, or **STOPLOSS** 🔴). When the stoploss ladder raises a stop, the new stoploss price is marked 🔼 on the day it moves, and a separate alert is sent. The update also sends a system summary report in PDF format. An example of this is shown in the screenshot below.
 
 <p align="center">
   <img src="docs/examples/telegram.png" alt="Telegram notification" width="270" height="400">

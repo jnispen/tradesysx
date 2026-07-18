@@ -36,6 +36,7 @@ from tradesysx.strategy import Stoploss, TradingSignals
 from tradesysx.tables import TotalTradesList, TradesTable
 from tradesysx.context import RunContext, SystemStats
 from tradesysx import report_plots as rp
+from tradesysx import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,9 @@ async def bot_signal_update(ctx, lastclose, telegram_df):
             emoji = '⚫'  # black circle = not in a trade
         else:
             emoji = '⚪'  # white circle = in a trade, no signal today
-        line = f"{emoji} <b>{row['Ticker']}</b> — Close {row['Close']:.2f} (SL {row['STLoss']:.2f})"
+        # a stop raised by the ladder today needs moving at the broker, so mark it
+        sl_mark = '\U0001F53C ' if row.get('SLMoved', 0) > 0 else ''
+        line = f"{emoji} <b>{row['Ticker']}</b> — Close {row['Close']:.2f} (SL {sl_mark}{row['STLoss']:.2f})"
         lines.append(line)
 
     msg = f"<b>{lastclose_str}</b>\n=============\n" + "\n".join(lines)
@@ -82,7 +85,10 @@ async def bot_signal_alert(ctx, lastclose, telegram_df):
         'STOPLOSS': '\U0001F534',  # red circle
     }
 
-    signal_rows = telegram_df[telegram_df['Signal'].isin(signal_emoji)]
+    # a ladder-raised stop is actionable too (the resting stop order has to be
+    # moved), so it alerts alongside the ENTER/EXIT/STOPLOSS signals
+    sl_moved = telegram_df.get('SLMoved', pd.Series(0.0, index=telegram_df.index)) > 0
+    signal_rows = telegram_df[telegram_df['Signal'].isin(signal_emoji) | sl_moved]
     if signal_rows.empty:
         return
 
@@ -91,8 +97,11 @@ async def bot_signal_alert(ctx, lastclose, telegram_df):
 
     lines = []
     for _, row in signal_rows.iterrows():
-        emoji = signal_emoji.get(row['Signal'], '⚪')
-        lines.append(f"{emoji} <b>{row['Ticker']}</b> {row['Signal']} @ {row['Close']:.2f}")
+        if row['Signal'] in signal_emoji:
+            lines.append(f"{signal_emoji[row['Signal']]} <b>{row['Ticker']}</b> "
+                         f"{row['Signal']} @ {row['Close']:.2f}")
+        else:
+            lines.append(f"\U0001F53C <b>{row['Ticker']}</b> SL RAISED to {row['STLoss']:.2f}")
 
     msg = f"\U0001F514 <b>Signal Alert</b>\n" + "\n".join(lines)
     logger.info("Telegram alert:\n%s", _plain(msg))
@@ -340,6 +349,7 @@ def add_trading_signals(df, conf):
     # strategy classes
     signals = TradingSignals(conf)
     stloss  = Stoploss(conf)
+    ladder_on = stloss.ladder_enabled()
 
     intrade     = 0
     stoploss    = 0.0
@@ -367,6 +377,7 @@ def add_trading_signals(df, conf):
     eratio_lst  = [np.nan] * n   # MFE/MAE
     intrade_lst = [0] * n
     stloss_lst  = [0.0] * n
+    slmoved_lst = [0.0] * n   # amount the ladder raised the stop by, per day
     pricein_lst = [0.0] * n
     profit_lst  = [0.0] * n
     risk_lst    = [0.0] * n
@@ -394,6 +405,18 @@ def add_trading_signals(df, conf):
                 mae_lst[i] = mae
                 mfe_lst[i] = mfe
                 eratio_lst[i] = mfe / mae if mae != 0 else np.nan
+
+                # ratchet the stop up to the highest ladder level MFE has
+                # reached. Applied before the exit check below, so a close that
+                # fades back through a locked level stops out on the same bar.
+                # SLMoved records the size of the raise on the day it happens
+                # (0.0 otherwise) so live trades can be flagged in the daily
+                # Telegram update -- a raised stop has to be moved at the broker.
+                if ladder_on:
+                    new_stoploss = stloss.get_ladder_stoploss(entry_price, risk_oneR, mfe, stoploss)
+                    if new_stoploss > stoploss:
+                        slmoved_lst[i] = new_stoploss - stoploss
+                        stoploss = new_stoploss
             else:
                 mae_lst[i] = mfe_lst[i] = eratio_lst[i] = np.nan
 
@@ -458,6 +481,7 @@ def add_trading_signals(df, conf):
     df["ERatio"] = eratio_lst
     df['InTrade'] = intrade_lst
     df['STLoss']  = stloss_lst
+    df['SLMoved'] = slmoved_lst
     df['PriceIn'] = pricein_lst
     df['Profit']  = profit_lst
     df['Risk']    = risk_lst
@@ -672,6 +696,16 @@ def generate_system_stats(trades_df, trading_period, conf, ctx, stats):
 
     return stats_df
 
+def fmt_conf_value(v):
+    ''' render a config value for the report's config table: lists become
+    comma-separated values, nested lists (e.g. ladder_levels) become bracketed
+    groups, so [[1, 0], [2, 1]] reads "[1, 0], [2, 1]". '''
+
+    if isinstance(v, list):
+        return ", ".join(f"[{fmt_conf_value(i)}]" if isinstance(i, list)
+                         else str(i) for i in v)
+    return v
+
 def _multi_column_table(items, columns, n_cols):
     ''' lay `items` (a list of row-tuples) out as `n_cols` side-by-side
     repetitions of `columns`, so a long list reads wide and short instead
@@ -725,8 +759,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
     }
     balance_html = pd.DataFrame(balance_data).to_html(border=0, index=False, classes="summary-table")
 
-    conf_values = [", ".join(v) if isinstance(v, list) else v for v in conf.values()]
-    conf_items = list(zip(conf.keys(), conf_values))
+    conf_items = [(k, fmt_conf_value(v)) for k, v in conf.items()]
     conf_table = _multi_column_table(conf_items, ["Key", "Value"], n_cols=2)
     conf_html = conf_table.to_html(border=0, index=False, classes="full-table")
 
@@ -1234,7 +1267,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
                 f"<table class='appendix'><thead><tr><th>{k_hdr}</th><th>{v_hdr}</th></tr></thead>"
                 f"<tbody>{body(items[half:])}</tbody></table>")
 
-    conf_items = [(k, ", ".join(v) if isinstance(v, list) else v) for k, v in conf.items()]
+    conf_items = [(k, fmt_conf_value(v)) for k, v in conf.items()]
     conf_html = two_col(conf_items, "Key", "Value")
     quotes_html = two_col(list(quotes.items()), "Ticker", "Description")
 
@@ -1242,12 +1275,9 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     # (anchor id, title) in body order, skipping the sections that are switched
     # off for this run. Page numbers are filled in by WeasyPrint at render time
     # via target-counter(), so they stay correct however the content paginates.
-    # the executive summary is always the front page, directly above this table,
-    # so it isn't listed
-    toc_entries = []
-    if benchmark_bars:
-        toc_entries.append(("sec-benchmark", "Strategy vs benchmark"))
-    toc_entries += [("sec-account", "Account performance"),
+    # the executive summary and the strategy-vs-benchmark section together make
+    # up the front page, directly above this table, so neither is listed
+    toc_entries = [("sec-account", "Account performance"),
                     ("sec-trades", "Trade statistics"),
                     ("sec-distribution", "Trade distribution")]
     if mc_section:
@@ -1271,7 +1301,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     @page {{
         size: A4 portrait; margin: 16mm 14mm 18mm 14mm;
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-        @bottom-left {{ content: "TradeSysX \\2022 system summary";
+        @bottom-left {{ content: "TradeSysX (v{__version__}) \\2022  system summary";
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8px; color: {TEXT2}; }}
         @bottom-center {{ content: "Page " counter(page) " of " counter(pages);
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8px; color: {TEXT2}; }}
@@ -1396,12 +1426,12 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     <h2>Executive summary</h2>
     <div class="kpis">{kpi_html}</div>
 
+    {f'<h2 id="sec-benchmark">Strategy vs benchmark</h2>{benchmark_bars}' if benchmark_bars else ''}
+
     <h2>Contents</h2>
     {toc_html}
 
-    {f'<h2 id="sec-benchmark" class="pbreak">Strategy vs benchmark</h2>{benchmark_bars}' if benchmark_bars else ''}
-
-    <h2 id="sec-account"{'' if benchmark_bars else ' class="pbreak"'}>Account performance</h2>
+    <h2 id="sec-account" class="pbreak">Account performance</h2>
     <figure><img src="{img_equity}" alt="Account value over time">
     <figcaption>Simulated account value (equity curve) against the buy-and-hold benchmark (dashed).</figcaption></figure>
     <div class="statgrid" style="margin-top:1.2em">
