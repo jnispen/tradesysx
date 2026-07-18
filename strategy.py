@@ -8,8 +8,32 @@ logger = logging.getLogger(__name__)
 
 class Stoploss():
     ''' STOPLOSS strategy '''
+
+    # the stoploss ladder only applies to exit strategies that have no profit
+    # protection of their own; CE/CEE/XR/RSI/BBRSI/TIME already trail or exit
+    # on an R-threshold, so laddering there would just race their own logic
+    ladder_exits = ("3EMA", "SMA", "MACD", "DONCH")
+
     def __init__(self, conf):
         self.conf = conf
+
+    def ladder_enabled(self):
+        return bool(self.conf.get('stloss_ladder', False)) and \
+               self.conf['exit'] in self.ladder_exits
+
+    def get_ladder_stoploss(self, entry_price, risk_oneR, mfe, stoploss):
+        ''' ratchet the stoploss up as the trade runs: each ['ladder_levels']
+        entry is a [trigger_R, lock_R] pair, meaning "once MFE reaches
+        trigger_R, lock in lock_R". Returns the highest level triggered so far,
+        never below the current stoploss, so the stop only ever moves up. '''
+        lock_R = None
+        for trigger, lock in self.conf.get('ladder_levels', []):
+            if mfe >= float(trigger):
+                lock_R = float(lock) if lock_R is None else max(lock_R, float(lock))
+
+        if lock_R is None:
+            return stoploss
+        return max(stoploss, entry_price + lock_R * risk_oneR)
 
     def get_stoploss(self, row):
         if self.conf['stloss'] == '3atr':

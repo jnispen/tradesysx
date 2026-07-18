@@ -36,6 +36,7 @@ from tradesysx.strategy import Stoploss, TradingSignals
 from tradesysx.tables import TotalTradesList, TradesTable
 from tradesysx.context import RunContext, SystemStats
 from tradesysx import report_plots as rp
+from tradesysx import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -340,6 +341,7 @@ def add_trading_signals(df, conf):
     # strategy classes
     signals = TradingSignals(conf)
     stloss  = Stoploss(conf)
+    ladder_on = stloss.ladder_enabled()
 
     intrade     = 0
     stoploss    = 0.0
@@ -394,6 +396,12 @@ def add_trading_signals(df, conf):
                 mae_lst[i] = mae
                 mfe_lst[i] = mfe
                 eratio_lst[i] = mfe / mae if mae != 0 else np.nan
+
+                # ratchet the stop up to the highest ladder level MFE has
+                # reached. Applied before the exit check below, so a close that
+                # fades back through a locked level stops out on the same bar.
+                if ladder_on:
+                    stoploss = stloss.get_ladder_stoploss(entry_price, risk_oneR, mfe, stoploss)
             else:
                 mae_lst[i] = mfe_lst[i] = eratio_lst[i] = np.nan
 
@@ -672,6 +680,16 @@ def generate_system_stats(trades_df, trading_period, conf, ctx, stats):
 
     return stats_df
 
+def fmt_conf_value(v):
+    ''' render a config value for the report's config table: lists become
+    comma-separated values, nested lists (e.g. ladder_levels) become bracketed
+    groups, so [[1, 0], [2, 1]] reads "[1, 0], [2, 1]". '''
+
+    if isinstance(v, list):
+        return ", ".join(f"[{fmt_conf_value(i)}]" if isinstance(i, list)
+                         else str(i) for i in v)
+    return v
+
 def _multi_column_table(items, columns, n_cols):
     ''' lay `items` (a list of row-tuples) out as `n_cols` side-by-side
     repetitions of `columns`, so a long list reads wide and short instead
@@ -725,8 +743,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
     }
     balance_html = pd.DataFrame(balance_data).to_html(border=0, index=False, classes="summary-table")
 
-    conf_values = [", ".join(v) if isinstance(v, list) else v for v in conf.values()]
-    conf_items = list(zip(conf.keys(), conf_values))
+    conf_items = [(k, fmt_conf_value(v)) for k, v in conf.items()]
     conf_table = _multi_column_table(conf_items, ["Key", "Value"], n_cols=2)
     conf_html = conf_table.to_html(border=0, index=False, classes="full-table")
 
@@ -1234,7 +1251,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
                 f"<table class='appendix'><thead><tr><th>{k_hdr}</th><th>{v_hdr}</th></tr></thead>"
                 f"<tbody>{body(items[half:])}</tbody></table>")
 
-    conf_items = [(k, ", ".join(v) if isinstance(v, list) else v) for k, v in conf.items()]
+    conf_items = [(k, fmt_conf_value(v)) for k, v in conf.items()]
     conf_html = two_col(conf_items, "Key", "Value")
     quotes_html = two_col(list(quotes.items()), "Ticker", "Description")
 
@@ -1271,7 +1288,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     @page {{
         size: A4 portrait; margin: 16mm 14mm 18mm 14mm;
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-        @bottom-left {{ content: "TradeSysX \\2022 system summary";
+        @bottom-left {{ content: "TradeSysX (v{__version__}) \\2022  system summary";
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8px; color: {TEXT2}; }}
         @bottom-center {{ content: "Page " counter(page) " of " counter(pages);
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8px; color: {TEXT2}; }}
