@@ -1223,14 +1223,17 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
                          f'coloured by the share of the peak kept at exit (the efficiency '
                          f'ratio).</figcaption></figure>')
     # one .keep block so the heading and both scatters stay on a single page
-    mfe_mae_title = "Appendix &mdash; MFE and MAE scatterplots"
+    mfe_mae_title = "Appendix &mdash; scatterplots"
     mfe_mae_section = (f'<div class="keep mfemae"><h2 id="sec-mfemae">{mfe_mae_title}</h2>'
                        f'{mfe_mae_figs}</div>' if mfe_mae_figs else "")
 
     mc_section = ""
     if conf.get('montecarlo', True) and img_mc:
+        # in a short report the preceding sections no longer fill their pages, so
+        # start the simulation on a clean page rather than let it trail a part-full one
+        mc_pbreak = '' if full else ' class="pbreak"'
         mc_section = f"""
-        <h2 id="sec-montecarlo">Monte Carlo simulation</h2>
+        <h2 id="sec-montecarlo"{mc_pbreak}>Monte Carlo simulation</h2>
         <p>Resampling the realised R-multiples over {conf.get('iterations', 0):,} randomised
         trade sequences estimates the spread of outcomes the system could produce from the
         same edge in a different order. Each simulated run is a sequence of complete, closed
@@ -1324,6 +1327,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     quotes_html = two_col(list(quotes.items()), "Ticker", "Description")
 
     # ---- table of contents ----
+    # only worth a page of its own in the full report - the short one has few
+    # enough sections to navigate without it.
     # (anchor id, title) in body order, skipping the sections that are switched
     # off for this run. Page numbers are filled in by WeasyPrint at render time
     # via target-counter(), so they stay correct however the content paginates.
@@ -1341,12 +1346,17 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     if mfe_mae_section:
         toc_entries.append(("sec-mfemae", mfe_mae_title))
     if full:
-        toc_entries.append(("sec-tickers", "Ticker plots"))
+        toc_entries.append(("sec-tickers", "Appendix &mdash; ticker plots"))
 
     toc_html = ("<table class='toc'><tbody>" + "".join(
         f"<tr><td><a href='#{anchor}'>{title}</a></td>"
         f"<td class='pg'><a class='pg' href='#{anchor}'></a></td></tr>"
-        for anchor, title in toc_entries) + "</tbody></table>")
+        for anchor, title in toc_entries) + "</tbody></table>") if full else ''
+
+    # in a short report the trade statistics follow the account performance table
+    # on the same page - there is room for both, and with the equity curve moved
+    # up to the front page a forced break would leave page 2 nearly empty
+    trades_pbreak = ' class="pbreak"' if full else ''
 
     # ---- assemble ----
     css = f"""
@@ -1419,6 +1429,12 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     /* the MFE/MAE scatters, sized so both fit one page together */
     .mfemae figure {{ margin: 2px 0 30px; }}
     .mfemae figure img {{ width: 92%; display: block; margin: 0 auto; }}
+    /* the equity curve shares the front page with the summary and benchmark
+       sections - at 92% it fits with ~14pt to spare, where full width overruns
+       the page by a few points and pushes the whole figure to page 2 */
+    .equityfig {{ page-break-inside: avoid; }}
+    .equityfig img {{ width: 92%; display: block; margin: 0 auto; }}
+    .nosplit {{ page-break-inside: avoid; }}
 
     table {{ border-collapse: collapse; width: 100%; font-size: 12px; }}
     .statgrid table {{ display: inline-table; width: 48.5%; margin-right: 2%; vertical-align: top; }}
@@ -1480,18 +1496,17 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     {f'<h2 id="sec-benchmark">Strategy vs benchmark</h2>{benchmark_bars}' if benchmark_bars else ''}
 
-    <h2>Contents</h2>
-    {toc_html}
+    {f'<h2>Contents</h2>{toc_html}' if toc_html else ''}
 
-    <h2 id="sec-account" class="pbreak">Account performance</h2>
-    <figure><img src="{img_equity}" alt="Account value over time">
+    <h2 id="sec-account">Account performance</h2>
+    <figure class="equityfig"><img src="{img_equity}" alt="Account value over time">
     <figcaption>Simulated account value (equity curve) against the buy-and-hold benchmark (dashed).</figcaption></figure>
-    <div class="statgrid" style="margin-top:1.2em">
+    <div class="statgrid nosplit" style="margin-top:1.2em">
       <table><tbody>{sim_rows}</tbody></table>
       <table><tbody></tbody></table>
     </div>
 
-    <h2 id="sec-trades" class="pbreak">Trade statistics</h2>
+    <h2 id="sec-trades"{trades_pbreak}>Trade statistics</h2>
     <div class="statgrid">
       <table><tbody>{stats_left}</tbody></table>
       <table><tbody>{stats_right}</tbody></table>
@@ -1521,7 +1536,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
             f'<img src="{_data_uri(ctx.outpath("plots", f"{ticker}_plot.png"))}" style="width:100%">'
             for ticker in quotes
         )
-        body += f'<h2 id="sec-tickers" class="pbreak">Ticker plots</h2>{rows}'
+        body += f'<h2 id="sec-tickers" class="pbreak">Appendix &mdash; ticker plots</h2>{rows}'
 
     html_content = f"<html><head><meta charset=\"utf-8\"><style>{css}</style></head><body>{body}</body></html>"
 
