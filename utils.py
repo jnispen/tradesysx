@@ -160,6 +160,58 @@ def get_history_data(ticker, period=None, start=None, end=None, interval='1d'):
 
     return raw_df
 
+def data_range_spec(conf):
+    ''' the subset of the configuration that determines which data is downloaded '''
+    return {
+        "start"   : conf.get("start"),
+        "end"     : conf.get("end"),
+        "period"  : conf.get("period"),
+        "interval": conf.get("interval") or "1d",
+    }
+
+def write_data_manifest(conf, ctx):
+    ''' records the date range the OHLC data on disk was downloaded for, so a later
+        run with update_data=false can detect that the configuration has moved on '''
+    manifest = {**data_range_spec(conf), "downloaded": datetime.now().isoformat(timespec='seconds')}
+    with open(ctx.outpath('data', 'manifest.json'), 'w') as f:
+        f.write(json.dumps(manifest, indent=2))
+
+def check_data_manifest(conf, ctx):
+    ''' warns when the OHLC data on disk was downloaded for a different date range
+        than the one currently configured '''
+    manifest_file = ctx.outpath('data', 'manifest.json')
+    if not os.path.exists(manifest_file):
+        logger.debug('no data manifest found - skipping date range check')
+        return
+
+    with open(manifest_file) as f:
+        manifest = json.loads(f.read())
+
+    spec = data_range_spec(conf)
+    if {k: manifest.get(k) for k in spec} != spec:
+        logger.warning('Data on disk was downloaded for a different date range!')
+        logger.warning(f'  on disk: {format_date_range(manifest)} (downloaded {manifest.get("downloaded", "?")[:10]})')
+        logger.warning(f'  config : {format_date_range(conf)}')
+        logger.warning('  results are based on the on-disk range - set update_data=true to re-download')
+
+def format_date_range(conf):
+    ''' human-readable description of the configured download date range '''
+    interval = conf.get("interval") or "1d"
+    start, end = conf.get("start"), conf.get("end")
+
+    if not start:
+        return f'period {conf.get("period")} (interval {interval})'
+
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end) if end else pd.Timestamp.today().normalize()
+    months = (end_ts.year - start_ts.year) * 12 + (end_ts.month - start_ts.month)
+    if end_ts.day < start_ts.day:
+        months -= 1
+    span = ' '.join(p for p in (f'{months // 12}y' if months >= 12 else '',
+                                f'{months % 12}m' if months % 12 else '') if p) or '<1m'
+
+    return f'{start_ts.date()} -> {end_ts.date() if end else "today"} ({span}, interval {interval})'
+
 def get_quotes_data(quotes, conf, outfile, ctx):
     ''' download the quotes data '''
     idx = 1

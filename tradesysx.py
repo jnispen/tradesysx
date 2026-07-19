@@ -55,6 +55,7 @@ def update_quotes(conf, ctx):
     auto_benchmark = benchmark_enabled and bm_ticker != 'quote-lst' and bm_ticker not in quotes
     benchmark_desc = conf.get('bm_desc') or ("iShares MSCI World ETF" if bm_ticker == "URTH" else bm_ticker)
     logger.info(f"Benchmark         : {bm_ticker if benchmark_enabled else '-'}")
+    logger.info(f"Date range        : {ut.format_date_range(conf)}")
 
     # 1. read quotes from yfinance and save raw OHLC file
     if conf['update_data'] == True:
@@ -63,8 +64,10 @@ def update_quotes(conf, ctx):
         if auto_benchmark:
             logger.info(f'==== [1/8] Downloading benchmark data ====')
             ut.get_quotes_data({bm_ticker: benchmark_desc}, conf, ohlc_filename, ctx)
+        ut.write_data_manifest(conf, ctx)
     else:
         logger.info('==== [1/8] Downloading quote data: skipped (update_data=false) ====')
+        ut.check_data_manifest(conf, ctx)
 
     if conf['process_data'] == True:
         step2_label = 'Charting tickers (follow_only)' if follow_only else 'Processing tickers'
@@ -249,7 +252,9 @@ def main():
     setup_logging(args.loglevel)
 
     start_time = datetime.now()
+    logger.info(f'================================================')
     logger.info(f'==== {__app_name__} v{__version__} - {start_time.strftime("%Y-%m-%d %H:%M:%S")} ====')
+    logger.info(f'================================================')
 
     # set base directory
     if args.basedir:
@@ -299,7 +304,9 @@ def main():
     update_quotes(conf, ctx)
 
     elapsed = datetime.now() - start_time
+    logger.info(f'======================================')
     logger.info(f'==== Total execution time {str(elapsed).split(".")[0]} ====')
+    logger.info(f'======================================')
 
 if __name__ == "__main__":
     main()
