@@ -1657,6 +1657,10 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     dframe.loc[:,"Balance"] = balance_lst
     dframe.loc[:,"Value"] = total_balance_lst
 
+    # snapshot the raw trade events for the daily equity curve, before the open
+    # trades are closed out below and the columns are reformatted for display
+    equity_events = dframe[['Date', 'Ticker', 'Enter', 'Exit', 'Units', 'Invested']].copy()
+
     # average balance and investment before open trade closure
     avg_balance = dframe["Balance"].mean()
     avg_value = dframe["Value"].mean()
@@ -1739,6 +1743,172 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     dframe['Date'] = pd.to_datetime(dframe['Date'], errors='coerce').dt.strftime('%d-%m-%Y')
     html = df_to_html(dframe)
     HTML(string=html).write_pdf(ctx.outpath("trades_list.pdf"))
+
+    # daily equity curve over the whole backtest period, derived from the same events
+    do_equity_simulation(equity_events, conf, ctx, stats)
+
+    return dframe
+
+def _trading_calendar(conf, ctx, ohlc_cache):
+    ''' the master trading calendar for the equity curve: the benchmark ticker
+        spans the whole configured range (also while no position was open), the
+        traded tickers fill in any session it happens to miss. '''
+
+    dates = pd.DatetimeIndex([])
+
+    bm_ticker = conf.get('bm_ticker', 'URTH')
+    if bm_ticker != 'quote-lst':
+        try:
+            bm_df = pd.read_csv(ctx.outpath('data', f"{bm_ticker}_ohlc_raw.csv"))
+            dates = dates.union(pd.to_datetime(bm_df['Date'], errors='coerce').dropna())
+        except Exception as e:
+            logger.warning(f"No benchmark data for the equity calendar: {e}")
+
+    for df in ohlc_cache.values():
+        if df is None:
+            continue
+        dates = dates.union(pd.to_datetime(df.index, errors='coerce').dropna())
+
+    return dates.sort_values()
+
+def _daily_close_frame(ohlc_cache, calendar):
+    ''' per-ticker daily close prices reindexed onto the master calendar, so a
+        position can be marked to market on every trading day. '''
+
+    close = pd.DataFrame(index=calendar)
+    for ticker, df in ohlc_cache.items():
+        if df is None or 'Close' not in df.columns:
+            continue
+        prices = pd.to_numeric(df['Close'], errors='coerce')
+        prices.index = pd.to_datetime(df.index, errors='coerce')
+        prices = prices[~prices.index.duplicated(keep='last')].sort_index()
+        close[ticker] = prices.reindex(calendar, method='ffill')
+    return close
+
+def do_equity_simulation(events_df, conf, ctx, stats):
+    ''' build the daily equity curve over the full backtest period and derive
+        the time-based performance statistics from it.
+
+        The trades list holds one row per trade event, which makes calendar-based
+        statistics impossible to compute from it. This table instead has one row
+        per trading day - from the first session to the last close - holding the
+        cash balance, the marked-to-market value of the open positions (at that
+        day's close) and their sum, the total equity. '''
+
+    ohlc_cache = load_ohlc_cache(events_df['Ticker'].unique(), ctx)
+    calendar = _trading_calendar(conf, ctx, ohlc_cache)
+    if len(calendar) == 0:
+        logger.warning("No trading calendar available - skipping the equity curve")
+        return None
+
+    close = _daily_close_frame(ohlc_cache, calendar)
+
+    # replay the trade events onto the calendar: units held per ticker (carried
+    # forward between events) and the cash movement on the day of each event
+    units = pd.DataFrame(np.nan, index=calendar, columns=close.columns)
+    units.iloc[0] = 0.0
+    cash_delta = pd.Series(0.0, index=calendar)
+
+    held = {ticker: 0.0 for ticker in close.columns}
+    for row in events_df.itertuples(index=False):
+        if row.Ticker not in held:
+            continue
+        date = pd.to_datetime(row.Date, errors='coerce')
+        if pd.isna(date):
+            continue
+        # snap onto the calendar (an event can only be acted on from that session on)
+        pos = calendar.searchsorted(date)
+        if pos >= len(calendar):
+            continue
+        date = calendar[pos]
+
+        if row.Exit != '-':
+            held[row.Ticker] = 0.0
+        elif row.Enter != '-' and row.Units != '-':
+            held[row.Ticker] = float(row.Units)
+
+        units.at[date, row.Ticker] = held[row.Ticker]
+        cash_delta.at[date] += -float(row.Invested)
+
+    units = units.ffill().fillna(0.0)
+
+    holdings = (units * close).sum(axis=1)
+    cash = float(conf['balance']) + cash_delta.cumsum()
+    equity = cash + holdings
+
+    # running peak and the drawdown relative to it
+    peak = equity.cummax()
+    drawdown = (equity / peak - 1.0) * 100
+
+    # rolling one-year return: today's equity against the equity one calendar
+    # year back (the last session on or before that date)
+    year_ago = equity.reindex(calendar - pd.DateOffset(years=1), method='ffill')
+    rolling_cagr = (equity.to_numpy() / year_ago.to_numpy() - 1.0) * 100
+    rolling_cagr = pd.Series(rolling_cagr, index=calendar)
+
+    # monthly return in $, booked on the last trading day of each month
+    month_end = ~calendar.to_period('M').duplicated(keep='last')
+    month_close = equity[month_end]
+    month_ret = month_close.diff()
+    if len(month_ret):
+        month_ret.iloc[0] = month_close.iloc[0] - float(conf['balance'])
+
+    # longest stretch between two equity highs (drawdown recovery length). A day
+    # at or above the previous running peak counts as a high, so flat periods
+    # without an open position don't extend a recovery.
+    at_high = equity.ge(peak.shift().fillna(equity.iloc[0]))
+    high_dates = calendar[at_high]
+    max_recovery, rec_from, rec_to = 0, None, None
+    if len(high_dates) > 1:
+        gaps = (high_dates[1:] - high_dates[:-1]).days
+        idx = int(np.argmax(gaps))
+        max_recovery = int(gaps[idx])
+        rec_from, rec_to = high_dates[idx], high_dates[idx + 1]
+    ongoing = int((calendar[-1] - high_dates[-1]).days) if len(high_dates) else 0
+
+    dframe = pd.DataFrame({
+        'Date': calendar.strftime('%Y-%m-%d'),
+        'Cash': cash.round(2).to_numpy(),
+        'Holdings': holdings.round(2).to_numpy(),
+        'Equity': equity.round(2).to_numpy(),
+        'Peak': peak.round(2).to_numpy(),
+        'DDPerc': drawdown.round(2).to_numpy(),
+        'Ret1Y': rolling_cagr.round(2).to_numpy(),
+        'MonthRet': month_ret.round(2).reindex(calendar).to_numpy(),
+    })
+    dframe = dframe.fillna('-')
+
+    # store values for use by later pipeline steps
+    stats.best_month = month_ret.max() if len(month_ret) else 0.0
+    stats.worst_month = month_ret.min() if len(month_ret) else 0.0
+    stats.avg_month = month_ret.mean() if len(month_ret) else 0.0
+    stats.best_rolling_cagr = rolling_cagr.max()
+    stats.worst_rolling_cagr = rolling_cagr.min()
+    stats.max_dd_recovery = max_recovery
+    stats.max_dd_recovery_from = rec_from.strftime('%Y-%m-%d') if rec_from is not None else "-"
+    stats.max_dd_recovery_to = rec_to.strftime('%Y-%m-%d') if rec_to is not None else "-"
+
+    logger.info(f"Equity curve rows : {len(dframe):,} ({calendar[0]:%Y-%m-%d} - {calendar[-1]:%Y-%m-%d})")
+    logger.info(f"Final equity      : {equity.iloc[-1]:,.2f}")
+    logger.info(f"Best month ($)    : {stats.best_month:,.2f}")
+    logger.info(f"Worst month ($)   : {stats.worst_month:,.2f}")
+    logger.info(f"Average month ($) : {stats.avg_month:,.2f}")
+    logger.info(f"Rolling 1y return : {stats.worst_rolling_cagr:.2f}% (min) / {stats.best_rolling_cagr:.2f}% (max)")
+    logger.info(f"Longest recovery  : {max_recovery} days ({stats.max_dd_recovery_from} -> {stats.max_dd_recovery_to})")
+    if ongoing > max_recovery:
+        logger.info(f"Open drawdown     : {ongoing} days, not recovered at the last close")
+
+    logger.debug("\n%s", dframe)
+    dframe.to_csv(ctx.outpath('tables', "equity_curve.csv"), index=False)
+
+    # save to pdf file
+    pdf_df = dframe.copy()
+    pdf_df.index = pdf_df.index + 1
+    pdf_df['Date'] = pd.to_datetime(pdf_df['Date'], errors='coerce').dt.strftime('%d-%m-%Y')
+    html = df_to_html(pdf_df)
+    HTML(string=html).write_pdf(ctx.outpath("equity_curve.pdf"))
+
+    equity_plot(dframe, conf, ctx)
 
     return dframe
 
@@ -2422,6 +2592,50 @@ def _benchmark_drawdown_pct(conf, ctx):
     except Exception as e:
         logger.debug(f"benchmark drawdown: skipped ({e})")
         return None
+
+
+def equity_plot(df, conf, ctx):
+    ''' plot the daily equity curve produced by do_equity_simulation '''
+
+    benchmark_enabled = conf.get('benchmark', True)
+    val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
+
+    if conf.get('report_style', 'styled') == 'styled':
+        rp.styled_equity_plot(df, conf, ctx, val_out)
+        return
+
+    df = df.copy()
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    df['Equity'] = pd.to_numeric(df['Equity'], errors='coerce')
+    df['Ret1Y'] = pd.to_numeric(df['Ret1Y'], errors='coerce')
+    df['MonthRet'] = pd.to_numeric(df['MonthRet'], errors='coerce')
+    df = df.dropna(subset=['Date', 'Equity'])
+
+    fig, (ax, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 7), sharex=True,
+                                       gridspec_kw={'height_ratios': [3, 1, 1]})
+    fig.suptitle(f"Equity curve [{conf['pos_sizing']}]", fontsize=16)
+
+    ax.plot(df['Date'], df['Equity'], color='green', linewidth=1.2, alpha=0.9, label='Equity')
+    ax.axhline(y=conf['balance'], color='green', linewidth=.9, linestyle='--')
+    if val_out is not None:
+        ax.axhline(y=val_out, color='brown', linewidth=.9, linestyle='--', label='HODL')
+    ax.set_ylabel('Equity (USD)')
+    ax.legend(loc='upper left')
+
+    roll = df.dropna(subset=['Ret1Y'])
+    ax2.axhline(y=0, color='gray', linewidth=.9)
+    ax2.plot(roll['Date'], roll['Ret1Y'], color='blue', linewidth=1.0)
+    ax2.set_ylabel('Rolling 1y (%)')
+
+    months = df.dropna(subset=['MonthRet'])
+    ax3.axhline(y=0, color='gray', linewidth=.9)
+    ax3.bar(months['Date'], months['MonthRet'], width=22,
+            color=['green' if v >= 0 else 'red' for v in months['MonthRet']])
+    ax3.set_ylabel('Monthly (USD)')
+    ax3.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+
+    plt.savefig(ctx.outpath('images', 'equity_plot.png'), bbox_inches='tight')
+    plt.close(fig)
 
 
 def balance_plot(df, conf, ctx):

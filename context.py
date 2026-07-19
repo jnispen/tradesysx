@@ -53,3 +53,12 @@ class SystemStats:
     avg_risk_per: float = 0.0
     final_balance: float = 0.0
     cagr: float = 0.0
+    # daily equity-curve results (set by do_equity_simulation)
+    best_month: float = 0.0
+    worst_month: float = 0.0
+    avg_month: float = 0.0
+    best_rolling_cagr: float = 0.0
+    worst_rolling_cagr: float = 0.0
+    max_dd_recovery: int = 0
+    max_dd_recovery_from: str = "-"
+    max_dd_recovery_to: str = "-"
