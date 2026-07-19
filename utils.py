@@ -160,6 +160,58 @@ def get_history_data(ticker, period=None, start=None, end=None, interval='1d'):
 
     return raw_df
 
+def data_range_spec(conf):
+    ''' the subset of the configuration that determines which data is downloaded '''
+    return {
+        "start"   : conf.get("start"),
+        "end"     : conf.get("end"),
+        "period"  : conf.get("period"),
+        "interval": conf.get("interval") or "1d",
+    }
+
+def write_data_manifest(conf, ctx):
+    ''' records the date range the OHLC data on disk was downloaded for, so a later
+        run with update_data=false can detect that the configuration has moved on '''
+    manifest = {**data_range_spec(conf), "downloaded": datetime.now().isoformat(timespec='seconds')}
+    with open(ctx.outpath('data', 'manifest.json'), 'w') as f:
+        f.write(json.dumps(manifest, indent=2))
+
+def check_data_manifest(conf, ctx):
+    ''' warns when the OHLC data on disk was downloaded for a different date range
+        than the one currently configured '''
+    manifest_file = ctx.outpath('data', 'manifest.json')
+    if not os.path.exists(manifest_file):
+        logger.debug('no data manifest found - skipping date range check')
+        return
+
+    with open(manifest_file) as f:
+        manifest = json.loads(f.read())
+
+    spec = data_range_spec(conf)
+    if {k: manifest.get(k) for k in spec} != spec:
+        logger.warning('Data on disk was downloaded for a different date range!')
+        logger.warning(f'  on disk: {format_date_range(manifest)} (downloaded {manifest.get("downloaded", "?")[:10]})')
+        logger.warning(f'  config : {format_date_range(conf)}')
+        logger.warning('  results are based on the on-disk range - set update_data=true to re-download')
+
+def format_date_range(conf):
+    ''' human-readable description of the configured download date range '''
+    interval = conf.get("interval") or "1d"
+    start, end = conf.get("start"), conf.get("end")
+
+    if not start:
+        return f'period {conf.get("period")} (interval {interval})'
+
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end) if end else pd.Timestamp.today().normalize()
+    months = (end_ts.year - start_ts.year) * 12 + (end_ts.month - start_ts.month)
+    if end_ts.day < start_ts.day:
+        months -= 1
+    span = ' '.join(p for p in (f'{months // 12}y' if months >= 12 else '',
+                                f'{months % 12}m' if months % 12 else '') if p) or '<1m'
+
+    return f'{start_ts.date()} -> {end_ts.date() if end else "today"} ({span}, interval {interval})'
+
 def get_quotes_data(quotes, conf, outfile, ctx):
     ''' download the quotes data '''
     idx = 1
@@ -1171,14 +1223,17 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
                          f'coloured by the share of the peak kept at exit (the efficiency '
                          f'ratio).</figcaption></figure>')
     # one .keep block so the heading and both scatters stay on a single page
-    mfe_mae_title = "Appendix &mdash; MFE and MAE scatterplots"
+    mfe_mae_title = "Appendix &mdash; scatterplots"
     mfe_mae_section = (f'<div class="keep mfemae"><h2 id="sec-mfemae">{mfe_mae_title}</h2>'
                        f'{mfe_mae_figs}</div>' if mfe_mae_figs else "")
 
     mc_section = ""
     if conf.get('montecarlo', True) and img_mc:
+        # in a short report the preceding sections no longer fill their pages, so
+        # start the simulation on a clean page rather than let it trail a part-full one
+        mc_pbreak = '' if full else ' class="pbreak"'
         mc_section = f"""
-        <h2 id="sec-montecarlo">Monte Carlo simulation</h2>
+        <h2 id="sec-montecarlo"{mc_pbreak}>Monte Carlo simulation</h2>
         <p>Resampling the realised R-multiples over {conf.get('iterations', 0):,} randomised
         trade sequences estimates the spread of outcomes the system could produce from the
         same edge in a different order. Each simulated run is a sequence of complete, closed
@@ -1272,6 +1327,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     quotes_html = two_col(list(quotes.items()), "Ticker", "Description")
 
     # ---- table of contents ----
+    # only worth a page of its own in the full report - the short one has few
+    # enough sections to navigate without it.
     # (anchor id, title) in body order, skipping the sections that are switched
     # off for this run. Page numbers are filled in by WeasyPrint at render time
     # via target-counter(), so they stay correct however the content paginates.
@@ -1289,12 +1346,17 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     if mfe_mae_section:
         toc_entries.append(("sec-mfemae", mfe_mae_title))
     if full:
-        toc_entries.append(("sec-tickers", "Ticker plots"))
+        toc_entries.append(("sec-tickers", "Appendix &mdash; ticker plots"))
 
     toc_html = ("<table class='toc'><tbody>" + "".join(
         f"<tr><td><a href='#{anchor}'>{title}</a></td>"
         f"<td class='pg'><a class='pg' href='#{anchor}'></a></td></tr>"
-        for anchor, title in toc_entries) + "</tbody></table>")
+        for anchor, title in toc_entries) + "</tbody></table>") if full else ''
+
+    # in a short report the trade statistics follow the account performance table
+    # on the same page - there is room for both, and with the equity curve moved
+    # up to the front page a forced break would leave page 2 nearly empty
+    trades_pbreak = ' class="pbreak"' if full else ''
 
     # ---- assemble ----
     css = f"""
@@ -1367,6 +1429,12 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     /* the MFE/MAE scatters, sized so both fit one page together */
     .mfemae figure {{ margin: 2px 0 30px; }}
     .mfemae figure img {{ width: 92%; display: block; margin: 0 auto; }}
+    /* the equity curve shares the front page with the summary and benchmark
+       sections - at 92% it fits with ~14pt to spare, where full width overruns
+       the page by a few points and pushes the whole figure to page 2 */
+    .equityfig {{ page-break-inside: avoid; }}
+    .equityfig img {{ width: 92%; display: block; margin: 0 auto; }}
+    .nosplit {{ page-break-inside: avoid; }}
 
     table {{ border-collapse: collapse; width: 100%; font-size: 12px; }}
     .statgrid table {{ display: inline-table; width: 48.5%; margin-right: 2%; vertical-align: top; }}
@@ -1428,18 +1496,17 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     {f'<h2 id="sec-benchmark">Strategy vs benchmark</h2>{benchmark_bars}' if benchmark_bars else ''}
 
-    <h2>Contents</h2>
-    {toc_html}
+    {f'<h2>Contents</h2>{toc_html}' if toc_html else ''}
 
-    <h2 id="sec-account" class="pbreak">Account performance</h2>
-    <figure><img src="{img_equity}" alt="Account value over time">
+    <h2 id="sec-account">Account performance</h2>
+    <figure class="equityfig"><img src="{img_equity}" alt="Account value over time">
     <figcaption>Simulated account value (equity curve) against the buy-and-hold benchmark (dashed).</figcaption></figure>
-    <div class="statgrid" style="margin-top:1.2em">
+    <div class="statgrid nosplit" style="margin-top:1.2em">
       <table><tbody>{sim_rows}</tbody></table>
       <table><tbody></tbody></table>
     </div>
 
-    <h2 id="sec-trades" class="pbreak">Trade statistics</h2>
+    <h2 id="sec-trades"{trades_pbreak}>Trade statistics</h2>
     <div class="statgrid">
       <table><tbody>{stats_left}</tbody></table>
       <table><tbody>{stats_right}</tbody></table>
@@ -1469,7 +1536,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
             f'<img src="{_data_uri(ctx.outpath("plots", f"{ticker}_plot.png"))}" style="width:100%">'
             for ticker in quotes
         )
-        body += f'<h2 id="sec-tickers" class="pbreak">Ticker plots</h2>{rows}'
+        body += f'<h2 id="sec-tickers" class="pbreak">Appendix &mdash; ticker plots</h2>{rows}'
 
     html_content = f"<html><head><meta charset=\"utf-8\"><style>{css}</style></head><body>{body}</body></html>"
 
