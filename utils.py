@@ -1776,7 +1776,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     HTML(string=html).write_pdf(ctx.outpath("trades_list.pdf"))
 
     # daily equity curve over the whole backtest period, derived from the same events
-    do_equity_simulation(equity_events, conf, ctx, stats)
+    do_equity_simulation(equity_events, conf, ctx, stats, df_trades_table)
 
     return dframe
 
@@ -1816,7 +1816,7 @@ def _daily_close_frame(ohlc_cache, calendar):
         close[ticker] = prices.reindex(calendar, method='ffill')
     return close
 
-def do_equity_simulation(events_df, conf, ctx, stats):
+def do_equity_simulation(events_df, conf, ctx, stats, df_trades_table=None):
     ''' build the daily equity curve over the full backtest period and derive
         the time-based performance statistics from it.
 
@@ -1862,6 +1862,21 @@ def do_equity_simulation(events_df, conf, ctx, stats):
         cash_delta.at[date] += -float(row.Invested)
 
     units = units.ffill().fillna(0.0)
+
+    # mark still-open positions on the final day at their own LastClose (the
+    # same price do_balance_simulation's close-out uses), rather than that
+    # day's raw OHLC close, so the equity curve's final value agrees with the
+    # balance simulation's reported final balance
+    if df_trades_table is not None:
+        last_date = calendar[-1]
+        for ticker in close.columns:
+            if units.at[last_date, ticker] == 0:
+                continue
+            tmp = df_trades_table.loc[
+                (df_trades_table['Ticker'] == ticker) & (df_trades_table['LastClose'] != '-'),
+                'LastClose']
+            if not tmp.empty:
+                close.at[last_date, ticker] = float(tmp.iloc[0])
 
     holdings = (units * close).sum(axis=1)
     cash = float(conf['balance']) + cash_delta.cumsum()
