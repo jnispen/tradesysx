@@ -804,6 +804,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             "Average risk (%)",
             "Final balance",
             "CAGR",
+            "Average monthly return",
+            "Longest drawdown",
         ],
         "Value": [
             f"{float(conf['balance']):,.2f}",
@@ -815,6 +817,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             f"{stats.avg_risk_per:.2f}",
             f"{stats.final_balance:,.2f}",
             f"{stats.cagr:.1%}",
+            f"{stats.avg_month:,.2f}",
+            f"{stats.max_dd_recovery} days",
         ],
     }
     balance_html = pd.DataFrame(balance_data).to_html(border=0, index=False, classes="summary-table")
@@ -1160,6 +1164,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Average risk", f"${stats.avg_risk:,.2f} ({stats.avg_risk_per:.2f}%)"),
         row("Final balance", f"${stats.final_balance:,.0f}"),
         row("CAGR", f"{stats.cagr:.1%}", "pos" if stats.cagr >= 0 else "neg"),
+        row("Average monthly return", f"${stats.avg_month:,.2f}"),
+        row("Longest drawdown", f"{stats.max_dd_recovery} days"),
     ])
 
     # ---- selected trades (largest + smallest outcomes) ----
@@ -1948,7 +1954,6 @@ def do_equity_simulation(events_df, conf, ctx, stats, df_trades_table=None):
     #logger.info(f"Final equity      : {equity.iloc[-1]:,.2f}")
     #logger.info(f"Monthly return ($): {stats.worst_month:,.2f} (min) / {stats.best_month:,.2f} (max) / {stats.avg_month:,.2f} (avg)")
     #logger.info(f"Trailing 1y ($)   : {stats.worst_trailing_1y:,.2f} (min) / {stats.best_trailing_1y:,.2f} (max) / {stats.avg_trailing_1y:,.2f} (avg)")
-    #logger.info(f"Monthly return ($): {stats.avg_month:,.2f} ({stats.worst_month:,.2f} min. / {stats.best_month:,.2f} max. / {stats.std_month:,.2f} std)")
     logger.info(f"Monthly return ($): {stats.avg_month:,.2f}")
     logger.info(f"Longest drawdown  : {max_recovery} days ({stats.max_dd_recovery_from} -> {stats.max_dd_recovery_to})")
     if ongoing > max_recovery:
