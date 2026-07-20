@@ -57,8 +57,10 @@ class SystemStats:
     best_month: float = 0.0
     worst_month: float = 0.0
     avg_month: float = 0.0
-    best_rolling_cagr: float = 0.0
-    worst_rolling_cagr: float = 0.0
+    std_month: float = 0.0
+    best_trailing_1y: float = 0.0
+    worst_trailing_1y: float = 0.0
+    avg_trailing_1y: float = 0.0
     max_dd_recovery: int = 0
     max_dd_recovery_from: str = "-"
     max_dd_recovery_to: str = "-"
