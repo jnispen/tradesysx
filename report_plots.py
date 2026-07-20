@@ -128,6 +128,146 @@ def styled_balance_plot(df, conf, ctx, val_out):
         plt.close(fig)
 
 
+def styled_equity_plot(df, conf, ctx, val_out, max_recovery=0, rec_from=None, rec_to=None):
+    ''' daily equity curve from the equity table: total equity (accent) against
+    the buy-and-hold benchmark drawn as a dashed neutral reference line at its
+    final value, with the trailing one-year return ($) and the monthly return
+    in panels below it. Unlike styled_balance_plot this walks the trading
+    calendar, so the x-axis is real time rather than the trade-event sequence. '''
+
+    df = df.copy()
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    df['Equity'] = pd.to_numeric(df['Equity'], errors='coerce')
+    df['Trail1Y'] = pd.to_numeric(df['Trail1Y'], errors='coerce')
+    df['MonthRet'] = pd.to_numeric(df['MonthRet'], errors='coerce')
+    eq = df.dropna(subset=['Date', 'Equity']).sort_values('Date')
+    if eq.empty:
+        logger.warning("No equity data to plot")
+        return
+
+    xs, ys = eq['Date'], eq['Equity']
+    end_x, end_y = xs.iloc[-1], ys.iloc[-1]
+    xlim = (xs.iloc[0], end_x + pd.Timedelta(days=120))
+
+    with report_style():
+        fig, (ax, ax2, ax3) = plt.subplots(
+            3, 1, figsize=(FIG_WIDTH, 6.8), sharex=True,
+            gridspec_kw={'height_ratios': [3, 1.6, 1.6], 'hspace': 0.12})
+
+        ax.plot(xs, ys, color=ACCENT, lw=1.4, label='Strategy')
+        ax.axhline(float(conf['balance']), color=NEUTRAL, lw=0.8, ls=':')
+
+        if val_out is not None:
+            ax.plot([xs.iloc[0], end_x], [val_out, val_out],
+                    color=NEUTRAL, lw=1.6, ls='--', label='Buy & hold')
+            ax.annotate(f"{val_out:,.0f}", (end_x, val_out),
+                        xytext=(8, 0), textcoords='offset points', va='center',
+                        color=TEXT2, fontsize=9)
+
+        ax.annotate(f"{end_y:,.0f}", (end_x, end_y),
+                    xytext=(6, 0), textcoords='offset points', va='center',
+                    color=ACCENT, fontsize=9, fontweight='medium')
+
+        ax.grid(axis='y'); ax.grid(axis='x', visible=False)
+        _thousands(ax)
+        ax.set_ylabel('Account value (USD)')
+        if val_out is not None:
+            ax.legend(loc='upper left')
+
+        if rec_from is not None and rec_to is not None:
+            ax.text(0.98, 0.06, f"Longest drawdown: {max_recovery} days "
+                    f"({rec_from:%Y-%m-%d} → {rec_to:%Y-%m-%d})",
+                    transform=ax.transAxes, ha='right', va='bottom',
+                    color=TEXT2, fontsize=9)
+
+        # trailing one-year return in $: gains above the zero line green, losses
+        # red. The first year has no full look-back window and stays blank.
+        roll = eq.dropna(subset=['Trail1Y'])
+        ax2.axhline(0, color=TEXT2, lw=0.8)
+        if not roll.empty:
+            ax2.fill_between(roll['Date'], roll['Trail1Y'], 0,
+                             where=roll['Trail1Y'] >= 0, color=POS, alpha=0.25,
+                             interpolate=True, linewidth=0)
+            ax2.fill_between(roll['Date'], roll['Trail1Y'], 0,
+                             where=roll['Trail1Y'] < 0, color=NEG, alpha=0.25,
+                             interpolate=True, linewidth=0)
+            ax2.plot(roll['Date'], roll['Trail1Y'], color=ACCENT, lw=1.0)
+            ax2.annotate(f"{roll['Trail1Y'].iloc[-1]:,.0f}",
+                         (roll['Date'].iloc[-1], roll['Trail1Y'].iloc[-1]),
+                         xytext=(6, 0), textcoords='offset points', va='center',
+                         color=ACCENT, fontsize=9)
+
+        ax2.grid(axis='y'); ax2.grid(axis='x', visible=False)
+        ax2.yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+        ax2.set_ylabel('Trailing 1y (USD)')
+
+        # monthly return in $, booked on the last trading day of each month
+        months = eq.dropna(subset=['MonthRet'])
+        ax3.axhline(0, color=TEXT2, lw=0.8)
+        if not months.empty:
+            colors = [POS if v >= 0 else NEG for v in months['MonthRet']]
+            ax3.bar(months['Date'], months['MonthRet'], width=22,
+                    color=colors, alpha=0.85, linewidth=0)
+
+        ax3.grid(axis='y'); ax3.grid(axis='x', visible=False)
+        _thousands(ax3)
+        ax3.set_ylabel('p/mo (USD)')
+        ax3.xaxis.set_major_locator(mdates.AutoDateLocator())
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+        ax3.set_xlim(*xlim)
+
+        fig.savefig(ctx.outpath('images', 'equity_plot.png'))
+        plt.close(fig)
+
+
+def styled_monthly_dist_plot(df, ctx):
+    ''' histogram of the monthly returns in $, positive months green / negative
+    red, with the mean marked. Shows how the equity curve's month-to-month
+    results are spread rather than how they accumulate. '''
+
+    months = pd.to_numeric(df['MonthRet'], errors='coerce').dropna().to_numpy()
+    if len(months) == 0:
+        logger.warning("No monthly returns to plot")
+        return
+
+    # round the bin edges out to a whole $1000 so the bins land on readable
+    # boundaries and the zero line falls on an edge, not inside a bin
+    step = 1000.0
+    lo = float(np.floor(months.min() / step) * step)
+    hi = float(np.ceil(months.max() / step) * step)
+    bins = np.arange(lo, hi + step, step)
+
+    wins = months[months >= 0]; losses = months[months < 0]
+
+    with report_style():
+        fig, ax = plt.subplots(figsize=(FIG_WIDTH, 3.2))
+        hist_kw = dict(bins=bins, alpha=0.9, rwidth=0.82, edgecolor='white', linewidth=0.6)
+        ax.hist(wins, color=POS, label='Positive months', **hist_kw)
+        ax.hist(losses, color=NEG, label='Negative months', **hist_kw)
+        ax.axvline(0, color=TEXT2, lw=0.8)
+
+        mean = months.mean()
+        ax.axvline(mean, color=ACCENT, lw=1.2, ls='--', label='Mean')
+        # placed via the x-data/y-axes-fraction blended transform so it sits just
+        # above the plot area regardless of bar height, and never overlaps a bar
+        ax.text(mean, 1.02, f"{mean:,.0f}", transform=ax.get_xaxis_transform(),
+                ha='center', va='bottom', color=ACCENT, fontsize=9)
+
+        ax.text(0.02, 0.95, "Max.\nMin.\nStd.", transform=ax.transAxes,
+                ha='left', va='top', color=TEXT2, fontsize=9)
+        ax.text(0.16, 0.95, f"{months.max():,.0f}\n{months.min():,.0f}\n{months.std(ddof=1):,.0f}",
+                transform=ax.transAxes, ha='right', va='top',
+                color=TEXT2, fontsize=9)
+
+        ax.grid(axis='y'); ax.grid(axis='x', visible=False)
+        ax.xaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+        ax.set_xlabel('Monthly return (USD)')
+        ax.set_ylabel('Number of months')
+        ax.legend(loc='upper right')
+        fig.savefig(ctx.outpath('images', 'monthly_dist_plot.png'))
+        plt.close(fig)
+
+
 def styled_trades_plot(trades_lst, Rmul30_lst, ctx):
     ''' each trade in sequence as a lollipop (wins green / losses red), with the
     30-trade rolling R-average line overlaid - the styled take on the classic

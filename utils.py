@@ -1206,6 +1206,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     img_mc = _data_uri(ctx.outpath('images', 'monte_carlo_plot.png'))
     img_mae_r = _data_uri(ctx.outpath('images', 'mae_scatter_plot.png'))
     img_mfe_mae = _data_uri(ctx.outpath('images', 'mfe_mae_scatter_plot.png'))
+    img_equity_detail = _data_uri(ctx.outpath('images', 'equity_plot.png'))
+    img_monthly_dist = _data_uri(ctx.outpath('images', 'monthly_dist_plot.png'))
 
     # ---- appendix: MFE/MAE scatters (generated in generate_system_stats,
     # so both PNGs already exist by report time; each is included only if present)
@@ -1326,6 +1328,24 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     conf_html = two_col(conf_items, "Key", "Value")
     quotes_html = two_col(list(quotes.items()), "Ticker", "Description")
 
+    # ---- appendix: account performance (detailed) - the daily equity curve
+    # (with the longest-drawdown callout drawn on the chart) and the
+    # monthly-return distribution (with its min/max/mean drawn on the chart) ----
+    account_detail_title = "Appendix &mdash; account performance (detailed)"
+    account_detail_section = ""
+    if img_equity_detail:
+        monthly_dist_fig = (f'<figure class="equityfig" style="margin-top:20px">'
+                            f'<img src="{img_monthly_dist}" alt="Distribution of monthly returns" '
+                            f'style="width:85%">'
+                            f'<figcaption>Distribution of monthly returns in dollars, with the mean '
+                            f'(dashed).</figcaption></figure>' if img_monthly_dist else "")
+        account_detail_section = f"""
+        <h2 id="sec-account-detail" class="pbreak">{account_detail_title}</h2>
+        <figure class="equityfig"><img src="{img_equity_detail}" alt="Daily equity curve with trailing 1-year and monthly return">
+        <figcaption>Daily equity curve against the buy-and-hold benchmark (top), the trailing
+        one-year return in dollars (middle) and the monthly return in dollars (bottom).</figcaption></figure>
+        {monthly_dist_fig}"""
+
     # ---- table of contents ----
     # only worth a page of its own in the full report - the short one has few
     # enough sections to navigate without it.
@@ -1343,6 +1363,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         toc_entries.append(("sec-benchmark-detail", bm_detail_title))
     toc_entries += [("sec-quotes", "Appendix &mdash; quotes list"),
                     ("sec-config", "Appendix &mdash; configuration")]
+    if account_detail_section:
+        toc_entries.append(("sec-account-detail", account_detail_title))
     if mfe_mae_section:
         toc_entries.append(("sec-mfemae", mfe_mae_title))
     if full:
@@ -1528,6 +1550,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     {quotes_html}
     <h2 id="sec-config">Appendix &mdash; configuration</h2>
     {conf_html}
+    {account_detail_section}
     {mfe_mae_section}
     """
 
@@ -1594,6 +1617,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     
     # Containers for results
     units_lst: List[float] = []
+    units_full_lst: List[float] = []  # unrounded units, for the equity curve replay
     gain_lst: List[float] = []
     abs_risk_lst: List[float] = []
     risk_lst: List[float] = []
@@ -1618,10 +1642,12 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
                 # trade not taken (below min_invest or balance too low) - blank the
                 # units/risk so this dead row is excluded from the risk averages
                 units_lst.append('-')
+                units_full_lst.append('-')
                 abs_risk_lst.append('-')
                 risk_lst.append('-')
             else:
                 units_lst.append(round(units, 2))
+                units_full_lst.append(units)
                 risk_base = risk_basis(conf, balance, total_balance)
                 abs_risk = units * row.Risk if risk_base else 0
                 risk_pct = (abs_risk / risk_base) * 100 if risk_base else 0
@@ -1638,6 +1664,7 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
             # units == 0 means the paired entry was never taken - blank its gain too
             gain_lst.append(round(tot_profit, 2) if units != 0 else '-')
             units_lst.append('-')
+            units_full_lst.append('-')
             abs_risk_lst.append('-')
             risk_lst.append('-')
 
@@ -1656,6 +1683,14 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     dframe.loc[:,"Invested"] = invest_lst
     dframe.loc[:,"Balance"] = balance_lst
     dframe.loc[:,"Value"] = total_balance_lst
+
+    # snapshot the raw trade events for the daily equity curve, before the open
+    # trades are closed out below and the columns are reformatted for display.
+    # Units uses the unrounded units_full_lst (not the display-rounded 'Units'
+    # column) so the equity curve's final mark-to-market lines up with the
+    # balance simulation's own full-precision close-out below.
+    equity_events = dframe[['Date', 'Ticker', 'Enter', 'Exit', 'Invested']].copy()
+    equity_events['Units'] = units_full_lst
 
     # average balance and investment before open trade closure
     avg_balance = dframe["Balance"].mean()
@@ -1739,6 +1774,183 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     dframe['Date'] = pd.to_datetime(dframe['Date'], errors='coerce').dt.strftime('%d-%m-%Y')
     html = df_to_html(dframe)
     HTML(string=html).write_pdf(ctx.outpath("trades_list.pdf"))
+
+    # daily equity curve over the whole backtest period, derived from the same events
+    do_equity_simulation(equity_events, conf, ctx, stats, df_trades_table)
+
+    return dframe
+
+def _trading_calendar(conf, ctx, ohlc_cache):
+    ''' the master trading calendar for the equity curve: the benchmark ticker
+        spans the whole configured range (also while no position was open), the
+        traded tickers fill in any session it happens to miss. '''
+
+    dates = pd.DatetimeIndex([])
+
+    bm_ticker = conf.get('bm_ticker', 'URTH')
+    if bm_ticker != 'quote-lst':
+        try:
+            bm_df = pd.read_csv(ctx.outpath('data', f"{bm_ticker}_ohlc_raw.csv"))
+            dates = dates.union(pd.to_datetime(bm_df['Date'], errors='coerce').dropna())
+        except Exception as e:
+            logger.warning(f"No benchmark data for the equity calendar: {e}")
+
+    for df in ohlc_cache.values():
+        if df is None:
+            continue
+        dates = dates.union(pd.to_datetime(df.index, errors='coerce').dropna())
+
+    return dates.sort_values()
+
+def _daily_close_frame(ohlc_cache, calendar):
+    ''' per-ticker daily close prices reindexed onto the master calendar, so a
+        position can be marked to market on every trading day. '''
+
+    close = pd.DataFrame(index=calendar)
+    for ticker, df in ohlc_cache.items():
+        if df is None or 'Close' not in df.columns:
+            continue
+        prices = pd.to_numeric(df['Close'], errors='coerce')
+        prices.index = pd.to_datetime(df.index, errors='coerce')
+        prices = prices[~prices.index.duplicated(keep='last')].sort_index()
+        close[ticker] = prices.reindex(calendar, method='ffill')
+    return close
+
+def do_equity_simulation(events_df, conf, ctx, stats, df_trades_table=None):
+    ''' build the daily equity curve over the full backtest period and derive
+        the time-based performance statistics from it.
+
+        The trades list holds one row per trade event, which makes calendar-based
+        statistics impossible to compute from it. This table instead has one row
+        per trading day - from the first session to the last close - holding the
+        cash balance, the marked-to-market value of the open positions (at that
+        day's close) and their sum, the total equity. '''
+
+    ohlc_cache = load_ohlc_cache(events_df['Ticker'].unique(), ctx)
+    calendar = _trading_calendar(conf, ctx, ohlc_cache)
+    if len(calendar) == 0:
+        logger.warning("No trading calendar available - skipping the equity curve")
+        return None
+
+    close = _daily_close_frame(ohlc_cache, calendar)
+
+    # replay the trade events onto the calendar: units held per ticker (carried
+    # forward between events) and the cash movement on the day of each event
+    units = pd.DataFrame(np.nan, index=calendar, columns=close.columns)
+    units.iloc[0] = 0.0
+    cash_delta = pd.Series(0.0, index=calendar)
+
+    held = {ticker: 0.0 for ticker in close.columns}
+    for row in events_df.itertuples(index=False):
+        if row.Ticker not in held:
+            continue
+        date = pd.to_datetime(row.Date, errors='coerce')
+        if pd.isna(date):
+            continue
+        # snap onto the calendar (an event can only be acted on from that session on)
+        pos = calendar.searchsorted(date)
+        if pos >= len(calendar):
+            continue
+        date = calendar[pos]
+
+        if row.Exit != '-':
+            held[row.Ticker] = 0.0
+        elif row.Enter != '-' and row.Units != '-':
+            held[row.Ticker] = float(row.Units)
+
+        units.at[date, row.Ticker] = held[row.Ticker]
+        cash_delta.at[date] += -float(row.Invested)
+
+    units = units.ffill().fillna(0.0)
+
+    # mark still-open positions on the final day at their own LastClose (the
+    # same price do_balance_simulation's close-out uses), rather than that
+    # day's raw OHLC close, so the equity curve's final value agrees with the
+    # balance simulation's reported final balance
+    if df_trades_table is not None:
+        last_date = calendar[-1]
+        for ticker in close.columns:
+            if units.at[last_date, ticker] == 0:
+                continue
+            tmp = df_trades_table.loc[
+                (df_trades_table['Ticker'] == ticker) & (df_trades_table['LastClose'] != '-'),
+                'LastClose']
+            if not tmp.empty:
+                close.at[last_date, ticker] = float(tmp.iloc[0])
+
+    holdings = (units * close).sum(axis=1)
+    cash = float(conf['balance']) + cash_delta.cumsum()
+    equity = cash + holdings
+
+    # running peak and the drawdown relative to it
+    peak = equity.cummax()
+    drawdown = (equity / peak - 1.0) * 100
+
+    # trailing one-year return in $: today's equity minus the equity one calendar
+    # year back (the last session on or before that date)
+    year_ago = equity.reindex(calendar - pd.DateOffset(years=1), method='ffill')
+    trailing_1y = equity.to_numpy() - year_ago.to_numpy()
+    trailing_1y = pd.Series(trailing_1y, index=calendar)
+
+    # monthly return in $, booked on the last trading day of each month
+    month_end = ~calendar.to_period('M').duplicated(keep='last')
+    month_close = equity[month_end]
+    month_ret = month_close.diff()
+    if len(month_ret):
+        month_ret.iloc[0] = month_close.iloc[0] - float(conf['balance'])
+
+    # longest stretch between two equity highs (drawdown recovery length). A day
+    # at or above the previous running peak counts as a high, so flat periods
+    # without an open position don't extend a recovery.
+    at_high = equity.ge(peak.shift().fillna(equity.iloc[0]))
+    high_dates = calendar[at_high]
+    max_recovery, rec_from, rec_to = 0, None, None
+    if len(high_dates) > 1:
+        gaps = (high_dates[1:] - high_dates[:-1]).days
+        idx = int(np.argmax(gaps))
+        max_recovery = int(gaps[idx])
+        rec_from, rec_to = high_dates[idx], high_dates[idx + 1]
+    ongoing = int((calendar[-1] - high_dates[-1]).days) if len(high_dates) else 0
+
+    dframe = pd.DataFrame({
+        'Date': calendar.strftime('%Y-%m-%d'),
+        'Cash': cash.round(2).to_numpy(),
+        'Holdings': holdings.round(2).to_numpy(),
+        'Equity': equity.round(2).to_numpy(),
+        'Peak': peak.round(2).to_numpy(),
+        'DDPerc': drawdown.round(2).to_numpy(),
+        'Trail1Y': trailing_1y.round(2).to_numpy(),
+        'MonthRet': month_ret.round(2).reindex(calendar).to_numpy(),
+    })
+    dframe = dframe.fillna('-')
+
+    # store values for use by later pipeline steps
+    stats.best_month = month_ret.max() if len(month_ret) else 0.0
+    stats.worst_month = month_ret.min() if len(month_ret) else 0.0
+    stats.avg_month = month_ret.mean() if len(month_ret) else 0.0
+    stats.std_month = month_ret.std() if len(month_ret) else 0.0
+    stats.best_trailing_1y = trailing_1y.max()
+    stats.worst_trailing_1y = trailing_1y.min()
+    stats.avg_trailing_1y = trailing_1y.mean()
+    stats.max_dd_recovery = max_recovery
+    stats.max_dd_recovery_from = rec_from.strftime('%Y-%m-%d') if rec_from is not None else "-"
+    stats.max_dd_recovery_to = rec_to.strftime('%Y-%m-%d') if rec_to is not None else "-"
+
+    #logger.info(f"Equity curve rows : {len(dframe):,} ({calendar[0]:%Y-%m-%d} - {calendar[-1]:%Y-%m-%d})")
+    #logger.info(f"Final equity      : {equity.iloc[-1]:,.2f}")
+    #logger.info(f"Monthly return ($): {stats.worst_month:,.2f} (min) / {stats.best_month:,.2f} (max) / {stats.avg_month:,.2f} (avg)")
+    #logger.info(f"Trailing 1y ($)   : {stats.worst_trailing_1y:,.2f} (min) / {stats.best_trailing_1y:,.2f} (max) / {stats.avg_trailing_1y:,.2f} (avg)")
+    #logger.info(f"Monthly return ($): {stats.avg_month:,.2f} ({stats.worst_month:,.2f} min. / {stats.best_month:,.2f} max. / {stats.std_month:,.2f} std)")
+    logger.info(f"Monthly return ($): {stats.avg_month:,.2f}")
+    logger.info(f"Longest drawdown  : {max_recovery} days ({stats.max_dd_recovery_from} -> {stats.max_dd_recovery_to})")
+    if ongoing > max_recovery:
+        logger.info(f"Open drawdown     : {ongoing} days, not recovered at the last close")
+
+    logger.debug("\n%s", dframe)
+    dframe.to_csv(ctx.outpath('tables', "equity_curve.csv"), index=False)
+
+    equity_plot(dframe, conf, ctx, max_recovery, rec_from, rec_to)
+    monthly_dist_plot(dframe, conf, ctx)
 
     return dframe
 
@@ -2422,6 +2634,91 @@ def _benchmark_drawdown_pct(conf, ctx):
     except Exception as e:
         logger.debug(f"benchmark drawdown: skipped ({e})")
         return None
+
+
+def equity_plot(df, conf, ctx, max_recovery=0, rec_from=None, rec_to=None):
+    ''' plot the daily equity curve produced by do_equity_simulation '''
+
+    benchmark_enabled = conf.get('benchmark', True)
+    val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
+
+    if conf.get('report_style', 'styled') == 'styled':
+        rp.styled_equity_plot(df, conf, ctx, val_out, max_recovery, rec_from, rec_to)
+        return
+
+    df = df.copy()
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    df['Equity'] = pd.to_numeric(df['Equity'], errors='coerce')
+    df['Trail1Y'] = pd.to_numeric(df['Trail1Y'], errors='coerce')
+    df['MonthRet'] = pd.to_numeric(df['MonthRet'], errors='coerce')
+    df = df.dropna(subset=['Date', 'Equity'])
+
+    fig, (ax, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 8.5), sharex=True,
+                                       gridspec_kw={'height_ratios': [3, 1.6, 1.6]})
+    fig.suptitle(f"Equity curve [{conf['pos_sizing']}]", fontsize=16)
+
+    ax.plot(df['Date'], df['Equity'], color='green', linewidth=1.2, alpha=0.9, label='Equity')
+    ax.axhline(y=conf['balance'], color='green', linewidth=.9, linestyle='--')
+    if val_out is not None:
+        ax.axhline(y=val_out, color='brown', linewidth=.9, linestyle='--', label='HODL')
+    ax.set_ylabel('Equity (USD)')
+    ax.legend(loc='upper left')
+
+    if rec_from is not None and rec_to is not None:
+        ax.text(0.98, 0.06, f"Longest drawdown: {max_recovery} days "
+                f"({rec_from:%Y-%m-%d} - {rec_to:%Y-%m-%d})",
+                transform=ax.transAxes, ha='right', va='bottom', color='gray', fontsize=9)
+
+    roll = df.dropna(subset=['Trail1Y'])
+    ax2.axhline(y=0, color='gray', linewidth=.9)
+    ax2.plot(roll['Date'], roll['Trail1Y'], color='blue', linewidth=1.0)
+    ax2.set_ylabel('Trailing 1y (USD)')
+
+    months = df.dropna(subset=['MonthRet'])
+    ax3.axhline(y=0, color='gray', linewidth=.9)
+    ax3.bar(months['Date'], months['MonthRet'], width=22,
+            color=['green' if v >= 0 else 'red' for v in months['MonthRet']])
+    ax3.set_ylabel('Monthly (USD)')
+    ax3.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+
+    plt.savefig(ctx.outpath('images', 'equity_plot.png'), bbox_inches='tight')
+    plt.close(fig)
+
+
+def monthly_dist_plot(df, conf, ctx):
+    ''' plot the distribution of the monthly returns from the equity table '''
+
+    if conf.get('report_style', 'styled') == 'styled':
+        rp.styled_monthly_dist_plot(df, ctx)
+        return
+
+    months = pd.to_numeric(df['MonthRet'], errors='coerce').dropna()
+    if months.empty:
+        logger.warning("No monthly returns to plot")
+        return
+
+    step = 1000.0
+    bins = np.arange(np.floor(months.min() / step) * step,
+                     np.ceil(months.max() / step) * step + step, step)
+
+    fig = plt.figure(figsize=(10, 5))
+    fig.suptitle("Monthly return distribution", fontsize=16)
+    plt.hist(months[months >= 0], bins=bins, color='green', alpha=0.9, label='Positive months')
+    plt.hist(months[months < 0], bins=bins, color='red', alpha=0.9, label='Negative months')
+    plt.axvline(x=0, color='gray', linewidth=.9)
+    mean = months.mean()
+    plt.axvline(x=mean, color='blue', linewidth=2.0, linestyle='--', label='Mean')
+    plt.gca().text(mean, 1.02, f"{mean:,.0f}", transform=plt.gca().get_xaxis_transform(),
+                   ha='center', va='bottom', color='blue', fontsize=9)
+    plt.gca().text(0.02, 0.95, "Max.\nMin.\nStd.", transform=plt.gca().transAxes,
+                   ha='left', va='top', color='gray', fontsize=9)
+    plt.gca().text(0.16, 0.95, f"{months.max():,.0f}\n{months.min():,.0f}\n{months.std():,.0f}",
+                   transform=plt.gca().transAxes, ha='right', va='top', color='gray', fontsize=9)
+    plt.xlabel('Monthly return (USD)')
+    plt.ylabel('Number of months')
+    plt.legend(loc='upper right')
+    plt.savefig(ctx.outpath('images', 'monthly_dist_plot.png'), bbox_inches='tight')
+    plt.close(fig)
 
 
 def balance_plot(df, conf, ctx):
