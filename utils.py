@@ -474,17 +474,25 @@ def add_trading_signals(df, conf):
 
         # ENTER signal
         if intrade == 0 and signals.check_enter_signal(row) == True:
-            enter_lst[i] = row['Close']
-            signal_lst[i] = "ENTER"
+            candidate_stoploss = stloss.get_stoploss(row)
+            candidate_risk_oneR = row['Close'] - candidate_stoploss
 
-            intrade = 1
-            stoploss = stloss.get_stoploss(row)
-            risk_oneR = row['Close'] - stoploss
-            entry_price = row["Close"]
+            # skip entries where the stoploss can't be computed yet (e.g. an
+            # ATR-based stoploss whose warm-up period ends a bar later than
+            # the entry indicator's), which would otherwise enter a trade
+            # with an undefined/zero risk and a NaN Rmul on exit
+            if pd.notna(candidate_stoploss) and candidate_risk_oneR != 0:
+                enter_lst[i] = row['Close']
+                signal_lst[i] = "ENTER"
 
-            # update MFE and MAE
-            lowest_since_entry  = entry_price
-            highest_since_entry = entry_price
+                intrade = 1
+                stoploss = candidate_stoploss
+                risk_oneR = candidate_risk_oneR
+                entry_price = row["Close"]
+
+                # update MFE and MAE
+                lowest_since_entry  = entry_price
+                highest_since_entry = entry_price
 
         # EXIT signal
         if intrade != 0 and (signals.check_exit_signal(row, intrade) or row['Close'] < stoploss):
