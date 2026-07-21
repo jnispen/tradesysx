@@ -61,7 +61,8 @@ class TradingSignals(object):
                  "3EMA":  "_3_EMA_Enter",
                  "SMA": "_SMA_Enter",
                  "MACD": "_MACD_Enter",
-                 "DONCH": "_DONCH_Enter"}
+                 "DONCH": "_DONCH_Enter",
+                 "RAND": "_RAND_Enter"}
 
     exit_str  = {"CE": "_CE_Exit",
                  "CEE": "_CEE_Exit",
@@ -123,6 +124,10 @@ class TradingSignals(object):
         if row['Close'] > row['DONup']:
             signal = True
         return signal
+
+    def _RAND_Enter(self, row):
+        # random-entry control strategy: no indicators, just a chance event
+        return random.random() < float(self.conf['rand_level'])
 
     def _3_EMA_Exit(self, row, intrade):
         signal = False

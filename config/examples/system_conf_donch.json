@@ -38,6 +38,7 @@
     "pos_amount"   : 3000,
     "kelly_ratio"  : 0.5,
     "R_profit"     : 6,
+    "rand_level"   : 0.05,
     "adx_trend"    : 20,
     "rsi_low"      : 30.0,
     "rsi_high"     : 80.0,
