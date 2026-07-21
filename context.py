@@ -2,7 +2,7 @@
 
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 
 @dataclass
@@ -58,9 +58,16 @@ class SystemStats:
     worst_month: float = 0.0
     avg_month: float = 0.0
     std_month: float = 0.0
+    avg_month_pct: float = 0.0
+    std_month_pct: float = 0.0
     best_trailing_1y: float = 0.0
     worst_trailing_1y: float = 0.0
     avg_trailing_1y: float = 0.0
     max_dd_recovery: int = 0
     max_dd_recovery_from: str = "-"
     max_dd_recovery_to: str = "-"
+    # real max drawdown (%) of the daily equity curve, and the ratios derived
+    # from it and from stats.cagr - None when the denominator is 0/undefined
+    max_drawdown_pct: float = 0.0
+    sharpe_ratio: Optional[float] = None
+    mar_ratio: Optional[float] = None
