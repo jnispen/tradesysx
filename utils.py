@@ -804,6 +804,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             "Average risk (%)",
             "Final balance",
             "CAGR",
+            "Sharpe ratio",
+            "MAR ratio",
             "Average monthly return",
             "Longest drawdown",
         ],
@@ -817,6 +819,8 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             f"{stats.avg_risk_per:.2f}",
             f"{stats.final_balance:,.2f}",
             f"{stats.cagr:.1%}",
+            f"{stats.sharpe_ratio:.2f}" if stats.sharpe_ratio is not None else "-",
+            f"{stats.mar_ratio:.2f}" if stats.mar_ratio is not None else "-",
             f"{stats.avg_month:,.2f}",
             f"{stats.max_dd_recovery} days",
         ],
@@ -1153,8 +1157,10 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Kelly criterion", f"{kelly:.2f}" if kelly is not None else "&ndash;"),
     ])
 
-    # trading-simulation summary (mirrors the classic report's balance table)
-    sim_rows = "".join([
+    # trading-simulation summary (mirrors the classic report's balance table),
+    # split across two columns: the simulation inputs/outputs on the left, the
+    # annualized/derived performance ratios and their supporting figures on the right
+    sim_rows_left = "".join([
         row("Starting balance", f"${balance:,.0f}"),
         row("Position sizing", rp.pos_sizing_label(conf)),
         row("Open trades closed", stats.open_trades_closed),
@@ -1162,10 +1168,17 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Average equity value", f"${stats.avg_value:,.0f}"),
         row("Average cash balance", f"${stats.avg_balance:,.0f}"),
         row("Average risk", f"${stats.avg_risk:,.2f} ({stats.avg_risk_per:.2f}%)"),
+    ])
+    dd_period = (f"{stats.max_dd_recovery_from} &rarr; {stats.max_dd_recovery_to}"
+                 if stats.max_dd_recovery_from != "-" else "&ndash;")
+    sim_rows_right = "".join([
         row("Final balance", f"${stats.final_balance:,.0f}"),
-        row("CAGR", f"{stats.cagr:.1%}", "pos" if stats.cagr >= 0 else "neg"),
-        row("Average monthly return", f"${stats.avg_month:,.2f}"),
+        row("Average monthly return", f"${stats.avg_month:,.0f}"),
         row("Longest drawdown", f"{stats.max_dd_recovery} days"),
+        row("", dd_period),
+        row("CAGR", f"{stats.cagr:.1%}", "pos" if stats.cagr >= 0 else "neg"),
+        row("Sharpe ratio", f"{stats.sharpe_ratio:.2f}" if stats.sharpe_ratio is not None else "&ndash;"),
+        row("MAR ratio", f"{stats.mar_ratio:.2f}" if stats.mar_ratio is not None else "&ndash;"),
     ])
 
     # ---- selected trades (largest + smallest outcomes) ----
@@ -1538,8 +1551,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     <figure class="equityfig"><img src="{img_equity}" alt="Account value over time">
     <figcaption>Simulated account value (equity curve) against the buy-and-hold benchmark (dashed).</figcaption></figure>
     <div class="statgrid nosplit" style="margin-top:1.2em">
-      <table><tbody>{sim_rows}</tbody></table>
-      <table><tbody></tbody></table>
+      <table><tbody>{sim_rows_left}</tbody></table>
+      <table><tbody>{sim_rows_right}</tbody></table>
     </div>
 
     <h2 id="sec-trades"{trades_pbreak}>Trade statistics</h2>
@@ -1913,6 +1926,13 @@ def do_equity_simulation(events_df, conf, ctx, stats, df_trades_table=None):
     if len(month_ret):
         month_ret.iloc[0] = month_close.iloc[0] - float(conf['balance'])
 
+    # monthly return in %, mirroring the series above but normalized by the
+    # equity level at the start of each month - needed for the Sharpe ratio,
+    # since the dollar-based series alone would be skewed by account growth
+    month_ret_pct = (month_close / month_close.shift() - 1.0) * 100
+    if len(month_ret_pct):
+        month_ret_pct.iloc[0] = (month_close.iloc[0] / float(conf['balance']) - 1.0) * 100
+
     # longest stretch between two equity highs (drawdown recovery length). A day
     # at or above the previous running peak counts as a high, so flat periods
     # without an open position don't extend a recovery.
@@ -1935,6 +1955,7 @@ def do_equity_simulation(events_df, conf, ctx, stats, df_trades_table=None):
         'DDPerc': drawdown.round(2).to_numpy(),
         'Trail1Y': trailing_1y.round(2).to_numpy(),
         'MonthRet': month_ret.round(2).reindex(calendar).to_numpy(),
+        'MonthRetPct': month_ret_pct.round(2).reindex(calendar).to_numpy(),
     })
     dframe = dframe.fillna('-')
 
@@ -1943,6 +1964,8 @@ def do_equity_simulation(events_df, conf, ctx, stats, df_trades_table=None):
     stats.worst_month = month_ret.min() if len(month_ret) else 0.0
     stats.avg_month = month_ret.mean() if len(month_ret) else 0.0
     stats.std_month = month_ret.std() if len(month_ret) else 0.0
+    stats.avg_month_pct = month_ret_pct.mean() if len(month_ret_pct) else 0.0
+    stats.std_month_pct = month_ret_pct.std() if len(month_ret_pct) else 0.0
     stats.best_trailing_1y = trailing_1y.max()
     stats.worst_trailing_1y = trailing_1y.min()
     stats.avg_trailing_1y = trailing_1y.mean()
@@ -1950,15 +1973,34 @@ def do_equity_simulation(events_df, conf, ctx, stats, df_trades_table=None):
     stats.max_dd_recovery_from = rec_from.strftime('%Y-%m-%d') if rec_from is not None else "-"
     stats.max_dd_recovery_to = rec_to.strftime('%Y-%m-%d') if rec_to is not None else "-"
 
+    # real max drawdown (%) of the daily equity curve - peak-to-trough, the
+    # basis for the MAR ratio (kept separate from the Monte Carlo simulated
+    # stats.max_drawdown and the trade-event-based strat_dd used elsewhere)
+    stats.max_drawdown_pct = float(-drawdown.min()) if len(drawdown) else 0.0
+
+    # Sharpe ratio: mean / stdev of monthly % returns, annualized (0% risk-free
+    # rate assumed). Undefined (None) with fewer than two months of data or a
+    # flat return series, rather than raising or showing a misleading 0.00
+    stats.sharpe_ratio = (
+        (stats.avg_month_pct / stats.std_month_pct) * math.sqrt(12)
+        if stats.std_month_pct and not math.isnan(stats.std_month_pct)
+        else None
+    )
+
+    # MAR ratio: CAGR over the real max drawdown above. Undefined (None) when
+    # the equity curve never had a drawdown (max_drawdown_pct == 0)
+    stats.mar_ratio = (stats.cagr * 100) / stats.max_drawdown_pct if stats.max_drawdown_pct else None
+
     #logger.info(f"Equity curve rows : {len(dframe):,} ({calendar[0]:%Y-%m-%d} - {calendar[-1]:%Y-%m-%d})")
     #logger.info(f"Final equity      : {equity.iloc[-1]:,.2f}")
     #logger.info(f"Monthly return ($): {stats.worst_month:,.2f} (min) / {stats.best_month:,.2f} (max) / {stats.avg_month:,.2f} (avg)")
     #logger.info(f"Trailing 1y ($)   : {stats.worst_trailing_1y:,.2f} (min) / {stats.best_trailing_1y:,.2f} (max) / {stats.avg_trailing_1y:,.2f} (avg)")
+    logger.info(f"Sharpe ratio      : {stats.sharpe_ratio:.2f}" if stats.sharpe_ratio is not None else "Sharpe ratio      : -")
+    logger.info(f"MAR ratio         : {stats.mar_ratio:.2f}" if stats.mar_ratio is not None else "MAR ratio         : -")
     logger.info(f"Monthly return ($): {stats.avg_month:,.2f}")
     logger.info(f"Longest drawdown  : {max_recovery} days ({stats.max_dd_recovery_from} -> {stats.max_dd_recovery_to})")
     if ongoing > max_recovery:
         logger.info(f"Open drawdown     : {ongoing} days, not recovered at the last close")
-
     logger.debug("\n%s", dframe)
     dframe.to_csv(ctx.outpath('tables', "equity_curve.csv"), index=False)
 
