@@ -68,8 +68,8 @@ Ratchets the stop up as the trade runs, locking in profit (see `ladder_levels`).
 **ladder_levels** — [`list of [trigger_R, lock_R] pairs`]\
 Ladder rungs used when `stloss_ladder` is `true`. Once MFE reaches `trigger_R`, the stop moves to `lock_R` above the entry price (e.g. `[[1.0, 0.0], [2.0, 1.0]]` = break-even at 1R, then lock 1R at 2R). The stop only ever moves up.
 
-**enter** — [`3EMA`/`SMA`/`BBRSI`/`MACD`/`DONCH`]\
-Entry strategy.
+**enter** — [`3EMA`/`SMA`/`BBRSI`/`MACD`/`DONCH`/`RAND`]\
+Entry strategy. `RAND` is a random-entry control: on each bar where flat, a random number in `[0,1)` is compared against `rand_level` and an ENTER signal fires if it's lower.
 
 **exit** — [`CE`/`CEE`/`RSI`/`XR`/`3EMA`/`SMA`/`MACD`/`BBRSI`/`DONCH`/`TIME`]\
 Exit strategy. `TIME` is a time-based exit that unconditionally closes the trade after `exit_on_day` days.
@@ -130,6 +130,9 @@ Fraction of the full Kelly criterion to apply (e.g. `0.5` = half Kelly). Only us
 
 **R_profit** — [`number`]\
 R-multiple profit target that triggers an exit. Only used by the `XR` exit strategy.
+
+**rand_level** — [`float`]\
+Per-bar entry probability for the `RAND` entry strategy (e.g. `0.05` = ~1-in-20 chance on each eligible bar). Only used when `enter` is `RAND`.
 
 **adx_trend** — [`number`]\
 ADX threshold used as the trend-strength filter in the `3EMA`, `SMA`, and `MACD` enter/exit signals.
