@@ -2691,6 +2691,57 @@ def _benchmark_drawdown_pct(conf, ctx):
         return None
 
 
+def _benchmark_equity_series(conf, ctx, calendar):
+    ''' the buy-and-hold benchmark's daily mark-to-market value, reindexed onto
+        the equity curve's master calendar so it can be drawn as a curve next to
+        the strategy equity. Each mode mirrors its own final-value convention
+        (see _get_benchmark_result / _build_basket_benchmark_df) so the curve's
+        last point ties out exactly to the flat "Buy & hold" line:
+
+        - single ticker: fee-less, the whole balance bought at the first close;
+        - quote-lst basket: equal-weight, buy fee deducted from the moment each
+          ticker is bought and sell fee added at that ticker's own last close,
+          with the net proceeds carried forward as cash. Before a ticker's first
+          close its equal allocation is held as cash.
+
+        Returns a pd.Series indexed by `calendar` (a DatetimeIndex), or None. '''
+    bm_ticker = conf.get('bm_ticker', 'URTH')
+    try:
+        if bm_ticker == 'quote-lst':
+            with open(ctx.path(conf['quotefile'])) as f:
+                tickers = list(json.loads(f.read()).keys())
+            capital_per_stock = float(conf['balance']) / len(tickers)
+            fee_frac = float(conf['trading_fee']) / 100
+            series = []
+            for ticker in tickers:
+                df = pd.read_csv(ctx.outpath('data', f"{ticker}_ohlc_raw.csv")).dropna(subset=['Close'])
+                units = capital_per_stock / df['Close'].iloc[0]
+                buy_fee = capital_per_stock * fee_frac
+                # mark to market net of the buy fee already paid
+                v = pd.Series((units * df['Close']).values - buy_fee,
+                              index=pd.to_datetime(df['Date'], errors='coerce'))
+                # sell fee is booked on this ticker's own last close; carried
+                # forward as net cash for the rest of the period by the ffill below
+                v.iloc[-1] -= (units * df['Close'].iloc[-1]) * fee_frac
+                series.append(v)
+            mat = pd.concat(series, axis=1).sort_index()
+            mat = mat.reindex(mat.index.union(calendar)).ffill().reindex(calendar)
+            # before a ticker's first close its allocation sits in cash
+            mat = mat.fillna(capital_per_stock)
+            return mat.sum(axis=1)
+
+        sdf = pd.read_csv(ctx.outpath('data', f"{bm_ticker}_ohlc_raw.csv")).dropna(subset=['Close'])
+        shares = float(conf['balance']) / sdf['Close'].iloc[0]   # fee-less, mirrors _get_benchmark_result
+        v = pd.Series((shares * sdf['Close']).values,
+                      index=pd.to_datetime(sdf['Date'], errors='coerce'))
+        v = v.reindex(v.index.union(calendar)).ffill().reindex(calendar)
+        # before the first close the whole balance is held as cash
+        return v.fillna(float(conf['balance']))
+    except Exception as e:
+        logger.debug(f"benchmark equity curve: skipped ({e})")
+        return None
+
+
 def equity_plot(df, conf, ctx, max_recovery=0, rec_from=None, rec_to=None):
     ''' plot the daily equity curve produced by do_equity_simulation '''
 
@@ -2698,7 +2749,14 @@ def equity_plot(df, conf, ctx, max_recovery=0, rec_from=None, rec_to=None):
     val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
 
     if conf.get('report_style', 'styled') == 'styled':
-        rp.styled_equity_plot(df, conf, ctx, val_out, max_recovery, rec_from, rec_to)
+        # the benchmark's daily value curve, aligned to the equity curve's
+        # calendar (the Date column). Drawn only in the styled report.
+        bm_curve = None
+        if benchmark_enabled:
+            calendar = pd.to_datetime(df['Date'], errors='coerce').dropna()
+            bm_curve = _benchmark_equity_series(conf, ctx, pd.DatetimeIndex(calendar))
+        rp.styled_equity_plot(df, conf, ctx, val_out, max_recovery, rec_from, rec_to,
+                              bm_curve=bm_curve)
         return
 
     df = df.copy()

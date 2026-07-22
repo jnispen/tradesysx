@@ -128,12 +128,18 @@ def styled_balance_plot(df, conf, ctx, val_out):
         plt.close(fig)
 
 
-def styled_equity_plot(df, conf, ctx, val_out, max_recovery=0, rec_from=None, rec_to=None):
+def styled_equity_plot(df, conf, ctx, val_out, max_recovery=0, rec_from=None, rec_to=None,
+                       bm_curve=None):
     ''' daily equity curve from the equity table: total equity (accent) against
-    the buy-and-hold benchmark drawn as a dashed neutral reference line at its
-    final value, with the trailing one-year return ($) and the monthly return
-    in panels below it. Unlike styled_balance_plot this walks the trading
-    calendar, so the x-axis is real time rather than the trade-event sequence. '''
+    the buy-and-hold benchmark, with the trailing one-year return ($) and the
+    monthly return in panels below it. Unlike styled_balance_plot this walks the
+    trading calendar, so the x-axis is real time rather than the trade-event
+    sequence.
+
+    When `bm_curve` (a pd.Series of the benchmark's daily value, indexed by date)
+    is given, the benchmark is drawn as a thin neutral curve over time; the flat
+    dashed neutral line at its final value is kept as a reference marker. Both
+    share a single "Buy & hold" legend entry. '''
 
     df = df.copy()
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
@@ -157,9 +163,17 @@ def styled_equity_plot(df, conf, ctx, val_out, max_recovery=0, rec_from=None, re
         ax.plot(xs, ys, color=ACCENT, lw=1.4, label='Strategy')
         ax.axhline(float(conf['balance']), color=NEUTRAL, lw=0.8, ls=':')
 
+        # benchmark value over time (thin neutral curve); it carries the single
+        # "Buy & hold" legend entry, leaving the flat final-value line label-less
+        bm_label = 'Buy & hold'
+        if bm_curve is not None and not bm_curve.dropna().empty:
+            bm_y = bm_curve.reindex(xs)
+            ax.plot(xs, bm_y, color=NEUTRAL, lw=0.5, label=bm_label)
+            bm_label = None
+
         if val_out is not None:
             ax.plot([xs.iloc[0], end_x], [val_out, val_out],
-                    color=NEUTRAL, lw=1.6, ls='--', label='Buy & hold')
+                    color=NEUTRAL, lw=1.6, ls='--', label=bm_label)
             ax.annotate(f"{val_out:,.0f}", (end_x, val_out),
                         xytext=(8, 0), textcoords='offset points', va='center',
                         color=TEXT2, fontsize=9)
