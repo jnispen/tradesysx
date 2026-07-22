@@ -1371,19 +1371,23 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     # ---- appendix: account performance (detailed) - the daily equity curve
     # (with the longest-drawdown callout drawn on the chart) and the
     # monthly-return distribution (with its min/max/mean drawn on the chart) ----
+    # both figures share this page, so their widths are set to the largest pair
+    # that still renders on a single A4 page (88%/76% leaves ~22pt of slack; the
+    # equity figure's 4 panels make it too tall for the front page's 92%)
     account_detail_title = "Appendix &mdash; account performance (detailed)"
     account_detail_section = ""
     if img_equity_detail:
         monthly_dist_fig = (f'<figure class="equityfig" style="margin-top:20px">'
                             f'<img src="{img_monthly_dist}" alt="Distribution of monthly returns" '
-                            f'style="width:85%">'
+                            f'style="width:76%">'
                             f'<figcaption>Distribution of monthly returns in dollars, with the mean '
                             f'(dashed).</figcaption></figure>' if img_monthly_dist else "")
         account_detail_section = f"""
         <h2 id="sec-account-detail" class="pbreak">{account_detail_title}</h2>
-        <figure class="equityfig"><img src="{img_equity_detail}" alt="Daily equity curve with trailing 1-year and monthly return">
-        <figcaption>Daily equity curve against the buy-and-hold benchmark (top), the trailing
-        one-year return in dollars (middle) and the monthly return in dollars (bottom).</figcaption></figure>
+        <figure class="equityfig"><img src="{img_equity_detail}" alt="Daily equity curve with drawdown, trailing 1-year return and monthly return" style="width:88%">
+        <figcaption>Daily equity curve against the buy-and-hold benchmark (top), the drawdown
+        from the running equity peak in percent, the trailing one-year return in dollars and
+        the monthly return in dollars (bottom).</figcaption></figure>
         {monthly_dist_fig}"""
 
     # ---- table of contents ----
@@ -1519,9 +1523,12 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     table.appendix:first-of-type {{ margin-right: 1.5%; }}
 
     /* table of contents - page numbers are resolved by WeasyPrint from the
-       link target, so they follow the real pagination */
+       link target, so they follow the real pagination. The row padding is tuned
+       so that all 10 entries (every optional section switched on) still fit on
+       the front page below the summary and benchmark blocks - at 6px the last
+       row is orphaned onto page 2 */
     table.toc {{ margin: 2px 0 4px; }}
-    table.toc td {{ padding: 6px 0; border-bottom: 1px dotted {GRID}; }}
+    table.toc td {{ padding: 4px 0; border-bottom: 1px dotted {GRID}; }}
     table.toc td.pg {{ width: 3em; text-align: right; color: {TEXT2}; }}
     table.toc a {{ color: {TEXT}; text-decoration: none; }}
     table.toc a.pg {{ color: {TEXT2}; }}
