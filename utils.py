@@ -1027,7 +1027,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     bars, trade statistics, charts, Monte Carlo, then the config/quotes
     appendix, with a footer on every page. '''
 
-    from tradesysx.report_style import ACCENT, NEUTRAL, POS, NEG, GRID, TEXT, TEXT2
+    from tradesysx.report_style import ACCENT, NEUTRAL, POS, NEG, GRID, TEXT, TEXT2, IND_GOLD
 
     # ---- pull numbers out of the system-summary frame + stats ----
     sd = dict(zip(stat_df['Metric'], stat_df['Value']))
@@ -1138,6 +1138,15 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     def row(k, v, cls=""):
         return f"<tr><td class='k'>{k}</td><td class='num {cls}'>{v}</td></tr>"
 
+    def ratio_class(val):
+        ''' colour class for the Sharpe/MAR ratios: red < 0.5, orange 0.5-1.0,
+        green >= 1.0. Compares the value rounded to the 2 decimals shown, so a
+        figure that displays as 1.00 reads as green. '''
+        if val is None:
+            return ""
+        r = round(val, 2)
+        return "neg" if r < 0.5 else "warn" if r < 1.0 else "pos"
+
     stats_left = "".join([
         row("Trades", trades_num),
         row("Winners / losers", f"{winners} / {losers}"),
@@ -1176,9 +1185,13 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         row("Average monthly return", f"${stats.avg_month:,.0f}"),
         row("Longest drawdown", f"{stats.max_dd_recovery} days"),
         row("", dd_period),
-        row("CAGR", f"{stats.cagr:.1%}", "pos" if stats.cagr >= 0 else "neg"),
-        row("Sharpe ratio", f"{stats.sharpe_ratio:.2f}" if stats.sharpe_ratio is not None else "&ndash;"),
-        row("MAR ratio", f"{stats.mar_ratio:.2f}" if stats.mar_ratio is not None else "&ndash;"),
+        row("CAGR", f"{stats.cagr:.1%}",
+            ("pos" if stats.cagr >= bm_cagr else "neg") if bm_cagr is not None
+            else ("pos" if stats.cagr >= 0 else "neg")),
+        row("Sharpe ratio", f"{stats.sharpe_ratio:.2f}" if stats.sharpe_ratio is not None else "&ndash;",
+            ratio_class(stats.sharpe_ratio)),
+        row("MAR ratio", f"{stats.mar_ratio:.2f}" if stats.mar_ratio is not None else "&ndash;",
+            ratio_class(stats.mar_ratio)),
     ])
 
     # ---- selected trades (largest + smallest outcomes) ----
@@ -1496,6 +1509,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     td.k {{ color: {TEXT2}; }}
     .pos {{ color: {POS}; font-weight: 600; }}
     .neg {{ color: {NEG}; font-weight: 600; }}
+    .warn {{ color: {IND_GOLD}; font-weight: 600; }}
     td.tag {{ color: {TEXT2}; font-size: 10.5px; }}
     tr.tot td {{ font-weight: 600; border-top: 1.5px solid {GRID}; }}
     th .subd {{ display: block; font-weight: 400; text-transform: none;
