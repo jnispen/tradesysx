@@ -131,21 +131,21 @@ def styled_balance_plot(df, conf, ctx, val_out):
 def styled_equity_plot(df, conf, ctx, val_out, max_recovery=0, rec_from=None, rec_to=None,
                        bm_curve=None):
     ''' daily equity curve from the equity table: total equity (accent) against
-    the buy-and-hold benchmark, with the trailing one-year return ($) and the
-    monthly return in panels below it. Unlike styled_balance_plot this walks the
-    trading calendar, so the x-axis is real time rather than the trade-event
-    sequence.
+    the buy-and-hold benchmark, with the drawdown from the running equity peak
+    (%), the trailing one-year return ($) and the monthly return in panels below
+    it. Unlike styled_balance_plot this walks the trading calendar, so the
+    x-axis is real time rather than the trade-event sequence.
 
     When `bm_curve` (a pd.Series of the benchmark's daily value, indexed by date)
-    is given, the benchmark is drawn as a thin neutral curve over time; the flat
-    dashed neutral line at its final value is kept as a reference marker. Both
-    share a single "Buy & hold" legend entry. '''
+    is given, the benchmark is drawn as a thin neutral curve over time, with
+    `val_out` annotated at its end. '''
 
     df = df.copy()
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df['Equity'] = pd.to_numeric(df['Equity'], errors='coerce')
     df['Trail1Y'] = pd.to_numeric(df['Trail1Y'], errors='coerce')
     df['MonthRet'] = pd.to_numeric(df['MonthRet'], errors='coerce')
+    df['DDPerc'] = pd.to_numeric(df.get('DDPerc'), errors='coerce')
     eq = df.dropna(subset=['Date', 'Equity']).sort_values('Date')
     if eq.empty:
         logger.warning("No equity data to plot")
@@ -156,27 +156,25 @@ def styled_equity_plot(df, conf, ctx, val_out, max_recovery=0, rec_from=None, re
     xlim = (xs.iloc[0], end_x + pd.Timedelta(days=120))
 
     with report_style():
-        fig, (ax, ax2, ax3) = plt.subplots(
-            3, 1, figsize=(FIG_WIDTH, 6.8), sharex=True,
-            gridspec_kw={'height_ratios': [3, 1.6, 1.6], 'hspace': 0.12})
+        fig, (ax, ax_dd, ax2, ax3) = plt.subplots(
+            4, 1, figsize=(FIG_WIDTH, 8.2), sharex=True,
+            gridspec_kw={'height_ratios': [3, 1.4, 1.6, 1.6], 'hspace': 0.12})
 
         ax.plot(xs, ys, color=ACCENT, lw=1.4, label='Strategy')
         ax.axhline(float(conf['balance']), color=NEUTRAL, lw=0.8, ls=':')
 
-        # benchmark value over time (thin neutral curve); it carries the single
-        # "Buy & hold" legend entry, leaving the flat final-value line label-less
-        bm_label = 'Buy & hold'
+        # benchmark value over time (thin neutral curve), labelled at its final
+        # value. The buy-and-hold end value is in the report tables as well, so
+        # the curve alone carries it here - no flat reference line.
+        bm_drawn = False
         if bm_curve is not None and not bm_curve.dropna().empty:
             bm_y = bm_curve.reindex(xs)
-            ax.plot(xs, bm_y, color=NEUTRAL, lw=0.5, label=bm_label)
-            bm_label = None
-
-        if val_out is not None:
-            ax.plot([xs.iloc[0], end_x], [val_out, val_out],
-                    color=NEUTRAL, lw=1.6, ls='--', label=bm_label)
-            ax.annotate(f"{val_out:,.0f}", (end_x, val_out),
-                        xytext=(8, 0), textcoords='offset points', va='center',
-                        color=TEXT2, fontsize=9)
+            ax.plot(xs, bm_y, color=NEUTRAL, lw=0.5, label='Buy & hold')
+            bm_drawn = True
+            if val_out is not None:
+                ax.annotate(f"{val_out:,.0f}", (end_x, val_out),
+                            xytext=(8, 0), textcoords='offset points', va='center',
+                            color=TEXT2, fontsize=9)
 
         ax.annotate(f"{end_y:,.0f}", (end_x, end_y),
                     xytext=(6, 0), textcoords='offset points', va='center',
@@ -185,14 +183,39 @@ def styled_equity_plot(df, conf, ctx, val_out, max_recovery=0, rec_from=None, re
         ax.grid(axis='y'); ax.grid(axis='x', visible=False)
         _thousands(ax)
         ax.set_ylabel('Account value (USD)')
-        if val_out is not None:
+        if bm_drawn:
             ax.legend(loc='upper left')
 
-        if rec_from is not None and rec_to is not None:
-            ax.text(0.98, 0.06, f"Longest drawdown: {max_recovery} days "
-                    f"({rec_from:%Y-%m-%d} → {rec_to:%Y-%m-%d})",
-                    transform=ax.transAxes, ha='right', va='bottom',
-                    color=TEXT2, fontsize=9)
+        # drawdown from the running equity peak (%), directly under the equity
+        # curve it belongs to. Always <= 0: the zero line is where the account
+        # makes a new high, and the width of each excursion below it is the time
+        # spent underwater. Drawn as an unfilled neutral line, like the benchmark
+        # curve above - a red filled area reads as alarming out of proportion to
+        # what it measures.
+        dd = eq.dropna(subset=['DDPerc'])
+        callout = (f"Longest drawdown: {max_recovery} days "
+                   f"({rec_from:%Y-%m-%d} → {rec_to:%Y-%m-%d})"
+                   if rec_from is not None and rec_to is not None else None)
+
+        # the callout belongs with the curve it describes, but it must not land
+        # on it - and where the curve is deep varies per run. So the y-limit is
+        # stretched past the deepest excursion to reserve a band that no data can
+        # reach (24% of the panel with the callout, against ~10% of text height),
+        # and the text is placed inside that band. Clearance then holds whatever
+        # the drawdown profile looks like.
+        headroom = 1.32 if callout else 1.1
+        ax_dd.axhline(0, color=TEXT2, lw=0.8)
+        if not dd.empty:
+            ax_dd.plot(dd['Date'], dd['DDPerc'], color=NEUTRAL, lw=0.8)
+            ax_dd.set_ylim(min(dd['DDPerc'].min() * headroom, -1.0), 0)
+
+        if callout:
+            ax_dd.text(0.98, 0.04, callout, transform=ax_dd.transAxes,
+                       ha='right', va='bottom', color=TEXT2, fontsize=9)
+
+        ax_dd.grid(axis='y'); ax_dd.grid(axis='x', visible=False)
+        ax_dd.yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}%"))
+        ax_dd.set_ylabel('Drawdown (%)')
 
         # trailing one-year return in $: gains above the zero line green, losses
         # red. The first year has no full look-back window and stays blank.
