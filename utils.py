@@ -1778,6 +1778,9 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     dframe['Enter'] = dframe['Enter'].apply(format_to_2_decimals)
     dframe['Exit'] = dframe['Exit'].apply(format_to_2_decimals)
     dframe['Profit'] = dframe['Profit'].apply(format_to_2_decimals)
+    dframe['Units'] = dframe['Units'].apply(format_to_2_decimals)
+    dframe['RiskAbs'] = dframe['RiskAbs'].apply(format_to_2_decimals)
+    dframe['RiskPerc'] = dframe['RiskPerc'].apply(format_to_2_decimals)
 
     # absolute and % wise risk
     abs_risk_df = dframe[['RiskAbs']].copy()
@@ -2522,6 +2525,8 @@ def save_trades_table(dframe, conf, ctx):
     dframe['Enter'] = pd.to_datetime(dframe['Enter'], errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = pd.to_datetime(dframe['Exit'], format='%Y-%m-%d', errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = dframe['Exit'].where(dframe['Exit'].notna(), "-")
+    dframe['PriceIn'] = dframe['PriceIn'].apply(format_to_2_decimals)
+    dframe['PriceOut'] = dframe['PriceOut'].apply(format_to_2_decimals)
     # MAE and MFE are kept in the CSV for analysis but dropped from the PDF to
     # avoid widening the printed trades table
     html = df_to_html(dframe.drop(columns=['MAE', 'MFE'], errors='ignore'))
