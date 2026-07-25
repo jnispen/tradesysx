@@ -7,12 +7,12 @@ strategy is meant to do, then the exact condition under which it fires.
 
 The conditions reference config settings shown in `code font` (e.g. `adx_trend`, `rsi_low`) —
 see [system_conf_reference.md](system_conf_reference.md) for what each controls and its allowed
-values. Position sizing (how much to buy) is a separate concern and is not covered here.
+values.
 
 Any enter strategy can be combined with any exit strategy — the engine imposes no restriction.
 The natural design is a symmetric pairing (enter on a trend forming, exit on it breaking, using
 the same indicator), or a trend/breakout entry handed off to a Chandelier trailing exit
-(`CE`/`CEE`/`XR`) to let the move run; but every combination is valid and yours to explore.
+(`CE`/`CEE`/`XR`) to let the move run.
 
 ---
 
