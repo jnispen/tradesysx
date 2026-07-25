@@ -30,7 +30,7 @@ configured quotes file:
 3. **Add technical indicators** — compute a set of technical-analysis (TA) indicators (e.g. RSI, ATR, SMA/EMA
    moving averages, Bollinger Bands) over the data.
 4. **Generate ENTER/EXIT signals** — apply the configured entry strategy
-   (`3EMA`, `SMA`, `BBRSI`, `MACD`, `DONCH` or `RAND`), exit strategy (`CE`, `CEE`,
+   (`3EMA`, `SMA`, `BBRSI`, `RSI`, `MACD`, `DONCH` or `RAND`), exit strategy (`CE`, `CEE`,
    `RSI`, `XR`, `3EMA`, `SMA`, `MACD`, `BBRSI`, `DONCH` or `TIME`) and stoploss method
    (`3atr`, `2atr`, `xatr` or `percent`) to produce entry or exit trading signals.
    Optionally (`stloss_ladder`), the stop is ratcheted up as a trade runs, locking in
@@ -69,7 +69,7 @@ The behaviour of `tradesysx` is controlled via JSON config files in `config/`:
   `notify` is `true`.
 - `quotes/quotes_sp500.lst`, `quotes/quotes_nasdaq.lst`, `quotes/quotes_dow30.lst` — example lists of tickers to process.
 
-The full list of settings in `config/system_conf.json` is explained in the [system configuration reference](docs/system_conf_reference.md).
+The full list of settings in `config/system_conf.json` is explained in the [system configuration reference](docs/system_conf_reference.md). The available enter, exit and stoploss strategies — what each one does and when it fires — are described in the [trading strategies reference](docs/strategies_reference.md).
 
 ### 2.1 Plot indicators
 

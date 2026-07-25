@@ -9,5 +9,6 @@ dist/*
 docs/*
 !docs/examples/
 !docs/system_conf_reference.md
+!docs/strategies_reference.md
 build/*
 scripts/publish_head.sh

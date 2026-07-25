@@ -58,6 +58,7 @@ class TradingSignals(object):
     ''' ENTER and EXIT signals strategy '''
 
     enter_str = {"BBRSI": "_BB_RSI_Enter",
+                 "RSI": "_RSI_Enter",
                  "3EMA":  "_3_EMA_Enter",
                  "SMA": "_SMA_Enter",
                  "MACD": "_MACD_Enter",
@@ -87,6 +88,13 @@ class TradingSignals(object):
     def _BB_RSI_Enter(self, row):
         signal = False
         if row['Close'] < row['BBl'] and row['RSI'] < float(self.conf['rsi_low']):
+            signal = True
+        return signal
+
+    def _RSI_Enter(self, row):
+        # pure RSI mean-reversion entry: oversold, the mirror of the RSI exit
+        signal = False
+        if row['RSI'] < float(self.conf['rsi_low']):
             signal = True
         return signal
 
