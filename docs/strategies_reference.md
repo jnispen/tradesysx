@@ -38,27 +38,31 @@ The strategy conditions below are built from these technical indicators (all com
 
 **BBRSI** — *Mean-reversion.* Buys a stretched-down, oversold market betting on a bounce.\
 *Fires when:* Close < lower Bollinger band (BBl) **and** RSI < `rsi_low`.\
-*Code:* [strategy.py:87](../strategy.py#L87)
+*Code:* [strategy.py:88](../strategy.py#L88)
+
+**RSI** — *Mean-reversion.* Buys a purely oversold market on RSI alone, without the Bollinger-band confirmation — the mirror of the RSI exit.\
+*Fires when:* RSI < `rsi_low`.\
+*Code:* [strategy.py:94](../strategy.py#L94)
 
 **3EMA** — *Trend-following.* Buys an established up-trend confirmed by three stacked, rising EMAs.\
 *Fires when:* Close > EMAfast > EMAmid > EMAslow, **and** +DI > −DI, **and** ADX > `adx_trend`.\
-*Code:* [strategy.py:93](../strategy.py#L93)
+*Code:* [strategy.py:101](../strategy.py#L101)
 
 **SMA** — *Trend-following.* Same idea as 3EMA but with two simple moving averages.\
 *Fires when:* Close > SMAfast > SMAslow, **and** +DI > −DI, **and** ADX > `adx_trend`.\
-*Code:* [strategy.py:103](../strategy.py#L103)
+*Code:* [strategy.py:111](../strategy.py#L111)
 
 **MACD** — *Trend / momentum.* Buys when MACD momentum turns positive inside a confirmed up-trend.\
 *Fires when:* MACD > signal line, **and** MACD histogram > 0, **and** +DI > −DI, **and** ADX > `adx_trend`.\
-*Code:* [strategy.py:112](../strategy.py#L112)
+*Code:* [strategy.py:120](../strategy.py#L120)
 
 **DONCH** — *Breakout.* Buys a fresh N-bar high — a pure Donchian channel breakout, no confirmation.\
 *Fires when:* Close > upper Donchian channel (DONup).\
-*Code:* [strategy.py:121](../strategy.py#L121)
+*Code:* [strategy.py:129](../strategy.py#L129)
 
 **RAND** — *Random control.* Enters on a random draw, ignoring all indicators. Useful as a baseline: a real edge should beat random entries with the same exit and sizing.\
 *Fires when:* a random number in [0,1) is below `rand_level` (e.g. `0.02` ≈ a 2% chance per bar).\
-*Code:* [strategy.py:128](../strategy.py#L128)
+*Code:* [strategy.py:136](../strategy.py#L136)
 
 ---
 
@@ -72,35 +76,35 @@ ones are described with their intent first.
 
 **3EMA** — *Trend breakdown.* Exits when the up-trend inverts into a stacked, falling EMA alignment.\
 *Fires when:* Close < EMAfast < EMAmid < EMAslow, **and** −DI > +DI, **and** ADX > `adx_trend`.\
-*Code:* [strategy.py:132](../strategy.py#L132)
+*Code:* [strategy.py:140](../strategy.py#L140)
 
 **SMA** — *Trend breakdown.* The SMA mirror of the 3EMA exit.\
 *Fires when:* Close < SMAfast < SMAslow, **and** −DI > +DI, **and** ADX > `adx_trend`.\
-*Code:* [strategy.py:142](../strategy.py#L142)
+*Code:* [strategy.py:150](../strategy.py#L150)
 
 **MACD** — *Momentum breakdown.* Exits when MACD momentum turns negative within a down-turn.\
 *Fires when:* MACD < signal line, **and** MACD histogram < 0, **and** −DI > +DI, **and** ADX > `adx_trend`.\
-*Code:* [strategy.py:151](../strategy.py#L151)
+*Code:* [strategy.py:159](../strategy.py#L159)
 
 **DONCH** — *Breakout reversal.* Exits on a fresh M-bar low — the opposite Donchian break to the entry.\
 *Fires when:* Close < lower Donchian channel (DONdn).\
-*Code:* [strategy.py:166](../strategy.py#L166)
+*Code:* [strategy.py:174](../strategy.py#L174)
 
 **RSI** — *Overbought.* Exits once momentum reaches an overbought extreme.\
 *Fires when:* RSI > `rsi_high`.\
-*Code:* [strategy.py:195](../strategy.py#L195)
+*Code:* [strategy.py:203](../strategy.py#L203)
 
 **BBRSI** — *Overbought mean-reversion.* The exit counterpart to the BBRSI entry — take the bounce once it's stretched up.\
 *Fires when:* Close < upper Bollinger band (BBu) **and** RSI > `rsi_high`.\
-*Code:* [strategy.py:160](../strategy.py#L160)
+*Code:* [strategy.py:168](../strategy.py#L168)
 
 **TIME** — *Time-based.* Holds for a fixed number of days, then exits unconditionally — independent of price and of the enter strategy.\
 *Fires when:* the trade has been held for `exit_on_day` days (day 1 = the entry day).\
-*Code:* [strategy.py:201](../strategy.py#L201)
+*Code:* [strategy.py:209](../strategy.py#L209)
 
 **CE** — *Chandelier trailing stop.* Rides the trade behind a single trailing stop set a few ATR below the recent high, giving the move room while capping the give-back.\
 *Fires when:* the trade is at least `intrade_wait` days old **and** Close < the Chandelier stop (CE).\
-*Code:* [strategy.py:189](../strategy.py#L189)
+*Code:* [strategy.py:197](../strategy.py#L197)
 
 **CEE** — *Progressive Chandelier trailing stop.* A Chandelier trail that tightens as the trade
 gets more profitable: losers are cut immediately, young winners are given room, and the stop is
@@ -116,13 +120,13 @@ R-multiples (`Rcur`):
 | 4 – 6 | Exit if Close falls below a tighter stop (CE2). |
 | > 6 | Exit if Close falls below the tightest stop (CE15). |
 
-*Code:* [strategy.py:173](../strategy.py#L173)
+*Code:* [strategy.py:181](../strategy.py#L181)
 
 **XR** — *Chandelier trail with a profit target.* A Chandelier trailing stop combined with a
 hard take-profit: it rides the trade behind the stop but also banks the position outright once
 a fixed R-multiple target is reached. Only active once the trade is at least `intrade_wait` days old.\
 *Fires when:* current profit `Rcur` ≤ 0 (turned into a loss), **or** Close < the Chandelier stop (CE), **or** current profit `Rcur` ≥ `R_profit` (target hit).\
-*Code:* [strategy.py:209](../strategy.py#L209)
+*Code:* [strategy.py:217](../strategy.py#L217)
 
 ---
 

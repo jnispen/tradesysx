@@ -3217,7 +3217,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
         rp.styled_ticker_plot_ta(df, ticker, description, conf, ctx)
         return
 
-    bbrsi = conf['enter'] == 'BBRSI'
+    bbrsi = conf['enter'] in ('BBRSI', 'RSI')
     macd = conf['enter'] == 'MACD'
     donch = conf['enter'] == 'DONCH'
     if bbrsi or macd:
