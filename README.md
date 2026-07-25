@@ -69,7 +69,7 @@ The behaviour of `tradesysx` is controlled via JSON config files in `config/`:
   `notify` is `true`.
 - `quotes/quotes_sp500.lst`, `quotes/quotes_nasdaq.lst`, `quotes/quotes_dow30.lst` — example lists of tickers to process.
 
-The full list of settings in `config/system_conf.json` is explained in the [system configuration reference](docs/system_conf_reference.md).
+The full list of settings in `config/system_conf.json` is explained in the [system configuration reference](docs/system_conf_reference.md). The available enter, exit and stoploss strategies — what each one does and when it fires — are described in the [trading strategies reference](docs/strategies_reference.md).
 
 ### 2.1 Plot indicators
 
