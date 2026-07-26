@@ -229,7 +229,7 @@ def get_quotes_data(quotes, conf, outfile, ctx):
 
         dfr.to_csv(ctx.outpath('data',f"{ticker}_{outfile}"))
 
-VALID_PLOT_INDICATORS = {'BB', 'SMA225', 'DON'}
+VALID_PLOT_INDICATORS = {'BB', 'BBB', 'SMA225', 'DON'}
 
 def validate_plot_indicators(conf):
     ''' validates the conf['plot_indicators'] list against the known indicator names '''
@@ -328,6 +328,12 @@ def add_technical_indicators(dframe, conf):
 
     # Bollinger Bands (SMA) (default settings)
     dframe['BBu'], dframe['BBm'], dframe['BBl'] = ta.BBANDS(dframe['Close'], timeperiod=20, matype=0)
+
+    # Bollinger Band Breakout bands: 'bbb_sma' periods at 'bbb_std' standard
+    # deviations. A separate set from BBu/BBm/BBl so the BBRSI mean-reversion
+    # strategy keeps its 20/2 bands. BBBm is the SMA the BBB exit closes below.
+    dframe['BBBu'], dframe['BBBm'], dframe['BBBl'] = ta.BBANDS(dframe['Close'],
+        timeperiod=conf['bbb_sma'], nbdevup=conf['bbb_std'], nbdevdn=conf['bbb_std'], matype=0)
 
     # Average Directional Movement Index (ADX)
     dframe['ADX'] = ta.ADX(dframe['High'], dframe['Low'], dframe['Close'], timeperiod=14)
@@ -1355,18 +1361,27 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
               </tbody></table>"""
 
     # ---- appendix: config + quotes ----
-    def two_col(items, k_hdr, v_hdr):
-        half = (len(items) + 1) // 2
-        def body(chunk):
-            return "".join(f"<tr><td class='k'>{k}</td><td>{v}</td></tr>" for k, v in chunk)
-        return (f"<table class='appendix'><thead><tr><th>{k_hdr}</th><th>{v_hdr}</th></tr></thead>"
-                f"<tbody>{body(items[:half])}</tbody></table>"
-                f"<table class='appendix'><thead><tr><th>{k_hdr}</th><th>{v_hdr}</th></tr></thead>"
-                f"<tbody>{body(items[half:])}</tbody></table>")
+    def n_col(items, k_hdr, v_hdr, n=2, cls="appendix"):
+        ''' lay `items` out as `n` Key/Value column pairs, so a long list reads
+        wide and short instead of one tall column. Emitted as a single
+        block-level table rather than n side-by-side inline-tables: WeasyPrint
+        cannot break inside an inline-table, so those jumped to the next page
+        whole (stranding the heading) instead of continuing across the break. '''
+        size = max(1, math.ceil(len(items) / n))
+        cols = [items[i:i + size] for i in range(0, len(items), size)]
+        hdr = "".join(f"<th>{k_hdr}</th><th>{v_hdr}</th>" for _ in cols)
+        rows = ""
+        for r in range(size):
+            cells = "".join(
+                "<td class='k'>{}</td><td>{}</td>".format(*(col[r] if r < len(col) else ("", "")))
+                for col in cols)
+            rows += f"<tr>{cells}</tr>"
+        return (f"<table class='{cls}'><thead><tr>{hdr}</tr></thead>"
+                f"<tbody>{rows}</tbody></table>")
 
     conf_items = [(k, fmt_conf_value(v)) for k, v in conf.items()]
-    conf_html = two_col(conf_items, "Key", "Value")
-    quotes_html = two_col(list(quotes.items()), "Ticker", "Description")
+    conf_html = n_col(conf_items, "Key", "Value", cls="appendix config")
+    quotes_html = n_col(list(quotes.items()), "Ticker", "Description", cls="appendix quotes")
 
     # ---- appendix: account performance (detailed) - the daily equity curve
     # (with the longest-drawdown callout drawn on the chart) and the
@@ -1435,6 +1450,18 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8px; color: {TEXT2}; }}
         @bottom-right {{ content: "{gen_ts}";
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8px; color: {TEXT2}; }}
+        /* "(continued)" header for a section that runs past a page break.
+           `start` is the string's value as the page begins, before anything on
+           the page changes it: the section's content sets it, and a .contend
+           marker right after that content clears it again. So the header names
+           whichever section was still open when the page started - and stays
+           blank on the section's own opening page, and on a page that merely
+           starts a new section. `first-except` cannot express this: it blanks
+           the header on any page where a heading appears, which drops it from a
+           page that continues one section and starts the next. */
+        @top-left {{ content: string(contsec, start);
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 11px;
+            font-weight: 600; color: {TEXT2}; vertical-align: bottom; padding-bottom: 5px; }}
     }}
     * {{ box-sizing: border-box; }}
     body {{ font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: {TEXT};
@@ -1447,6 +1474,14 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     .headtext .sub {{ margin: 0; }}
     h2 {{ font-size: 14px; font-weight: 600; margin: 26px 0 11px; padding-bottom: 6px;
         border-bottom: 1px solid {GRID}; letter-spacing: 0.02em; }}
+    /* the section's content sets the header string, not its heading: a heading
+       carrying .pbreak is the first box on its page, and an assignment made by
+       the element that begins a page counts towards string(...,start), which
+       would label the section's own opening page. The content starts after it. */
+    table.appendix.quotes {{ string-set: contsec "Appendix \\2014  quotes list (continued)"; }}
+    table.appendix.config {{ string-set: contsec "Appendix \\2014  configuration (continued)"; }}
+    .acctperf {{ string-set: contsec "Account performance (continued)"; }}
+    .contend {{ string-set: contsec ""; }}
     h3 {{ font-size: 12px; font-weight: 600; color: {TEXT}; margin: 14px 0 4px;
         letter-spacing: 0.02em; }}
     p {{ margin: 0 0 8px; }}
@@ -1519,8 +1554,17 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     th .subd {{ display: block; font-weight: 400; text-transform: none;
         letter-spacing: 0; font-size: 9px; color: {TEXT2}; }}
     table.wide {{ margin-top: 14px; }}
-    table.appendix {{ display: inline-table; width: 49%; vertical-align: top; }}
-    table.appendix:first-of-type {{ margin-right: 1.5%; }}
+    /* one block-level table per appendix section (see n_col) so it can break
+       across pages; the column pairs are laid out with fixed widths, with a gap
+       before the second pair standing in for the old inter-table margin */
+    table.appendix {{ width: 100%; table-layout: fixed; }}
+    table.appendix th:nth-child(odd), table.appendix td:nth-child(odd) {{ width: 21%; }}
+    table.appendix th:nth-child(even), table.appendix td:nth-child(even) {{ width: 29%; }}
+    table.appendix th:nth-child(3), table.appendix td:nth-child(3) {{ padding-left: 18px; }}
+    table.appendix.quotes th:nth-child(odd), table.appendix.quotes td:nth-child(odd) {{ width: 14%; }}
+    table.appendix.quotes th:nth-child(even), table.appendix.quotes td:nth-child(even) {{ width: 36%; }}
+    /* keep an appendix heading with the first rows of its table */
+    h2.keepnext {{ page-break-after: avoid; }}
 
     /* table of contents - page numbers are resolved by WeasyPrint from the
        link target, so they follow the real pagination. The row padding is tuned
@@ -1569,12 +1613,13 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     {f'<h2>Contents</h2>{toc_html}' if toc_html else ''}
 
     <h2 id="sec-account">Account performance</h2>
-    <figure class="equityfig"><img src="{img_equity}" alt="Account value over time">
+    <figure class="equityfig acctperf"><img src="{img_equity}" alt="Account value over time">
     <figcaption>Simulated account value (equity curve) against the buy-and-hold benchmark (dashed).</figcaption></figure>
     <div class="statgrid nosplit" style="margin-top:1.2em">
       <table><tbody>{sim_rows_left}</tbody></table>
       <table><tbody>{sim_rows_right}</tbody></table>
     </div>
+    <div class="contend"></div>
 
     <h2 id="sec-trades"{trades_pbreak}>Trade statistics</h2>
     <div class="statgrid">
@@ -1594,10 +1639,12 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     {benchmark_detail}
 
-    <h2 id="sec-quotes" class="pbreak">Appendix &mdash; quotes list</h2>
+    <h2 id="sec-quotes" class="pbreak keepnext">Appendix &mdash; quotes list</h2>
     {quotes_html}
-    <h2 id="sec-config">Appendix &mdash; configuration</h2>
+    <div class="contend"></div>
+    <h2 id="sec-config" class="keepnext">Appendix &mdash; configuration</h2>
     {conf_html}
+    <div class="contend"></div>
     {account_detail_section}
     {mfe_mae_section}
     """
@@ -2974,6 +3021,20 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, conf, ctx, stats):
     plt.plot(xs, Rmul30_lst, color='blue', linewidth=1.5, alpha=.7, linestyle='-', label='Rmul30')
     plt.legend(loc='upper left')
 
+    # the rolling average's final value, labelled at the end of the line (Rmul30
+    # is NaN until the 30-trade window fills, so a short run has nothing to label)
+    roll = np.asarray(Rmul30_lst, dtype=float)
+    valid = np.flatnonzero(np.isfinite(roll))
+    if valid.size:
+        i = valid[-1]
+        # the label goes past the last trade rather than above the line, where a
+        # tall neighbouring trade can cross it; the extra x-room keeps it inside
+        # the axes instead of widening the figure at savefig(bbox='tight') time
+        plt.annotate(f"{roll[i]:+.2f}".replace('-', '−'), (xs[i], roll[i]),
+                     xytext=(6, 0), textcoords='offset points', va='center',
+                     color='blue', fontsize=9)
+        plt.xlim(-1, len(trades_lst) + max(3.0, len(trades_lst) * 0.08))
+
     plt.ylabel('R-multiple')
     plt.grid(True, color='grey', linewidth=.5, linestyle='dashed')
 
@@ -3061,6 +3122,11 @@ def _plot_price_overlays(ax, df, conf):
         ax.plot(df.index, df['DONdn'], color='brown', linewidth=.6, linestyle='--', label='DONdn')
         ax.fill_between(df.index, df['DONdn'], df['DONup'], color='grey', alpha=.05)
 
+    if conf['enter'] == 'BBB' or conf['exit'] == 'BBB' or 'BBB' in plot_indicators:
+        # the entry band and the SMA the exit closes below
+        ax.plot(df.index, df['BBBu'], color='green', linewidth=.6, linestyle='--', label='BBBu')
+        ax.plot(df.index, df['BBBm'], color='brown', linewidth=.6, linestyle='--', label=f"SMA{conf['bbb_sma']}")
+
     if conf['enter'] == '3EMA':
         ax.plot(df.index, df['EMAfast'], color='green', linewidth=.5, label=f"EMA{conf['ema_fast']}")
         ax.plot(df.index, df['EMAmid'], color='brown', linewidth=.5, label=f"EMA{conf['ema_mid']}")
@@ -3128,6 +3194,15 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
         ax.plot(df.index, donup, color='green', linewidth=.6, linestyle='--', label='DONup')
         ax.plot(df.index, dondn, color='brown', linewidth=.6, linestyle='--', label='DONdn')
         ax.fill_between(df.index, dondn, donup, color='grey', alpha=.05)
+
+    if 'BBB' in plot_indicators:
+        if 'BBBu' in df.columns:
+            bbbu, bbbm = df['BBBu'], df['BBBm']
+        else:
+            bbbu, bbbm, _ = ta.BBANDS(df['Close'], timeperiod=conf['bbb_sma'],
+                nbdevup=conf['bbb_std'], nbdevdn=conf['bbb_std'], matype=0)
+        ax.plot(df.index, bbbu, color='green', linewidth=.6, linestyle='--', label='BBBu')
+        ax.plot(df.index, bbbm, color='brown', linewidth=.6, linestyle='--', label=f"SMA{conf['bbb_sma']}")
 
     ax.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')
     plt.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))
@@ -3219,7 +3294,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
 
     bbrsi = conf['enter'] in ('BBRSI', 'RSI')
     macd = conf['enter'] == 'MACD'
-    donch = conf['enter'] == 'DONCH'
+    donch = conf['enter'] in ('DONCH', 'BBB')
     if bbrsi or macd:
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize = (28, 10))
     else:

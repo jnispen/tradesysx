@@ -12,7 +12,7 @@ class Stoploss():
     # the stoploss ladder only applies to exit strategies that have no profit
     # protection of their own; CE/CEE/XR/RSI/BBRSI/TIME already trail or exit
     # on an R-threshold, so laddering there would just race their own logic
-    ladder_exits = ("3EMA", "SMA", "MACD", "DONCH")
+    ladder_exits = ("3EMA", "SMA", "MACD", "DONCH", "BBB")
 
     def __init__(self, conf):
         self.conf = conf
@@ -63,6 +63,7 @@ class TradingSignals(object):
                  "SMA": "_SMA_Enter",
                  "MACD": "_MACD_Enter",
                  "DONCH": "_DONCH_Enter",
+                 "BBB": "_BBB_Enter",
                  "RAND": "_RAND_Enter"}
 
     exit_str  = {"CE": "_CE_Exit",
@@ -74,6 +75,7 @@ class TradingSignals(object):
                  "MACD": "_MACD_Exit",
                  "BBRSI": "_BB_RSI_Exit",
                  "DONCH": "_DONCH_Exit",
+                 "BBB": "_BBB_Exit",
                  "TIME": "_TIME_Exit"}
 
     def __init__(self, conf):
@@ -133,6 +135,13 @@ class TradingSignals(object):
             signal = True
         return signal
 
+    def _BBB_Enter(self, row):
+        # Bollinger breakout: Close above the wide long-period upper band
+        signal = False
+        if row['Close'] > row['BBBu']:
+            signal = True
+        return signal
+
     def _RAND_Enter(self, row):
         # random-entry control strategy: no indicators, just a chance event
         return random.random() < float(self.conf['rand_level'])
@@ -176,6 +185,13 @@ class TradingSignals(object):
         signal = False
         if row['Close'] < row['DONdn']:
              signal = True
+        return signal
+
+    def _BBB_Exit(self, row, intrade):
+        # Bollinger breakout: Close back below the bands' long-period SMA (BBBm)
+        signal = False
+        if row['Close'] < row['BBBm']:
+            signal = True
         return signal
 
     def _CEE_Exit(self, row, intrade):
