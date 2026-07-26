@@ -321,10 +321,24 @@ def styled_trades_plot(trades_lst, Rmul30_lst, ctx):
         ax.scatter(x, R, color=colors, s=14, zorder=3)
         ax.plot(x, roll, color=ACCENT, lw=1.6, alpha=0.9, label='Rmul30 (rolling avg)')
         ax.axhline(0, color=TEXT2, lw=0.8)
+
+        # the rolling average's final value, labelled at the end of the line.
+        # Rmul30 is NaN until the 30-trade window fills, so a system with fewer
+        # than 30 closed trades has nothing to label.
+        valid = np.flatnonzero(np.isfinite(roll))
+        if valid.size:
+            i = valid[-1]
+            ax.annotate(f"{roll[i]:+.2f}".replace('-', '−'),
+                        (x[i], roll[i]), xytext=(7, 0), textcoords='offset points',
+                        va='center', color=ACCENT, fontsize=9, fontweight='medium')
+
         ax.grid(axis='y'); ax.grid(axis='x', visible=False)
         ax.set_xlabel('Trade')
         ax.set_ylabel('R-multiple')
-        ax.set_xlim(-1, len(R))
+        # the label goes past the last trade rather than above the line, where a
+        # tall neighbouring trade can cross it; the extra x-room keeps it inside
+        # the axes instead of widening the figure at savefig(bbox='tight') time
+        ax.set_xlim(-1, len(R) + max(3.0, len(R) * 0.08))
         ax.legend(loc='upper left')
         fig.savefig(ctx.outpath('images', 'system_trades_plot.png'))
         plt.close(fig)
@@ -700,6 +714,11 @@ def _styled_price_overlays(ax, df, conf):
         ax.plot(df.index, df['DONdn'], color=IND_BROWN, linewidth=1.1, linestyle='--', label='DONdn')
         ax.fill_between(df.index, df['DONdn'], df['DONup'], color=GRID, alpha=.45)
 
+    if conf['enter'] == 'BBB' or conf['exit'] == 'BBB' or 'BBB' in plot_indicators:
+        # the entry band and the SMA the exit closes below
+        ax.plot(df.index, df['BBBu'], color=IND_GREEN, linewidth=1.1, linestyle='--', label='BBBu')
+        ax.plot(df.index, df['BBBm'], color=IND_BROWN, linewidth=1.1, linestyle='--', label=f"SMA{conf['bbb_sma']}")
+
     if conf['enter'] == '3EMA':
         ax.plot(df.index, df['EMAfast'], color=IND_GREEN, linewidth=1.1, label=f"EMA{conf['ema_fast']}")
         ax.plot(df.index, df['EMAmid'], color=IND_BROWN, linewidth=1.1, label=f"EMA{conf['ema_mid']}")
@@ -873,13 +892,13 @@ def _styled_ta_figure(df, ticker, description, conf, ctx, panels, out_dir, out_f
 
 def styled_ticker_plot_ta(df, ticker, description, conf, ctx):
     ''' styled counterpart of utils.ticker_plot_ta: price panel + the strategy's
-    indicator panels (RSI for BBRSI/RSI, MACD for MACD, ATR + ADX for DONCH, else
+    indicator panels (RSI for BBRSI/RSI, MACD for MACD, ATR + ADX for DONCH/BBB, else
     ADX + directional indicators). '''
     if conf['enter'] == 'BBRSI' or conf['enter'] == 'RSI':
         panels = ['RSI']
     elif conf['enter'] == 'MACD':
         panels = ['MACD']
-    elif conf['enter'] == 'DONCH':
+    elif conf['enter'] in ('DONCH', 'BBB'):
         panels = ['ATR', 'ADX']
     else:
         panels = ['ADX', 'DI']
@@ -927,6 +946,15 @@ def styled_benchmark_price(df, ticker, description, conf, ctx):
             ax.plot(df.index, donup, color=IND_GREEN, linewidth=1.1, linestyle='--', label='DONup')
             ax.plot(df.index, dondn, color=IND_BROWN, linewidth=1.1, linestyle='--', label='DONdn')
             ax.fill_between(df.index, dondn, donup, color=GRID, alpha=.45)
+
+        if 'BBB' in plot_indicators:
+            if 'BBBu' in df.columns:
+                bbbu, bbbm = df['BBBu'], df['BBBm']
+            else:
+                bbbu, bbbm, _ = ta.BBANDS(df['Close'], timeperiod=conf['bbb_sma'],
+                    nbdevup=conf['bbb_std'], nbdevdn=conf['bbb_std'], matype=0)
+            ax.plot(df.index, bbbu, color=IND_GREEN, linewidth=1.1, linestyle='--', label='BBBu')
+            ax.plot(df.index, bbbm, color=IND_BROWN, linewidth=1.1, linestyle='--', label=f"SMA{conf['bbb_sma']}")
 
         ax.plot(df.index, df['Close'], color=ACCENT, linewidth=1.4, label='Close')
         ax.annotate('{:,.2f}'.format(df.iloc[-1]['Close']),

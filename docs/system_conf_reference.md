@@ -44,8 +44,8 @@ Generate the per-ticker price plots.
 **gen_ta_plots** — [`true`/`false`]\
 Generate the per-ticker technical-analysis (TA) plots (indicator panels).
 
-**plot_indicators** — [`BB`/`SMA225`/`DON`]\
-List of overlays drawn on the price panel. `BB` = Bollinger Bands, `SMA225` = 225-period SMA, `DON` = Donchian channel. Example: `["SMA225"]`.
+**plot_indicators** — [`BB`/`BBB`/`SMA225`/`DON`]\
+List of overlays drawn on the price panel. `BB` = Bollinger Bands, `BBB` = Bollinger Band Breakout bands, `SMA225` = 225-period SMA, `DON` = Donchian channel. Example: `["SMA225"]`.
 
 **gen_ta_custom** — [`true`/`false`]\
 Generate the ad-hoc custom TA panels defined by `ta_custom`. Must be `false` if `ta_custom` is empty.
@@ -63,15 +63,15 @@ Selects the look of `out/system_summary.pdf`. `classic` is the original report; 
 Stop-loss strategy. `3atr` = 3×ATR below the close, `2atr` = 2×ATR below the close, `xatr` = `atr_factor`×ATR below the close (see `atr_factor`), `percent` = stoploss set as a percentage below the entry price (see `stoploss`).
 
 **stloss_ladder** — [`true`/`false`]\
-Ratchets the stop up as the trade runs, locking in profit (see `ladder_levels`). Only applies to the `3EMA`, `SMA`, `MACD` and `DONCH` exits — the other exits already protect profit themselves. Defaults to `false` when absent.
+Ratchets the stop up as the trade runs, locking in profit (see `ladder_levels`). Only applies to the `3EMA`, `SMA`, `MACD`, `DONCH` and `BBB` exits — the other exits already protect profit themselves. Defaults to `false` when absent.
 
 **ladder_levels** — [`list of [trigger_R, lock_R] pairs`]\
 Ladder rungs used when `stloss_ladder` is `true`. Once MFE reaches `trigger_R`, the stop moves to `lock_R` above the entry price (e.g. `[[1.0, 0.0], [2.0, 1.0]]` = break-even at 1R, then lock 1R at 2R). The stop only ever moves up.
 
-**enter** — [`3EMA`/`SMA`/`BBRSI`/`MACD`/`DONCH`/`RAND`]\
+**enter** — [`3EMA`/`SMA`/`BBRSI`/`RSI`/`MACD`/`DONCH`/`BBB`/`RAND`]\
 Entry strategy. `RAND` is a random-entry control: on each bar where flat, a random number in `[0,1)` is compared against `rand_level` and an ENTER signal fires if it's lower.
 
-**exit** — [`CE`/`CEE`/`RSI`/`XR`/`3EMA`/`SMA`/`MACD`/`BBRSI`/`DONCH`/`TIME`]\
+**exit** — [`CE`/`CEE`/`RSI`/`XR`/`3EMA`/`SMA`/`MACD`/`BBRSI`/`DONCH`/`BBB`/`TIME`]\
 Exit strategy. `TIME` is a time-based exit that unconditionally closes the trade after `exit_on_day` days.
 
 **start** — [`date`]\
@@ -178,6 +178,12 @@ Look-back period (bars) for the Donchian entry channel — the prior-day high th
 
 **donch_exit** — [`integer`]\
 Look-back period (bars) for the Donchian exit channel — the prior-day low the close must break below to exit.
+
+**bbb_sma** — [`integer`]\
+Look-back period (bars) for the `BBB` Bollinger Band Breakout bands. Also the SMA the `BBB` exit closes below.
+
+**bbb_std** — [`float`]\
+Width of the `BBB` bands in standard deviations from `bbb_sma`.
 
 **exit_on_day** — [`integer`]\
 Number of days a position is held before the `TIME` exit unconditionally closes it (counting the entry day as day 1). Only used by the `TIME` exit strategy.

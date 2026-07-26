@@ -54,6 +54,8 @@
     "macd_signal"  : 9,
     "donch_enter"  : 55,
     "donch_exit"   : 20,
+    "bbb_sma"      : 100,
+    "bbb_std"      : 2.0,
     "montecarlo"   : true,
     "sim_len_max"  : 300,
     "iterations"   : 10000,
