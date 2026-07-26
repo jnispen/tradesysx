@@ -28,7 +28,7 @@ The strategy conditions below are built from these technical indicators (all com
 - **EMA (fast/mid/slow)** — Exponential Moving Averages over increasing periods; react faster than SMAs to recent price.
 - **SMA (fast/slow)** — Simple Moving Averages over increasing periods.
 - **Bollinger Bands (BBu / BBl)** — Upper/lower volatility bands around a moving average; price at the lower band = stretched down. Fixed at 20 periods, 2σ.
-- **Bollinger Breakout Band (BBBu / BBBm)** — A second, separate Bollinger set over `bbb_sma` periods at `bbb_std` standard deviations, used only by the `BBB` strategy. `BBBm` is the middle band, i.e. the SMA over `bbb_sma` periods.
+- **Bollinger Band Breakout bands (BBBu / BBBm)** — A second, separate Bollinger set over `bbb_sma` periods at `bbb_std` standard deviations, used only by the `BBB` strategy. `BBBm` is the middle band, i.e. the SMA over `bbb_sma` periods.
 - **Donchian channel (DONup / DONdn)** — Highest high / lowest low over the last N bars; a break of the channel signals a breakout.
 - **MACD (MACD / MACDsig / MACDhist)** — Moving Average Convergence Divergence: the MACD line, its signal line, and their histogram.
 - **Chandelier Exit (CE / CE2 / CE15)** — A trailing stop set a multiple of the 22-period ATR below the 22-bar high. `CE` is the widest (3×ATR), `CE2` tighter (2×ATR), `CE15` the tightest (1.5×ATR).
@@ -61,8 +61,8 @@ The strategy conditions below are built from these technical indicators (all com
 *Fires when:* Close > upper Donchian channel (DONup).\
 *Code:* [strategy.py:131](../strategy.py#L131)
 
-**BBB** — *Bollinger Breakout Band.* Buys a move that stretches above a wide, slow Bollinger upper band — a volatility breakout meant to be held for the long run.\
-*Fires when:* Close > upper Bollinger Breakout Band (BBBu).\
+**BBB** — *Bollinger Band Breakout.* Buys a move that stretches above a wide, slow Bollinger upper band — a volatility breakout meant to be held for the long run.\
+*Fires when:* Close > upper Bollinger Band Breakout band (BBBu).\
 *Code:* [strategy.py:138](../strategy.py#L138)
 
 **RAND** — *Random control.* Enters on a random draw, ignoring all indicators. Useful as a baseline: a real edge should beat random entries with the same exit and sizing.\
@@ -97,7 +97,7 @@ ones are described with their intent first.
 *Code:* [strategy.py:183](../strategy.py#L183)
 
 **BBB** — *Breakout give-up.* Holds the breakout until price falls all the way back to the band's own long-term mean.\
-*Fires when:* Close < middle Bollinger Breakout Band (BBBm), i.e. the SMA over `bbb_sma` periods.\
+*Fires when:* Close < middle Bollinger Band Breakout band (BBBm), i.e. the SMA over `bbb_sma` periods.\
 *Code:* [strategy.py:190](../strategy.py#L190)
 
 **RSI** — *Overbought.* Exits once momentum reaches an overbought extreme.\

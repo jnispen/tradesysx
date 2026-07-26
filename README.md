@@ -87,7 +87,7 @@ overlays, picked from three tiers:
   Exit level, the levels are shown, based on the `exit` strategy (`CE` or `CEE`).
 - **User-selectable** — the `plot_indicators` list in `system_conf.json` adds
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
-  Bands), `"BBB"` (Bollinger Breakout Band), `"SMA225"` (225-day SMA,
+  Bands), `"BBB"` (Bollinger Band Breakout bands), `"SMA225"` (225-day SMA,
   bull/bear market reference) and `"DON"` (Donchian channel).
 
 ## 3. Environment setup and cmdline parameters

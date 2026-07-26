@@ -45,7 +45,7 @@ Generate the per-ticker price plots.
 Generate the per-ticker technical-analysis (TA) plots (indicator panels).
 
 **plot_indicators** — [`BB`/`BBB`/`SMA225`/`DON`]\
-List of overlays drawn on the price panel. `BB` = Bollinger Bands, `BBB` = Bollinger Breakout Band, `SMA225` = 225-period SMA, `DON` = Donchian channel. Example: `["SMA225"]`.
+List of overlays drawn on the price panel. `BB` = Bollinger Bands, `BBB` = Bollinger Band Breakout bands, `SMA225` = 225-period SMA, `DON` = Donchian channel. Example: `["SMA225"]`.
 
 **gen_ta_custom** — [`true`/`false`]\
 Generate the ad-hoc custom TA panels defined by `ta_custom`. Must be `false` if `ta_custom` is empty.
@@ -180,7 +180,7 @@ Look-back period (bars) for the Donchian entry channel — the prior-day high th
 Look-back period (bars) for the Donchian exit channel — the prior-day low the close must break below to exit.
 
 **bbb_sma** — [`integer`]\
-Look-back period (bars) for the `BBB` Bollinger Breakout Band. Also the SMA the `BBB` exit closes below.
+Look-back period (bars) for the `BBB` Bollinger Band Breakout bands. Also the SMA the `BBB` exit closes below.
 
 **bbb_std** — [`float`]\
 Width of the `BBB` bands in standard deviations from `bbb_sma`.
