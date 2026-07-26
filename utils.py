@@ -3030,10 +3030,14 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, conf, ctx, stats):
         # the label goes past the last trade rather than above the line, where a
         # tall neighbouring trade can cross it; the extra x-room keeps it inside
         # the axes instead of widening the figure at savefig(bbox='tight') time
+        # a label centred on a near-zero rolling average lands on top of the
+        # x-axis line, so lift it clear when the end value sits close to zero
+        ylo, yhi = plt.gca().get_ylim()
+        dy = 9 if abs(roll[i]) < 0.06 * (yhi - ylo) else 0
         plt.annotate(f"{roll[i]:+.2f}".replace('-', '−'), (xs[i], roll[i]),
-                     xytext=(6, 0), textcoords='offset points', va='center',
+                     xytext=(3, dy), textcoords='offset points', va='center',
                      color='blue', fontsize=9)
-        plt.xlim(-1, len(trades_lst) + max(3.0, len(trades_lst) * 0.08))
+        plt.xlim(-1, len(trades_lst) + max(2.0, len(trades_lst) * 0.05))
 
     plt.ylabel('R-multiple')
     plt.grid(True, color='grey', linewidth=.5, linestyle='dashed')

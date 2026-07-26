@@ -328,8 +328,13 @@ def styled_trades_plot(trades_lst, Rmul30_lst, ctx):
         valid = np.flatnonzero(np.isfinite(roll))
         if valid.size:
             i = valid[-1]
+            # a label centred on a near-zero rolling average lands on top of the
+            # y=0 rule, so lift it clear whenever the end value sits close to it
+            # (measured against the plotted y-range, not the R value itself)
+            ylo, yhi = ax.get_ylim()
+            dy = 9 if abs(roll[i]) < 0.06 * (yhi - ylo) else 0
             ax.annotate(f"{roll[i]:+.2f}".replace('-', '−'),
-                        (x[i], roll[i]), xytext=(7, 0), textcoords='offset points',
+                        (x[i], roll[i]), xytext=(3, dy), textcoords='offset points',
                         va='center', color=ACCENT, fontsize=9, fontweight='medium')
 
         ax.grid(axis='y'); ax.grid(axis='x', visible=False)
@@ -338,7 +343,7 @@ def styled_trades_plot(trades_lst, Rmul30_lst, ctx):
         # the label goes past the last trade rather than above the line, where a
         # tall neighbouring trade can cross it; the extra x-room keeps it inside
         # the axes instead of widening the figure at savefig(bbox='tight') time
-        ax.set_xlim(-1, len(R) + max(3.0, len(R) * 0.08))
+        ax.set_xlim(-1, len(R) + max(2.0, len(R) * 0.05))
         ax.legend(loc='upper left')
         fig.savefig(ctx.outpath('images', 'system_trades_plot.png'))
         plt.close(fig)
