@@ -1,18 +1,37 @@
 ''' Shared run context and pipeline statistics, passed explicitly between modules '''
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 
 @dataclass
 class RunContext:
-    ''' run-level settings: base directory, telegram credentials and benchmark dataframe '''
+    ''' run-level settings: base directory, telegram credentials, benchmark dataframe
+        and the EUR/USD rate used for the charts' secondary price label '''
     basedir: str
     bot_token: str = ""
     chat_id: str = ""
     outdir: str = "out"
     benchmark_df: Any = None
+    # USD per EUR (EURUSD=X close), set when conf['price_eur'] is on; the price
+    # charts print the last close in EUR next to the USD value when it is set
+    eurusd: Optional[float] = None
+    # currency each ticker is quoted in, per yfinance's .info (filled alongside
+    # eurusd) - a ticker not quoted in USD is never converted
+    currency: dict = field(default_factory=dict)
+
+    def eur_rate(self, ticker):
+        """EUR/USD rate to use for a ticker's price label, None when it doesn't apply.
+
+        Only tickers confirmed to be quoted in USD are converted: an unknown
+        currency (lookup failed) or a non-USD one leaves the chart unconverted
+        rather than printing a wrong EUR value.
+        """
+        if not self.eurusd:
+            return None
+        currency = self.currency.get(ticker) or ''
+        return self.eurusd if currency.upper() == 'USD' else None
 
     def path(self, *parts):
         """Return a string path inside basedir."""

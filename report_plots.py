@@ -748,18 +748,31 @@ def _styled_price_overlays(ax, df, conf):
         ax.scatter(df.index, df['Exit'], color=NEG, label='Exit', marker='v', s=90, zorder=5)
 
 
-def _styled_price_annotations(ax, df):
+def _last_close_labels(ax, df, eurusd=None):
+    ''' the last close value, printed just past the final point, with the same
+    value converted to EUR underneath it when an EUR/USD rate is available. '''
+    close = df.iloc[-1]['Close']
+    ax.annotate('{:,.2f}'.format(close),
+                xy=(df.index[-1], close), xytext=(6, 0),
+                textcoords='offset points', va='center',
+                color=ACCENT, fontsize=_TICK_FS, fontweight='medium')
+
+    if eurusd:
+        # EURUSD=X quotes USD per EUR, so the USD price divides by the rate
+        ax.annotate('€{:,.2f}'.format(close / eurusd),
+                    xy=(df.index[-1], close), xytext=(6, -14),
+                    textcoords='offset points', va='center',
+                    color=TEXT2, fontsize=_TICK_FS)
+
+
+def _styled_price_annotations(ax, df, eurusd=None):
     ''' the unboxed text callouts on the price panel: last-close value label,
     signal (coloured by outcome), trade-details line, floating date and
     R-average. Same information as the classic ticker_plot annotations, minus
     the boxes. '''
     last = df.iloc[-1]
 
-    # last close value, printed just past the final point
-    ax.annotate('{:,.2f}'.format(last['Close']),
-                xy=(df.index[-1], last['Close']), xytext=(6, 0),
-                textcoords='offset points', va='center',
-                color=ACCENT, fontsize=_TICK_FS, fontweight='medium')
+    _last_close_labels(ax, df, eurusd)
 
     # signal, coloured green (bullish / winning) / red (stop / losing) / grey
     signal = last['Signal']
@@ -913,7 +926,7 @@ def styled_ticker_plot(df, ticker, description, conf, ctx):
         fig, ax = plt.subplots(figsize=(28, 10))
         fig.suptitle('{} ({})'.format(description, ticker), fontsize=_TITLE_FS, fontweight='medium')
         _styled_price_overlays(ax, df, conf)
-        _styled_price_annotations(ax, df)
+        _styled_price_annotations(ax, df, ctx.eur_rate(ticker))
         _style_price_axis(ax)
         _format_date_axis(ax)
         _legend_if_multi(ax, loc='lower right', ncol=3, fontsize=_LEG_FS)
@@ -935,7 +948,7 @@ def _styled_ta_figure(df, ticker, description, conf, ctx, panels, out_dir, out_f
 
         ax1 = axes[0]
         _styled_price_overlays(ax1, df, conf)
-        _styled_price_annotations(ax1, df)
+        _styled_price_annotations(ax1, df, ctx.eur_rate(ticker))
         _style_price_axis(ax1)
         _legend_if_multi(ax1, loc='lower right', ncol=3, fontsize=_LEG_FS)
 
@@ -1014,10 +1027,7 @@ def styled_benchmark_price(df, ticker, description, conf, ctx):
             ax.plot(df.index, bbbm, color=IND_BROWN, linewidth=1.1, linestyle='--', label=f"SMA{conf['bbb_sma']}")
 
         ax.plot(df.index, df['Close'], color=ACCENT, linewidth=1.4, label='Close')
-        ax.annotate('{:,.2f}'.format(df.iloc[-1]['Close']),
-                    xy=(df.index[-1], df.iloc[-1]['Close']), xytext=(6, 0),
-                    textcoords='offset points', va='center',
-                    color=ACCENT, fontsize=_TICK_FS, fontweight='medium')
+        _last_close_labels(ax, df, ctx.eur_rate(ticker))
 
         _style_price_axis(ax)
         _format_date_axis(ax)

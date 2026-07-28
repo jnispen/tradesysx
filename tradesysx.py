@@ -57,6 +57,19 @@ def update_quotes(conf, ctx):
     logger.info(f"Benchmark         : {bm_ticker if benchmark_enabled else '-'}")
     logger.info(f"Date range        : {ut.format_date_range(conf)}")
 
+    # the price charts print the last close in EUR next to the USD value; the
+    # conversion rate is fetched once per run rather than per ticker, and each
+    # ticker's quote currency is looked up so only USD-quoted ones are converted
+    plots_enabled = conf['gen_plots'] or conf['gen_ta_plots'] or conf.get('gen_ta_custom', False)
+    if conf.get('price_eur', False) and plots_enabled:
+        ctx.eurusd = ut.get_eurusd_rate()
+        if ctx.eurusd:
+            tickers = list(quotes) + ([bm_ticker] if auto_benchmark else [])
+            ctx.currency = ut.get_ticker_currencies(tickers)
+            non_usd = {t: c for t, c in ctx.currency.items() if c != 'USD'}
+            if non_usd:
+                logger.info(f"Not quoted in USD : {', '.join(f'{t} ({c})' for t, c in non_usd.items())} - no EUR price label")
+
     # 1. read quotes from yfinance and save raw OHLC file
     if conf['update_data'] == True:
         logger.info(f'==== [1/8] Downloading quote data ({len(quotes)}) ====')

@@ -160,6 +160,50 @@ def get_history_data(ticker, period=None, start=None, end=None, interval='1d'):
 
     return raw_df
 
+EURUSD_TICKER = 'EURUSD=X'
+
+_currency_cache = {}
+
+def get_ticker_currency(ticker):
+    ''' the currency a ticker is quoted in, from yfinance's .info - the price
+        charts only convert a last close to EUR when this is actually 'USD'.
+        Returns None when the lookup fails or the field is missing, in which
+        case no conversion is attempted. '''
+    if ticker not in _currency_cache:
+        try:
+            currency = yf.Ticker(ticker).info.get('currency')
+        except Exception as e:
+            logger.warning(f'{ticker}: currency lookup failed ({e})')
+            currency = None
+        if currency is None:
+            logger.warning(f'{ticker}: no currency reported - skipping the EUR price label')
+        # stored as reported (Yahoo quotes some markets in minor units, e.g. 'GBp')
+        _currency_cache[ticker] = currency
+
+    return _currency_cache[ticker]
+
+def get_ticker_currencies(tickers):
+    ''' currency per ticker, as a {ticker: currency} dict '''
+    return {ticker: get_ticker_currency(ticker) for ticker in tickers}
+
+def get_eurusd_rate():
+    ''' latest close of EURUSD=X, i.e. the number of USD one EUR buys, used to
+        print the last price in EUR alongside the USD value on the price charts.
+        Returns None when the rate can't be retrieved - the charts then simply
+        stay USD-only rather than failing the run. '''
+    try:
+        dfr = get_history_data(EURUSD_TICKER, period='5d')
+        close = dfr['Close'].dropna()
+        if close.empty:
+            raise RuntimeError('no Close values in the downloaded data')
+        rate = float(close.iloc[-1])
+    except Exception as e:
+        logger.warning(f'could not retrieve the {EURUSD_TICKER} rate ({e}) - charts stay USD-only')
+        return None
+
+    logger.info(f'EUR/USD rate      : {rate:,.4f}')
+    return rate
+
 def data_range_spec(conf):
     ''' the subset of the configuration that determines which data is downloaded '''
     return {
@@ -3169,6 +3213,18 @@ _PANEL_LAST_VALUES = {
     'MFI': [('MFI', 'blue')],
 }
 
+def _plot_last_close(ax, df, eurusd=None):
+    ''' print the last close just past the final point, with the same value in
+        EUR underneath it when an EUR/USD rate is available. '''
+    close = df.iloc[-1]['Close']
+    ax.annotate('{:,.2f}'.format(close), xy=(df.index[-1], close), xytext=(6, 0),
+                textcoords='offset points', va='center')
+
+    if eurusd:
+        # EURUSD=X quotes USD per EUR, so the USD price divides by the rate
+        ax.annotate('€{:,.2f}'.format(close / eurusd), xy=(df.index[-1], close),
+                    xytext=(6, -14), textcoords='offset points', va='center', color='gray')
+
 def _panel_last_value_labels(ax, df, name):
     ''' print the latest value of a sub-plot indicator just past its final point,
         the same way the price panel labels the last close. Two-series panels get
@@ -3242,7 +3298,7 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
         ax.plot(df.index, bbbm, color='brown', linewidth=.6, linestyle='--', label=f"SMA{conf['bbb_sma']}")
 
     ax.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')
-    plt.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))
+    _plot_last_close(ax, df, ctx.eur_rate(ticker))
 
     plt.grid(linestyle='--')
     plt.xlabel('Date')
@@ -3269,8 +3325,7 @@ def ticker_plot(df, ticker, description, conf, ctx):
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=conf['date_int']))
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
 
-    plt.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))
-    #plt.text(df.tail(1).index.item(), df.iloc[-1]['CE'], '{:,.2f}'.format(df.iloc[-1]['CE']), alpha=.5)
+    _plot_last_close(ax, df, ctx.eur_rate(ticker))
 
     _plot_price_overlays(ax, df, conf)
 
@@ -3345,8 +3400,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
     fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=conf['date_int']))
     fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
-    ax1.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))
-    #ax1.text(df.tail(1).index.item(), df.iloc[-1]['CE'], '{:,.2f}'.format(df.iloc[-1]['CE']), alpha=.5)
+    _plot_last_close(ax1, df, ctx.eur_rate(ticker))
 
     _plot_price_overlays(ax1, df, conf)
 
@@ -3458,7 +3512,7 @@ def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
     ax1 = axes[0]
-    ax1.text(df.tail(1).index.item(), df.iloc[-1]['Close'], '{:,.2f}'.format(df.iloc[-1]['Close']))
+    _plot_last_close(ax1, df, ctx.eur_rate(ticker))
 
     _plot_price_overlays(ax1, df, conf)
 
