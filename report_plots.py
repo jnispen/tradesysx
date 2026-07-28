@@ -799,6 +799,56 @@ def _styled_price_annotations(ax, df):
                     textcoords='offset points', fontsize=_ANN_FS, color=TEXT2, ha='left', va='bottom')
 
 
+def fmt_indicator_value(v):
+    ''' compact label for an indicator's latest value: two decimals for the
+    bounded oscillators, K/M/B suffixes for the volume-scale ones (OBV, FI). '''
+    a = abs(v)
+    if a >= 1e9:
+        return '{:,.2f}B'.format(v / 1e9)
+    if a >= 1e6:
+        return '{:,.2f}M'.format(v / 1e6)
+    if a >= 1e4:
+        return '{:,.1f}K'.format(v / 1e3)
+    return '{:,.2f}'.format(v)
+
+
+def _last_value_labels(ax, df, specs):
+    ''' print each series' latest value just past its final point, the way the
+    price panel labels the last close. `specs` is a list of (column, colour);
+    when a panel carries two series the labels are nudged apart vertically so
+    they stay readable where the lines sit close together or cross. '''
+    items = []
+    for col, color in specs:
+        s = df[col].dropna()
+        if not s.empty:
+            items.append((s.index[-1], float(s.iloc[-1]), color))
+
+    items.sort(key=lambda item: item[1], reverse=True)
+    n = len(items)
+    for i, (x, v, color) in enumerate(items):
+        dy = 0 if n == 1 else ((n - 1) / 2 - i) * 10
+        ax.annotate(fmt_indicator_value(v),
+                    xy=(x, v), xytext=(6, dy),
+                    textcoords='offset points', va='center',
+                    color=color, fontsize=_TICK_FS, fontweight='medium')
+
+
+# series whose latest value is labelled at the right edge of each panel, with
+# the colour of the line it belongs to (kept in sync with _indicator_panel)
+_PANEL_LAST_VALUES = {
+    'RSI': [('RSI', ACCENT)],
+    'ADX': [('ADX', ACCENT)],
+    'DI': [('P_DI', POS), ('M_DI', NEG)],
+    'MACD': [('MACD', ACCENT), ('MACDsig', IND_GOLD)],
+    'ATR': [('ATR', ACCENT)],
+    'OBV': [('OBV', ACCENT)],
+    'FI': [('FI', ACCENT)],
+    'CCI': [('CCI', ACCENT)],
+    'ROC': [('ROC', ACCENT)],
+    'MFI': [('MFI', ACCENT)],
+}
+
+
 def _indicator_panel(ax, df, conf, name):
     ''' draw one named indicator panel (styled). Shared by the styled TA and
     custom-TA charts; mirrors the panel definitions in utils.ticker_plot_ta /
@@ -848,6 +898,8 @@ def _indicator_panel(ax, df, conf, name):
         ax.axhline(80, color=NEUTRAL, linewidth=1.0, linestyle='--')
         ax.axhline(20, color=NEUTRAL, linewidth=1.0, linestyle='--')
         ax.set_ylabel('MFI', fontsize=_AX_FS)
+
+    _last_value_labels(ax, df, _PANEL_LAST_VALUES.get(name, []))
 
     ax.grid(axis='y'); ax.grid(axis='x', visible=False)
     ax.tick_params(labelsize=_TICK_FS)

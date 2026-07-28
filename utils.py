@@ -3154,6 +3154,39 @@ def _plot_price_overlays(ax, df, conf):
     if df['Exit'].value_counts().any():
         ax.scatter(df.index, df['Exit'], color='darkred', label='Exit', marker='v', alpha=1)
 
+# series whose latest value is labelled at the right edge of each indicator
+# panel, with the colour of the line it belongs to
+_PANEL_LAST_VALUES = {
+    'RSI': [('RSI', 'blue')],
+    'ADX': [('ADX', 'blue')],
+    'DI': [('P_DI', 'green'), ('M_DI', 'brown')],
+    'MACD': [('MACD', 'blue'), ('MACDsig', 'orange')],
+    'ATR': [('ATR', 'blue')],
+    'OBV': [('OBV', 'blue')],
+    'FI': [('FI', 'blue')],
+    'CCI': [('CCI', 'blue')],
+    'ROC': [('ROC', 'blue')],
+    'MFI': [('MFI', 'blue')],
+}
+
+def _panel_last_value_labels(ax, df, name):
+    ''' print the latest value of a sub-plot indicator just past its final point,
+        the same way the price panel labels the last close. Two-series panels get
+        their labels nudged apart vertically so they stay readable where the lines
+        sit close together. Mirrors report_plots._last_value_labels. '''
+    items = []
+    for col, color in _PANEL_LAST_VALUES.get(name, []):
+        s = df[col].dropna()
+        if not s.empty:
+            items.append((s.index[-1], float(s.iloc[-1]), color))
+
+    items.sort(key=lambda item: item[1], reverse=True)
+    n = len(items)
+    for i, (x, v, color) in enumerate(items):
+        dy = 0 if n == 1 else ((n - 1) / 2 - i) * 10
+        ax.annotate(rp.fmt_indicator_value(v), xy=(x, v), xytext=(6, dy),
+                    textcoords='offset points', va='center', color=color)
+
 def plot_benchmark_price(df, ticker, description, conf, ctx):
     ''' plot a plain Close-price chart without any trading signals, used both for
         the auto-injected benchmark ticker (which never runs through the strategy
@@ -3346,6 +3379,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
         ax2.axhline(y=conf['rsi_high'], color='red', linewidth=1, linestyle='-.')
         ax2.fill_between(df.index, conf['rsi_low'], df['RSI'], color='grey', alpha=.1)
         ax2.set_ylabel('RSI')
+        _panel_last_value_labels(ax2, df, 'RSI')
     elif macd:
         hist_colors = np.where(df['MACDhist'] >= 0, 'green', 'red')
         ax2.bar(df.index, df['MACDhist'], color=hist_colors, width=1, alpha=.6, label='Histogram')
@@ -3353,21 +3387,26 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
         ax2.plot(df.index, df['MACDsig'], color='orange', linewidth=.8, label='Signal')
         ax2.axhline(y=0, color='black', linewidth=1, linestyle='--')
         ax2.set_ylabel('MACD')
+        _panel_last_value_labels(ax2, df, 'MACD')
     elif donch:
         ax2.plot(df.index, df['ATR'], color='blue', linewidth=.8, label='ATR')
         ax2.set_ylabel('ATR')
+        _panel_last_value_labels(ax2, df, 'ATR')
 
         ax3.plot(df.index, df['ADX'], color='blue', linewidth=.8, label='ADX')
         ax3.axhline(y=conf['adx_trend'], color='red', linewidth=1, linestyle='-.')
         ax3.set_ylabel('ADX')
+        _panel_last_value_labels(ax3, df, 'ADX')
     else:
         ax2.plot(df.index, df['ADX'], color='blue', linewidth=.8, label='ADX')
         ax2.axhline(y=conf['adx_trend'], color='red', linewidth=1, linestyle='-.')
         ax2.set_ylabel('ADX')
+        _panel_last_value_labels(ax2, df, 'ADX')
 
         # Directional Indicators (+DI and -DI)
         ax3.plot(df.index, df['P_DI'], color='green', linewidth=.8, label='POS_DI')
         ax3.plot(df.index, df['M_DI'], color='brown', linewidth=.8, label='NEG_DI')
+        _panel_last_value_labels(ax3, df, 'DI')
 
     enter = df.iloc[-1]['PriceIn']
     stoploss = df.iloc[-1]['STLoss']
@@ -3510,6 +3549,8 @@ def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
             ax.axhline(y=80, color='red', linewidth=1, linestyle='-.')
             ax.axhline(y=20, color='red', linewidth=1, linestyle='-.')
             ax.set_ylabel('MFI')
+
+        _panel_last_value_labels(ax, df, name)
 
     for ax in axes:
         ax.grid(linestyle='--')
