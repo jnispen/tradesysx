@@ -47,6 +47,9 @@ Generate the per-ticker technical-analysis (TA) plots (indicator panels).
 **plot_indicators** — [`BB`/`BBB`/`SMA225`/`DON`]\
 List of overlays drawn on the price panel. `BB` = Bollinger Bands, `BBB` = Bollinger Band Breakout bands, `SMA225` = 225-period SMA, `DON` = Donchian channel. Example: `["SMA225"]`.
 
+**price_eur** — [`true`/`false`]\
+Print the last close and the active stoploss in EUR above the legend of each price chart, using the current `EURUSD=X` rate. Only applies to tickers quoted in USD. Defaults to `false` when absent.
+
 **gen_ta_custom** — [`true`/`false`]\
 Generate the ad-hoc custom TA panels defined by `ta_custom`. Must be `false` if `ta_custom` is empty.
 

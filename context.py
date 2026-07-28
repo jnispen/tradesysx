@@ -21,6 +21,15 @@ class RunContext:
     # eurusd) - a ticker not quoted in USD is never converted
     currency: dict = field(default_factory=dict)
 
+    def price_label(self, ticker):
+        """Y-axis label for a ticker's price panel, naming the currency it is quoted in.
+
+        Falls back to USD when the currency isn't known (lookup failed, or the
+        chart was produced outside the pipeline), which is what the charts
+        assumed before the currency was looked up at all.
+        """
+        return 'Price ({})'.format(self.currency.get(ticker) or 'USD')
+
     def eur_rate(self, ticker):
         """EUR/USD rate to use for a ticker's price label, None when it doesn't apply.
 

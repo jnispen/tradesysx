@@ -685,18 +685,47 @@ def _legend_if_multi(ax, **kw):
         ax.legend(**kw)
 
 
-def _style_price_axis(ax):
+def _style_price_axis(ax, label='Price (USD)'):
     ''' shared cosmetics for a price panel: horizontal-only hairline grid,
-    thousands-separated y axis, larger ticks/label for the wide format. '''
+    thousands-separated y axis, larger ticks/label for the wide format. `label`
+    names the currency the ticker is quoted in (see RunContext.price_label). '''
     ax.grid(axis='y'); ax.grid(axis='x', visible=False)
     _thousands(ax)
-    ax.set_ylabel('Price (USD)', fontsize=_AX_FS)
+    ax.set_ylabel(label, fontsize=_AX_FS)
     ax.tick_params(labelsize=_TICK_FS)
 
 
 def _format_date_axis(ax):
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+
+
+def _active_stoploss_line(ax, df):
+    ''' the stoploss level of a still-open trade, as a red dashed line running
+    from the day the trade was entered to the last close. Drawn only while a
+    position is actually open (InTrade > 0 on the last row); a flat ticker
+    carries STLoss 0 and gets no line. '''
+    if 'STLoss' not in df.columns or 'InTrade' not in df.columns:
+        return
+
+    last = df.iloc[-1]
+    if last['InTrade'] <= 0 or last['STLoss'] <= 0:
+        return
+
+    # the entry day is the start of the unbroken in-trade run ending at the last
+    # row (InTrade is 1 on the ENTER row itself and counts up from there)
+    intrade = pd.to_numeric(df['InTrade'], errors='coerce').fillna(0).to_numpy()
+    flat = np.flatnonzero(intrade <= 0)
+    start = df.index[flat[-1] + 1] if len(flat) else df.index[0]
+
+    ax.hlines(last['STLoss'], start, df.index[-1], colors=NEG, linewidths=1.2,
+              linestyles='--', label='Stoploss')
+
+    # the level, printed just past the end of the line (like the last close)
+    ax.annotate('{:,.2f}'.format(last['STLoss']),
+                xy=(df.index[-1], last['STLoss']), xytext=(6, 0),
+                textcoords='offset points', va='center',
+                color=NEG, fontsize=_TICK_FS, fontweight='medium')
 
 
 def _styled_price_overlays(ax, df, conf):
@@ -740,6 +769,8 @@ def _styled_price_overlays(ax, df, conf):
         ax.plot(df.index, df['CE2'], color=IND_BROWN, linewidth=1.0, linestyle='--', label='CE2exit')
         ax.plot(df.index, df['CE15'], color=IND_GOLD, linewidth=1.0, linestyle=':', label='CE15exit')
 
+    _active_stoploss_line(ax, df)
+
     ax.plot(df.index, df['Close'], color=ACCENT, linewidth=1.4, label='Close')
 
     if df['Enter'].value_counts().any():
@@ -748,31 +779,61 @@ def _styled_price_overlays(ax, df, conf):
         ax.scatter(df.index, df['Exit'], color=NEG, label='Exit', marker='v', s=90, zorder=5)
 
 
-def _last_close_labels(ax, df, eurusd=None):
-    ''' the last close value, printed just past the final point, with the same
-    value converted to EUR underneath it when an EUR/USD rate is available. '''
+def _last_close_labels(ax, df):
+    ''' the last close value, printed just past the final point. '''
     close = df.iloc[-1]['Close']
     ax.annotate('{:,.2f}'.format(close),
                 xy=(df.index[-1], close), xytext=(6, 0),
                 textcoords='offset points', va='center',
                 color=ACCENT, fontsize=_TICK_FS, fontweight='medium')
 
-    if eurusd:
-        # EURUSD=X quotes USD per EUR, so the USD price divides by the rate
-        ax.annotate('€{:,.2f}'.format(close / eurusd),
-                    xy=(df.index[-1], close), xytext=(6, -14),
-                    textcoords='offset points', va='center',
-                    color=TEXT2, fontsize=_TICK_FS)
+
+def _eur_values_line(ax, df, eurusd):
+    ''' the last close and the active stoploss in EUR, as one line sitting just
+    above the legend. Call this after the legend is placed. Nothing is drawn
+    without an EUR/USD rate (price_eur off, or a ticker not quoted in USD). '''
+    if not eurusd:
+        return
+
+    # EURUSD=X quotes USD per EUR, so USD prices divide by the rate
+    last = df.iloc[-1]
+    parts = ['close €{:,.2f}'.format(last['Close'] / eurusd)]
+    if 'STLoss' in df.columns and 'InTrade' in df.columns and last['InTrade'] > 0 and last['STLoss'] > 0:
+        parts.append('stoploss €{:,.2f}'.format(last['STLoss'] / eurusd))
+
+    _text_above_legend(ax, '[{}]'.format(', '.join(parts)), fontsize=_TICK_FS, color=TEXT2)
 
 
-def _styled_price_annotations(ax, df, eurusd=None):
+def _text_above_legend(ax, text, **kw):
+    ''' place a line of text just above the axes' legend, aligned with its left
+    edge (bottom right corner of the axes when there is no legend), and open up
+    the bottom of the y range so the text and the legend sit in free space
+    rather than on top of the curves. '''
+    ax.figure.canvas.draw()   # the legend only has a position once it is laid out
+    x, y, ha = 0.99, 0.02, 'right'
+    legend = ax.get_legend()
+    if legend is not None:
+        try:
+            box = legend.get_window_extent().transformed(ax.transAxes.inverted())
+            x, y, ha = box.x0, box.y1, 'left'
+        except Exception:       # no renderer available - fall back to the corner
+            pass
+
+    bottom, top = ax.get_ylim()
+    ax.set_ylim(bottom - (top - bottom) * 0.14, top)
+
+    ax.annotate(text, xy=(x, y), xycoords='axes fraction', xytext=(0, 8),
+                textcoords='offset points', ha=ha, va='bottom', **kw)
+
+
+def _styled_price_annotations(ax, df):
     ''' the unboxed text callouts on the price panel: last-close value label,
     signal (coloured by outcome), trade-details line, floating date and
     R-average. Same information as the classic ticker_plot annotations, minus
     the boxes. '''
     last = df.iloc[-1]
 
-    _last_close_labels(ax, df, eurusd)
+    _last_close_labels(ax, df)
 
     # signal, coloured green (bullish / winning) / red (stop / losing) / grey
     signal = last['Signal']
@@ -798,10 +859,12 @@ def _styled_price_annotations(ax, df, eurusd=None):
                 xy=(0.01, 1), xycoords='axes fraction', xytext=(0, -32),
                 textcoords='offset points', fontsize=_ANN_FS, color=TEXT2, ha='left', va='top')
 
-    # floating date, top-right
+    # floating date, just above the top-right corner of the panel - outside the
+    # axes, so it can't collide with the last-close label when price is trading
+    # near the top of the range
     ax.annotate(df.index[-1].strftime('%a %d %b %Y'),
-                xy=(0.99, 1), xycoords='axes fraction', xytext=(0, -8),
-                textcoords='offset points', fontsize=_ANN_FS, color=TEXT2, ha='right', va='top')
+                xy=(0.99, 1), xycoords='axes fraction', xytext=(0, 8),
+                textcoords='offset points', fontsize=_ANN_FS, color=TEXT2, ha='right', va='bottom')
 
     # R-average, bottom-left
     if 'Rmul' in df.columns:
@@ -926,10 +989,11 @@ def styled_ticker_plot(df, ticker, description, conf, ctx):
         fig, ax = plt.subplots(figsize=(28, 10))
         fig.suptitle('{} ({})'.format(description, ticker), fontsize=_TITLE_FS, fontweight='medium')
         _styled_price_overlays(ax, df, conf)
-        _styled_price_annotations(ax, df, ctx.eur_rate(ticker))
-        _style_price_axis(ax)
+        _styled_price_annotations(ax, df)
+        _style_price_axis(ax, ctx.price_label(ticker))
         _format_date_axis(ax)
         _legend_if_multi(ax, loc='lower right', ncol=3, fontsize=_LEG_FS)
+        _eur_values_line(ax, df, ctx.eur_rate(ticker))
         fig.savefig(ctx.outpath('plots', f'{ticker}_plot.png'))
         plt.close(fig)
 
@@ -948,9 +1012,10 @@ def _styled_ta_figure(df, ticker, description, conf, ctx, panels, out_dir, out_f
 
         ax1 = axes[0]
         _styled_price_overlays(ax1, df, conf)
-        _styled_price_annotations(ax1, df, ctx.eur_rate(ticker))
-        _style_price_axis(ax1)
+        _styled_price_annotations(ax1, df)
+        _style_price_axis(ax1, ctx.price_label(ticker))
         _legend_if_multi(ax1, loc='lower right', ncol=3, fontsize=_LEG_FS)
+        _eur_values_line(ax1, df, ctx.eur_rate(ticker))
 
         for ax, name in zip(axes[1:], panels):
             _indicator_panel(ax, df, conf, name)
@@ -1027,10 +1092,11 @@ def styled_benchmark_price(df, ticker, description, conf, ctx):
             ax.plot(df.index, bbbm, color=IND_BROWN, linewidth=1.1, linestyle='--', label=f"SMA{conf['bbb_sma']}")
 
         ax.plot(df.index, df['Close'], color=ACCENT, linewidth=1.4, label='Close')
-        _last_close_labels(ax, df, ctx.eur_rate(ticker))
+        _last_close_labels(ax, df)
 
-        _style_price_axis(ax)
+        _style_price_axis(ax, ctx.price_label(ticker))
         _format_date_axis(ax)
         _legend_if_multi(ax, loc='lower right', fontsize=_LEG_FS)
+        _eur_values_line(ax, df, ctx.eur_rate(ticker))
         fig.savefig(ctx.outpath('plots', f'{ticker}_plot.png'))
         plt.close(fig)

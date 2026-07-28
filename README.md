@@ -78,7 +78,8 @@ the TA chart (`<outdir>/plots/TA/<TICKER>_plot_ta.png`) always show the same
 overlays, picked from three tiers:
 
 - **Fixed** — the close price, ENTER/EXIT markers and trade annotations are
-  always shown;
+  always shown. While a trade is open, the active stoploss is drawn as a red
+  dashed line from the entry day to the last close;
 - **Strategy** — an indicator set is shown automatically when it
   matches the configured `enter` strategy: the fast/mid/slow EMA triplet for
   `3EMA` (20/50/100 by default), the
@@ -89,6 +90,9 @@ overlays, picked from three tiers:
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
   Bands), `"BBB"` (Bollinger Band Breakout bands), `"SMA225"` (225-day SMA,
   bull/bear market reference) and `"DON"` (Donchian channel).
+
+The price axis is labelled with the currency the ticker is quoted in, as
+reported by Yahoo Finance (`Price (USD)`, `Price (EUR)`, …).
 
 ## 3. Environment setup and cmdline parameters
 

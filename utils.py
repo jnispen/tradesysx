@@ -182,9 +182,32 @@ def get_ticker_currency(ticker):
 
     return _currency_cache[ticker]
 
-def get_ticker_currencies(tickers):
-    ''' currency per ticker, as a {ticker: currency} dict '''
-    return {ticker: get_ticker_currency(ticker) for ticker in tickers}
+CURRENCY_FILE = 'currencies.json'
+
+def resolve_ticker_currencies(tickers, ctx):
+    ''' currency per ticker, as a {ticker: currency} dict. Results are cached in
+        out/data/currencies.json, so each ticker costs one .info lookup ever - a
+        listing doesn't change the currency it trades in. Delete that file to
+        force a refresh. '''
+    cache_file = ctx.outpath('data', CURRENCY_FILE)
+    known = {}
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file) as f:
+                known = json.loads(f.read())
+        except Exception as e:
+            logger.warning(f'could not read {CURRENCY_FILE} ({e}) - looking the currencies up again')
+
+    currencies = {ticker: known.get(ticker) or get_ticker_currency(ticker) for ticker in tickers}
+
+    # only rewrite when something was actually looked up (failed lookups stay out
+    # of the cache so they are retried on the next run)
+    resolved = {t: c for t, c in currencies.items() if c}
+    if resolved != {t: c for t, c in known.items() if t in currencies}:
+        with open(cache_file, 'w') as f:
+            f.write(json.dumps({**known, **resolved}, indent=2, sort_keys=True))
+
+    return currencies
 
 def get_eurusd_rate():
     ''' latest close of EURUSD=X, i.e. the number of USD one EUR buys, used to
@@ -213,6 +236,20 @@ def data_range_spec(conf):
         "interval": conf.get("interval") or "1d",
     }
 
+def read_data_manifest(ctx):
+    ''' the data manifest written by an earlier download run, or {} when there
+        is none (or it can't be read) '''
+    manifest_file = ctx.outpath('data', 'manifest.json')
+    if not os.path.exists(manifest_file):
+        return {}
+
+    try:
+        with open(manifest_file) as f:
+            return json.loads(f.read())
+    except Exception as e:
+        logger.warning(f'could not read the data manifest ({e})')
+        return {}
+
 def write_data_manifest(conf, ctx):
     ''' records the date range the OHLC data on disk was downloaded for, so a later
         run with update_data=false can detect that the configuration has moved on '''
@@ -223,13 +260,10 @@ def write_data_manifest(conf, ctx):
 def check_data_manifest(conf, ctx):
     ''' warns when the OHLC data on disk was downloaded for a different date range
         than the one currently configured '''
-    manifest_file = ctx.outpath('data', 'manifest.json')
-    if not os.path.exists(manifest_file):
+    manifest = read_data_manifest(ctx)
+    if not manifest:
         logger.debug('no data manifest found - skipping date range check')
         return
-
-    with open(manifest_file) as f:
-        manifest = json.loads(f.read())
 
     spec = data_range_spec(conf)
     if {k: manifest.get(k) for k in spec} != spec:
@@ -3152,6 +3186,31 @@ def trades_plot(trades_lst, Rmul30_lst, sys_stats, conf, ctx, stats):
     plt.savefig(ctx.outpath("images", "system_trades_dist_plot.png"), dpi=150)
     plt.close(fig)
 
+def _active_stoploss_line(ax, df):
+    ''' the stoploss level of a still-open trade, as a red dashed line running
+        from the day the trade was entered to the last close. Drawn only while a
+        position is actually open (InTrade > 0 on the last row); a flat ticker
+        carries STLoss 0 and gets no line. '''
+    if 'STLoss' not in df.columns or 'InTrade' not in df.columns:
+        return
+
+    last = df.iloc[-1]
+    if last['InTrade'] <= 0 or last['STLoss'] <= 0:
+        return
+
+    # the entry day is the start of the unbroken in-trade run ending at the last
+    # row (InTrade is 1 on the ENTER row itself and counts up from there)
+    intrade = pd.to_numeric(df['InTrade'], errors='coerce').fillna(0).to_numpy()
+    flat = np.flatnonzero(intrade <= 0)
+    start = df.index[flat[-1] + 1] if len(flat) else df.index[0]
+
+    ax.hlines(last['STLoss'], start, df.index[-1], colors='red', linewidths=.8,
+              linestyles='--', label='Stoploss')
+
+    # the level, printed just past the end of the line (like the last close)
+    ax.annotate('{:,.2f}'.format(last['STLoss']), xy=(df.index[-1], last['STLoss']),
+                xytext=(6, 0), textcoords='offset points', va='center', color='red')
+
 def _plot_price_overlays(ax, df, conf):
     ''' draws the price-panel TA overlays (BB/SMA225/EMA/SMA/CE) + Close + Enter/Exit markers.
         Shared by ticker_plot and ticker_plot_ta so the two stay in sync. '''
@@ -3191,6 +3250,8 @@ def _plot_price_overlays(ax, df, conf):
         ax.plot(df.index, df['CE2'], color='brown', linewidth=.5, linestyle='--', label='CE2exit')
         ax.plot(df.index, df['CE15'], color='yellow', linewidth=.5, linestyle='--', label='CE15exit')
 
+    _active_stoploss_line(ax, df)
+
     ax.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')
 
     if df['Enter'].value_counts().any():
@@ -3213,17 +3274,44 @@ _PANEL_LAST_VALUES = {
     'MFI': [('MFI', 'blue')],
 }
 
-def _plot_last_close(ax, df, eurusd=None):
-    ''' print the last close just past the final point, with the same value in
-        EUR underneath it when an EUR/USD rate is available. '''
+def _plot_last_close(ax, df):
+    ''' print the last close just past the final point. '''
     close = df.iloc[-1]['Close']
     ax.annotate('{:,.2f}'.format(close), xy=(df.index[-1], close), xytext=(6, 0),
                 textcoords='offset points', va='center')
 
-    if eurusd:
-        # EURUSD=X quotes USD per EUR, so the USD price divides by the rate
-        ax.annotate('€{:,.2f}'.format(close / eurusd), xy=(df.index[-1], close),
-                    xytext=(6, -14), textcoords='offset points', va='center', color='gray')
+def _eur_values_line(ax, df, eurusd):
+    ''' the last close and the active stoploss in EUR, as one line just above the
+        legend. Call this after the legend is placed; nothing is drawn without an
+        EUR/USD rate (price_eur off, or a ticker not quoted in USD). Mirrors
+        report_plots._eur_values_line. '''
+    if not eurusd:
+        return
+
+    # EURUSD=X quotes USD per EUR, so USD prices divide by the rate
+    last = df.iloc[-1]
+    parts = ['close €{:,.2f}'.format(last['Close'] / eurusd)]
+    if 'STLoss' in df.columns and 'InTrade' in df.columns and last['InTrade'] > 0 and last['STLoss'] > 0:
+        parts.append('stoploss €{:,.2f}'.format(last['STLoss'] / eurusd))
+
+    ax.figure.canvas.draw()   # the legend only has a position once it is laid out
+    x, y, ha = 0.99, 0.02, 'right'
+    legend = ax.get_legend()
+    if legend is not None:
+        try:
+            box = legend.get_window_extent().transformed(ax.transAxes.inverted())
+            x, y, ha = box.x0, box.y1, 'left'
+        except Exception:       # no renderer available - fall back to the corner
+            pass
+
+    # open up the bottom of the y range so the text and the legend sit in free
+    # space rather than on top of the curves
+    bottom, top = ax.get_ylim()
+    ax.set_ylim(bottom - (top - bottom) * 0.14, top)
+
+    ax.annotate('[{}]'.format(', '.join(parts)), xy=(x, y), xycoords='axes fraction',
+                xytext=(0, 8), textcoords='offset points', ha=ha, va='bottom',
+                color='gray')
 
 def _panel_last_value_labels(ax, df, name):
     ''' print the latest value of a sub-plot indicator just past its final point,
@@ -3298,12 +3386,13 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
         ax.plot(df.index, bbbm, color='brown', linewidth=.6, linestyle='--', label=f"SMA{conf['bbb_sma']}")
 
     ax.plot(df.index, df['Close'], color='red', linewidth=.8, label='Close')
-    _plot_last_close(ax, df, ctx.eur_rate(ticker))
+    _plot_last_close(ax, df)
 
     plt.grid(linestyle='--')
     plt.xlabel('Date')
-    plt.ylabel('Price (USD)')
+    plt.ylabel(ctx.price_label(ticker))
     plt.legend(loc='lower right')
+    _eur_values_line(ax, df, ctx.eur_rate(ticker))
     plt.savefig(ctx.outpath("plots", f"{ticker}_plot.png"), dpi=150)
     plt.close(fig)
 
@@ -3325,7 +3414,7 @@ def ticker_plot(df, ticker, description, conf, ctx):
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=conf['date_int']))
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
 
-    _plot_last_close(ax, df, ctx.eur_rate(ticker))
+    _plot_last_close(ax, df)
 
     _plot_price_overlays(ax, df, conf)
 
@@ -3372,8 +3461,9 @@ def ticker_plot(df, ticker, description, conf, ctx):
 
     plt.grid(linestyle='--')
     plt.xlabel('Date')
-    plt.ylabel('Price (USD)')
+    plt.ylabel(ctx.price_label(ticker))
     plt.legend(loc='lower right')
+    _eur_values_line(ax, df, ctx.eur_rate(ticker))
     plt.savefig(ctx.outpath("plots", f"{ticker}_plot.png"), dpi=150)
     plt.close(fig)
 
@@ -3400,7 +3490,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
     fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=conf['date_int']))
     fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
-    _plot_last_close(ax1, df, ctx.eur_rate(ticker))
+    _plot_last_close(ax1, df)
 
     _plot_price_overlays(ax1, df, conf)
 
@@ -3483,8 +3573,9 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
     ax1.grid(linestyle='--')
     ax2.grid(linestyle='--')
     plt.xlabel('Date')
-    ax1.set_ylabel('Price(USD)')
+    ax1.set_ylabel(ctx.price_label(ticker))
     ax1.legend(loc='lower right')
+    _eur_values_line(ax1, df, ctx.eur_rate(ticker))
     ax2.legend(loc='lower right')
     if not (bbrsi or macd):
         ax3.grid(linestyle='--')
@@ -3512,7 +3603,7 @@ def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
     ax1 = axes[0]
-    _plot_last_close(ax1, df, ctx.eur_rate(ticker))
+    _plot_last_close(ax1, df)
 
     _plot_price_overlays(ax1, df, conf)
 
@@ -3555,7 +3646,7 @@ def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
                      xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35),
                      bbox={'facecolor':'0.9', 'boxstyle':'square', 'alpha':0.2}, textcoords='offset points', ha='left', va='top')
 
-    ax1.set_ylabel('Price(USD)')
+    ax1.set_ylabel(ctx.price_label(ticker))
 
     for ax, name in zip(axes[1:], panels):
         if name == 'RSI':
@@ -3609,6 +3700,7 @@ def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
     for ax in axes:
         ax.grid(linestyle='--')
         ax.legend(loc='lower right')
+    _eur_values_line(ax1, df, ctx.eur_rate(ticker))
 
     plt.xlabel('Date')
     plt.savefig(ctx.outpath("plots/TA-custom", f"{ticker}_plot_ta_custom.png"), dpi=150)
