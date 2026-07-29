@@ -209,6 +209,53 @@ def resolve_ticker_currencies(tickers, ctx):
 
     return currencies
 
+def check_currency_mix(tickers, ctx):
+    ''' group the traded tickers by the currency they are quoted in, record the
+        result on ctx and return True when they all share one currency.
+
+        The account simulation adds every trade to a single balance, so a ticker
+        list mixing currencies would be summing e.g. EUR and USD amounts as if
+        they were the same unit - and the position sizing would risk one
+        configured amount against stop distances quoted in different currencies.
+        Detected here so those steps can be skipped instead of producing a
+        meaningless number.
+
+        Currencies are compared exactly as Yahoo reports them: some markets are
+        quoted in minor units ('GBp' = pence), which mixes just as badly with
+        'GBP' as with any other currency. Tickers whose currency could not be
+        resolved are left out - a failed lookup is no reason to drop the
+        simulation. '''
+    groups = {}
+    for ticker in tickers:
+        currency = ctx.currency.get(ticker)
+        if currency:
+            groups.setdefault(currency, []).append(ticker)
+
+    ctx.currency_groups = groups
+    ctx.mixed_currency = len(groups) > 1
+
+    if ctx.mixed_currency:
+        logger.warning(f"Quote currencies: {ctx.currency_summary()}")
+        logger.warning("the ticker list mixes quote currencies - the account simulation, "
+                       "the Monte Carlo simulation and the buy-and-hold benchmark are skipped ")
+    elif groups:
+        logger.info(f"Quote currency: {next(iter(groups))}")
+
+    return not ctx.mixed_currency
+
+MIXED_CURRENCY_NOTE = (
+    "The ticker list mixes quote currencies, so the account simulation "
+    "(which adds every trade to one balance), the Monte Carlo simulation and the "
+    "buy-and-hold benchmark have been skipped for this run - they would be adding up "
+    "amounts in different currencies. The trade statistics below are R-multiple based "
+    "and are unaffected.")
+
+def mixed_currency_note(ctx):
+    ''' the report banner (as html) for a run whose tickers are not all quoted in
+        the same currency, naming the currencies found. '''
+    return (f"<b>Mixed quote currencies &mdash; {ctx.currency_summary()}.</b> "
+            f"{MIXED_CURRENCY_NOTE}")
+
 def get_eurusd_rate():
     ''' latest close of EURUSD=X, i.e. the number of USD one EUR buys, used to
         print the last price in EUR alongside the USD value on the price charts.
@@ -873,6 +920,12 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     stat_html = stat_df.to_html(border=0, index=False, classes="summary-table")
 
+    # a ticker list mixing quote currencies skips the account simulation, the
+    # Monte Carlo run and the benchmark (see check_currency_mix); the sections
+    # built on those are left out below and replaced by a banner saying so
+    sim_ok = not ctx.mixed_currency
+    notice_html = "" if sim_ok else f'<p class="notice">{mixed_currency_note(ctx)}</p>'
+
     # trading-simulation summary, rendered in the same style as the system
     # summary table and placed directly under the balance plot. Labels and value
     # formatting mirror the log lines emitted by do_balance_simulation (the
@@ -918,7 +971,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
     quotes_table = _multi_column_table(list(quotes.items()), ["Ticker", "Description"], n_cols=2)
     quotes_html = quotes_table.to_html(border=0, index=False, classes="quotes-table")
 
-    benchmark_enabled = conf.get('benchmark', True)
+    benchmark_enabled = conf.get('benchmark', True) and sim_ok
     bm_ticker = conf.get('bm_ticker', 'URTH')
 
     # when the benchmark is the equal-weight buy-and-hold basket of the whole
@@ -959,8 +1012,21 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     fig_a = ctx.outpath("images/system_trades_plot.png")
     fig_b = ctx.outpath("images/system_trades_dist_plot.png")
-    fig_c = ctx.outpath("images/balance_plot.png")
-    fig_d = ctx.outpath("images/monte_carlo_plot.png")
+    # the account and Monte Carlo figures and the simulation table only go in
+    # when their step actually ran - out/images is not cleared between runs, so
+    # an earlier single-currency run's PNGs would otherwise show up here
+    if sim_ok:
+        fig_c = ctx.outpath("images/balance_plot.png")
+        fig_d = ctx.outpath("images/monte_carlo_plot.png")
+        simulation_html = f"""
+        <img src="file://{fig_c}" style="width:{fig_width}px">
+        <div style="height: 16px;"></div>
+        <h2>Trading Simulation</h2>
+        {balance_html}
+        <div style="height: 16px;"></div>
+        <img src="file://{fig_d}" style="width:{fig_width}px">"""
+    else:
+        simulation_html = ""
     fig_e_html = ""
     if benchmark_enabled and bm_ticker != 'quote-lst':
         fig_e = ctx.outpath("plots", f"{bm_ticker}_plot.png")
@@ -1022,6 +1088,9 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
             }}
             {table_style_css(14)}
             th, td {{ text-align: left; }}
+            /* banner for a run with sections left out (e.g. mixed quote currencies) */
+            p.notice {{ background: #FDF8EC; border: 1px solid #C8952F; border-left: 3px solid #C8952F;
+                padding: 8px 11px; margin: 0 0 16px; line-height: 1.5; }}
             table.compact-table {{ width: auto; table-layout: auto; }}
             table.summary-table {{ width: 46%; table-layout: fixed; }}
             table.summary-table th:nth-child(odd), table.summary-table td:nth-child(odd) {{ width: 50%; }}
@@ -1041,6 +1110,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
         </style>
     </head>
     <body>
+        {notice_html}
         <h2>System Configuration Parameters</h2>
         {conf_html}
         <h2>Quotes List</h2>
@@ -1051,12 +1121,7 @@ def generate_summary_report(stat_df, conf, quotes, ctx, stats, full=False):
         <div style="height: 16px;"></div>
         <img src="file://{fig_a}" style="width:{fig_width}px">
         <img src="file://{fig_b}" style="width:{fig_width}px">
-        <img src="file://{fig_c}" style="width:{fig_width}px">
-        <div style="height: 16px;"></div>
-        <h2>Trading Simulation</h2>
-        {balance_html}
-        <div style="height: 16px;"></div>
-        <img src="file://{fig_d}" style="width:{fig_width}px">
+        {simulation_html}
         {fig_e_html}
         {benchmark_table_html}
 
@@ -1123,6 +1188,10 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
             return None
 
     balance = float(conf['balance'])
+    # a ticker list mixing quote currencies skips the account simulation, the
+    # Monte Carlo run and the benchmark (see check_currency_mix), so every
+    # section built on those is left out here and replaced by a banner saying so
+    sim_ok = not ctx.mixed_currency
     trades_num = stats.trades_num or int(num('Trades total') or 0)
     trades_yr = num('Trades/yr')
     rmean = num('R mean'); rmean_win = num('R mean (win)'); rmean_loss = num('R mean (loss)')
@@ -1143,12 +1212,13 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     else:
         bm_desc = conf.get('bm_desc') or bm_ticker
     bm_label = "equal-weight basket" if bm_ticker == 'quote-lst' else bm_ticker
+    benchmark_enabled = benchmark_enabled and sim_ok
     val_out = _get_benchmark_result(conf, ctx) if benchmark_enabled else None
     bm_cagr = ann_return(balance, val_out, stats.trades_len / 365) if (val_out and stats.trades_len) else None
     cagr_delta = (stats.cagr - bm_cagr) * 100 if bm_cagr is not None else None
     # max drawdown over the holding period, for the strategy equity curve and
     # the buy-and-hold benchmark (both single-ticker and basket modes)
-    strat_dd = _strategy_drawdown_pct(ctx)
+    strat_dd = _strategy_drawdown_pct(ctx) if sim_ok else None
     bm_dd = _benchmark_drawdown_pct(conf, ctx) if benchmark_enabled else None
 
     # ---- header date range (from the saved trades table) ----
@@ -1176,14 +1246,18 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         delta_txt = f"{'+' if cagr_delta >= 0 else '−'}{abs(cagr_delta):.1f} pts vs benchmark"
     else:
         delta_cls, delta_txt = "", "annualized"
+    # the three account-based cards have nothing behind them when the balance
+    # simulation was skipped, so they show a dash and say why
+    no_sim = "not computed &mdash; mixed currencies"
     cards = [
-        kpi("CAGR", f"{stats.cagr:.1%}", delta_txt, delta_cls),
-        kpi("Final balance", f"${stats.final_balance:,.0f}", f"from ${balance:,.0f} start"),
+        kpi("CAGR", f"{stats.cagr:.1%}" if sim_ok else "&ndash;", delta_txt if sim_ok else no_sim, delta_cls),
+        kpi("Final balance", f"${stats.final_balance:,.0f}" if sim_ok else "&ndash;",
+            f"from ${balance:,.0f} start" if sim_ok else no_sim),
         kpi("System quality (SQN)", f"{stats.sqn:.2f}<span class=\"badge\">{sqn_badge}</span>", "Van Tharp scale"),
         kpi("Win rate", f"{stats.win_rate:.0f}%",
             f"{trades_num} trades" + (f" &middot; ~{trades_yr:.0f}/yr" if trades_yr else "")),
         kpi("Max drawdown", f"{strat_dd:.1f}%" if strat_dd is not None else "&ndash;",
-            "strategy equity, peak-to-trough"),
+            "strategy equity, peak-to-trough" if sim_ok else no_sim),
         kpi("R mean", _fmt_signed_r(rmean) if rmean is not None else "&ndash;",
             (f'avg win <span class="pos">{_fmt_signed_r(rmean_win)}</span> '
              f'&middot; avg loss <span class="neg">{_fmt_signed_r(rmean_loss)}</span>'
@@ -1324,14 +1398,33 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
         logger.debug(f"styled report: skipping selected-trades table ({e})")
 
     # ---- charts (embedded as data-URIs) ----
-    img_equity = _data_uri(ctx.outpath('images', 'balance_plot.png'))
+    # the account/Monte Carlo figures are only read when their step actually
+    # ran - out/images is not cleared between runs, so an earlier single-currency
+    # run's PNGs would otherwise be embedded as if they belonged to this one
+    def sim_img(name):
+        return _data_uri(ctx.outpath('images', name)) if sim_ok else ""
+
+    img_equity = sim_img('balance_plot.png')
     img_bars = _data_uri(ctx.outpath('images', 'system_trades_plot.png'))
     img_dist = _data_uri(ctx.outpath('images', 'system_trades_dist_plot.png'))
-    img_mc = _data_uri(ctx.outpath('images', 'monte_carlo_plot.png'))
+    img_mc = sim_img('monte_carlo_plot.png')
     img_mae_r = _data_uri(ctx.outpath('images', 'mae_scatter_plot.png'))
     img_mfe_mae = _data_uri(ctx.outpath('images', 'mfe_mae_scatter_plot.png'))
-    img_equity_detail = _data_uri(ctx.outpath('images', 'equity_plot.png'))
-    img_monthly_dist = _data_uri(ctx.outpath('images', 'monthly_dist_plot.png'))
+    img_equity_detail = sim_img('equity_plot.png')
+    img_monthly_dist = sim_img('monthly_dist_plot.png')
+
+    # the whole account section rests on the balance simulation, so with that
+    # skipped there is no chart and no table to show - the banner at the top of
+    # the report carries the explanation
+    account_section = f"""
+    <h2 id="sec-account">Account performance</h2>
+    <figure class="equityfig acctperf"><img src="{img_equity}" alt="Account value over time">
+    <figcaption>Simulated account value (equity curve) against the buy-and-hold benchmark (dashed).</figcaption></figure>
+    <div class="statgrid nosplit" style="margin-top:1.2em">
+      <table><tbody>{sim_rows_left}</tbody></table>
+      <table><tbody>{sim_rows_right}</tbody></table>
+    </div>
+    <div class="contend"></div>""" if sim_ok else ""
 
     # ---- appendix: MFE/MAE scatters (generated in generate_system_stats,
     # so both PNGs already exist by report time; each is included only if present)
@@ -1491,7 +1584,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     # via target-counter(), so they stay correct however the content paginates.
     # the executive summary and the strategy-vs-benchmark section together make
     # up the front page, directly above this table, so neither is listed
-    toc_entries = [("sec-account", "Account performance"),
+    toc_entries = ([("sec-account", "Account performance")] if account_section else []) + [
                     ("sec-trades", "Trade statistics"),
                     ("sec-distribution", "Trade distribution")]
     if mc_section:
@@ -1571,6 +1664,13 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     .disclaimer {{ color: {TEXT2}; font-size: 9.5px; line-height: 1.5; background: #FAFAF8;
         border: 1px solid {GRID}; border-left: 3px solid {ACCENT}; border-radius: 4px;
         padding: 8px 11px; margin: 12px 0 4px; }}
+    /* banner for a run with sections left out (e.g. mixed quote currencies) -
+       same shape as the disclaimer, in the warning colour so it reads as a
+       caveat about this run rather than boilerplate */
+    .notice {{ color: {TEXT}; font-size: 10.5px; line-height: 1.5; background: #FDF8EC;
+        border: 1px solid {IND_GOLD}; border-left: 3px solid {IND_GOLD}; border-radius: 4px;
+        padding: 9px 11px; margin: 12px 0 4px; }}
+    .notice b {{ color: {IND_GOLD}; }}
 
     .kpis {{ margin: 4px 0 10px; }}
     .kpi {{ display: inline-block; width: 32%; vertical-align: top; border: 1px solid {GRID};
@@ -1683,6 +1783,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     or a recommendation to buy, sell or hold any security, or to pursue any course of action.
     Past performance does not guarantee future results.</p>
 
+    {'' if sim_ok else f'<p class="notice">{mixed_currency_note(ctx)}</p>'}
+
     <h2>Executive summary</h2>
     <div class="kpis">{kpi_html}</div>
 
@@ -1690,14 +1792,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
 
     {f'<h2>Contents</h2>{toc_html}' if toc_html else ''}
 
-    <h2 id="sec-account">Account performance</h2>
-    <figure class="equityfig acctperf"><img src="{img_equity}" alt="Account value over time">
-    <figcaption>Simulated account value (equity curve) against the buy-and-hold benchmark (dashed).</figcaption></figure>
-    <div class="statgrid nosplit" style="margin-top:1.2em">
-      <table><tbody>{sim_rows_left}</tbody></table>
-      <table><tbody>{sim_rows_right}</tbody></table>
-    </div>
-    <div class="contend"></div>
+    {account_section}
 
     <h2 id="sec-trades"{trades_pbreak}>Trade statistics</h2>
     <div class="statgrid">
@@ -3275,10 +3370,27 @@ _PANEL_LAST_VALUES = {
 }
 
 def _plot_last_close(ax, df):
-    ''' print the last close just past the final point. '''
+    ''' print the last close just past the final point, followed by its change
+        against the previous close. Mirrors report_plots._last_close_labels. '''
     close = df.iloc[-1]['Close']
-    ax.annotate('{:,.2f}'.format(close), xy=(df.index[-1], close), xytext=(6, 0),
-                textcoords='offset points', va='center')
+    label = ax.annotate('{:,.2f}'.format(close), xy=(df.index[-1], close), xytext=(6, 0),
+                        textcoords='offset points', va='center')
+
+    if len(df) < 2:
+        return
+    prev = df.iloc[-2]['Close']
+    if not np.isfinite(prev) or not np.isfinite(close) or not prev:
+        return
+    pct = (close - prev) / prev * 100
+
+    col = 'gray'
+    if pct > 0:
+        col = 'green'
+    elif pct < 0:
+        col = 'red'
+    ax.annotate('({:+,.1f}%)'.format(pct).replace('-', '−'), xy=label.xy,
+                xytext=(6 + rp._text_width(ax, label) + 4, 0), textcoords='offset points',
+                va='center', color=col)
 
 def _eur_values_line(ax, df, eurusd):
     ''' the last close and the active stoploss in EUR, as one line just above the

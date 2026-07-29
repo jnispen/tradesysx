@@ -71,20 +71,25 @@ def update_quotes(conf, ctx):
         logger.info('==== [1/8] Downloading quote data: skipped (update_data=false) ====')
         ut.check_data_manifest(conf, ctx)
 
-    # the charts name the currency each ticker is quoted in on their price axis
-    # (cached, so this normally costs nothing) and print the last close in EUR
-    # next to the USD value - both need yfinance, so they run as part of this
-    # download step rather than surfacing halfway through the run
-    if plots_enabled:
-        tickers = list(quotes) + ([bm_ticker] if auto_benchmark else [])
-        ctx.currency = ut.resolve_ticker_currencies(tickers, ctx)
-        non_usd = {t: c for t, c in ctx.currency.items() if c and c != 'USD'}
-        if non_usd:
-            logger.info(f"Not quoted in USD : {', '.join(f'{t} ({c})' for t, c in non_usd.items())}")
+    # the currency each ticker is quoted in: the charts name it on their price
+    # axis, and every step that adds trades up into one account balance needs
+    # them to agree (see check_currency_mix). The lookups are cached in
+    # out/data/currencies.json, so this normally costs nothing. Runs as part of
+    # this download step rather than surfacing halfway through the run.
+    tickers = list(quotes) + ([bm_ticker] if auto_benchmark else [])
+    ctx.currency = ut.resolve_ticker_currencies(tickers, ctx)
+    non_usd = {t: c for t, c in ctx.currency.items() if c and c != 'USD'}
+    if non_usd:
+        logger.info(f"Not quoted in USD: {', '.join(f'{t} ({c})' for t, c in non_usd.items())}")
 
-        if conf.get('price_eur', False):
-            logger.info('==== [1/8] Downloading EUR/USD rate ====')
-            ctx.eurusd = ut.get_eurusd_rate()
+    # the benchmark is not traded, so it is the traded tickers that have to share
+    # a currency; follow_only produces no simulation or report to guard, so it
+    # skips the check rather than warning about a list it never adds up
+    single_currency = follow_only or ut.check_currency_mix(list(quotes), ctx)
+
+    if plots_enabled and conf.get('price_eur', False):
+        logger.info('==== [1/8] Downloading EUR/USD rate ====')
+        ctx.eurusd = ut.get_eurusd_rate()
 
     if conf['process_data'] == True:
         step2_label = 'Charting tickers (follow_only)' if follow_only else 'Processing tickers'
@@ -193,13 +198,21 @@ def update_quotes(conf, ctx):
         system_stats = system_stat.to_string(index=False)
         logger.info(system_stats)
 
-        # 10. virtual trading balance simulation
-        logger.info('==== [5/8] Running trading balance simulation (backtest) ====')
-        balance_df = ut.do_balance_simulation(total_trades_list.df, total_trades_table.df, conf, last_close_date, ctx, stats)
-        ut.balance_plot(balance_df, conf, ctx)
+        # 10. virtual trading balance simulation - one account balance, so it
+        # only means anything when every ticker is quoted in the same currency
+        if not single_currency:
+            logger.warning('==== [5/8] Running trading balance simulation (backtest): skipped (mixed currencies) ====')
+        else:
+            logger.info('==== [5/8] Running trading balance simulation (backtest) ====')
+            balance_df = ut.do_balance_simulation(total_trades_list.df, total_trades_table.df, conf, last_close_date, ctx, stats)
+            ut.balance_plot(balance_df, conf, ctx)
 
-        # 12. monte carlo smulation to test position sizing strategy
-        if conf['montecarlo'] == True:
+        # 12. monte carlo smulation to test position sizing strategy - risks the
+        # average dollar amount from the balance simulation above, so it goes
+        # with it when that is skipped
+        if not single_currency:
+            logger.warning('==== [6/8] Running Monte Carlo simulation: skipped (mixed currencies) ====')
+        elif conf['montecarlo'] == True:
             logger.info('==== [6/8] Running Monte Carlo simulation ====')
             # run monte carlo simulation by sampling from the trade distribution ('bag of marbles' simulation)
             ut.do_monte_carlo_simulation_sampled(total_trades_table.df, conf, ctx, stats)
