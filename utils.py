@@ -3370,10 +3370,27 @@ _PANEL_LAST_VALUES = {
 }
 
 def _plot_last_close(ax, df):
-    ''' print the last close just past the final point. '''
+    ''' print the last close just past the final point, followed by its change
+        against the previous close. Mirrors report_plots._last_close_labels. '''
     close = df.iloc[-1]['Close']
-    ax.annotate('{:,.2f}'.format(close), xy=(df.index[-1], close), xytext=(6, 0),
-                textcoords='offset points', va='center')
+    label = ax.annotate('{:,.2f}'.format(close), xy=(df.index[-1], close), xytext=(6, 0),
+                        textcoords='offset points', va='center')
+
+    if len(df) < 2:
+        return
+    prev = df.iloc[-2]['Close']
+    if not np.isfinite(prev) or not np.isfinite(close) or not prev:
+        return
+    pct = (close - prev) / prev * 100
+
+    col = 'gray'
+    if pct > 0:
+        col = 'green'
+    elif pct < 0:
+        col = 'red'
+    ax.annotate('({:+,.1f}%)'.format(pct).replace('-', '−'), xy=label.xy,
+                xytext=(6 + rp._text_width(ax, label) + 4, 0), textcoords='offset points',
+                va='center', color=col)
 
 def _eur_values_line(ax, df, eurusd):
     ''' the last close and the active stoploss in EUR, as one line just above the

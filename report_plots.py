@@ -782,10 +782,46 @@ def _styled_price_overlays(ax, df, conf):
 def _last_close_labels(ax, df):
     ''' the last close value, printed just past the final point. '''
     close = df.iloc[-1]['Close']
-    ax.annotate('{:,.2f}'.format(close),
-                xy=(df.index[-1], close), xytext=(6, 0),
+    label = ax.annotate('{:,.2f}'.format(close),
+                        xy=(df.index[-1], close), xytext=(6, 0),
+                        textcoords='offset points', va='center',
+                        color=ACCENT, fontsize=_TICK_FS, fontweight='medium')
+    _last_close_change_label(ax, df, label)
+
+
+def _last_close_change_label(ax, df, label):
+    ''' the change between the last close and the one before it, printed right
+    after the close label - green when up, red when down. '''
+    if len(df) < 2:
+        return
+    prev, close = df.iloc[-2]['Close'], df.iloc[-1]['Close']
+    if not np.isfinite(prev) or not np.isfinite(close) or not prev:
+        return
+    pct = (close - prev) / prev * 100
+
+    colour = TEXT2
+    if pct > 0:
+        colour = POS
+    elif pct < 0:
+        colour = NEG
+    ax.annotate('({:+,.1f}%)'.format(pct).replace('-', '−'),
+                xy=label.xy, xytext=(6 + _text_width(ax, label) + 4, 0),
                 textcoords='offset points', va='center',
-                color=ACCENT, fontsize=_TICK_FS, fontweight='medium')
+                color=colour, fontsize=_TICK_FS, fontweight='medium')
+
+
+def _text_width(ax, text):
+    ''' width of a text object, in points. Measured through the renderer, since a
+    text that has not been drawn yet has no window extent. '''
+    fig = ax.figure
+    get_renderer = getattr(fig.canvas, 'get_renderer', None)
+    if get_renderer is None:    # backend without a cached renderer - lay the figure out
+        fig.canvas.draw()
+        return text.get_window_extent().width * 72 / fig.dpi
+
+    width = get_renderer().get_text_width_height_descent(
+        text.get_text(), text.get_fontproperties(), False)[0]
+    return width * 72 / fig.dpi
 
 
 def _eur_values_line(ax, df, eurusd):
