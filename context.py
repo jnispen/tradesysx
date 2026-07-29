@@ -20,6 +20,12 @@ class RunContext:
     # currency each ticker is quoted in, per yfinance's .info (filled alongside
     # eurusd) - a ticker not quoted in USD is never converted
     currency: dict = field(default_factory=dict)
+    # traded tickers grouped by the currency they are quoted in, {currency:
+    # [tickers]}, and whether that is more than one currency. Set by
+    # utils.check_currency_mix; a mixed list makes every step that adds trades
+    # up into one account balance meaningless, so those are skipped
+    currency_groups: dict = field(default_factory=dict)
+    mixed_currency: bool = False
 
     def price_label(self, ticker):
         """Y-axis label for a ticker's price panel, naming the currency it is quoted in.
@@ -41,6 +47,11 @@ class RunContext:
             return None
         currency = self.currency.get(ticker) or ''
         return self.eurusd if currency.upper() == 'USD' else None
+
+    def currency_summary(self):
+        """The traded tickers per currency, e.g. "EUR (ASML.AS, MC.PA), USD (AAPL)"."""
+        return ', '.join(f"{currency} ({', '.join(tickers)})"
+                         for currency, tickers in sorted(self.currency_groups.items()))
 
     def path(self, *parts):
         """Return a string path inside basedir."""
