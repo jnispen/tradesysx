@@ -208,6 +208,14 @@ def styled_equity_plot(df, conf, ctx, val_out, max_recovery=0, rec_from=None, re
         if not dd.empty:
             ax_dd.plot(dd['Date'], dd['DDPerc'], color=NEUTRAL, lw=0.8)
             ax_dd.set_ylim(min(dd['DDPerc'].min() * headroom, -1.0), 0)
+            # current drawdown at the last close, annotated at the end of the
+            # curve like the equity and trailing-return panels. The hyphen is
+            # swapped for a true minus so it matches the y-tick labels.
+            dd_end = float(dd['DDPerc'].iloc[-1])
+            ax_dd.annotate(f"{dd_end:,.1f}%".replace('-', '−'),
+                           (dd['Date'].iloc[-1], dd_end),
+                           xytext=(6, 0), textcoords='offset points', va='center',
+                           color=TEXT2, fontsize=9)
 
         if callout:
             ax_dd.text(0.98, 0.04, callout, transform=ax_dd.transAxes,

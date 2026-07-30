@@ -235,11 +235,11 @@ def check_currency_mix(tickers, ctx):
     ctx.mixed_currency = len(groups) > 1
 
     if ctx.mixed_currency:
-        logger.warning(f"Quote currencies: {ctx.currency_summary()}")
+        logger.warning(f"Quote currencies  : {ctx.currency_summary()}")
         logger.warning("the ticker list mixes quote currencies - the account simulation, "
                        "the Monte Carlo simulation and the buy-and-hold benchmark are skipped ")
     elif groups:
-        logger.info(f"Quote currency: {next(iter(groups))}")
+        logger.info(f"Quote currency    : {next(iter(groups))}")
 
     return not ctx.mixed_currency
 
