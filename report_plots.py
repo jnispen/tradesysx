@@ -26,11 +26,13 @@ import matplotlib.patches as mpatches
 from matplotlib.ticker import StrMethodFormatter
 from matplotlib.offsetbox import TextArea, DrawingArea, HPacker, AnchoredOffsetbox
 
-from matplotlib.colors import TwoSlopeNorm
+from matplotlib.colors import TwoSlopeNorm, to_rgb
+from matplotlib.patches import Rectangle, FancyBboxPatch, Circle
 
-from tradesysx.report_style import (report_style, ACCENT, NEUTRAL, POS, NEG, GRID,
-                                    TEXT, TEXT2, IND_GREEN, IND_BROWN, IND_CHARCOAL,
-                                    IND_GOLD, DIVERGING_CMAP, FIG_WIDTH)
+from tradesysx.report_style import (report_style, ACCENT, NEUTRAL, NEUTRAL_DARK,
+                                    POS, NEG, GRID, TEXT, TEXT2, WARN, IND_GREEN,
+                                    IND_BROWN, IND_CHARCOAL, IND_GOLD,
+                                    DIVERGING_CMAP, FIG_WIDTH)
 
 logger = logging.getLogger(__name__)
 
@@ -311,6 +313,287 @@ def styled_monthly_dist_plot(df, ctx):
         ax.legend(loc='upper right')
         fig.savefig(ctx.outpath('images', 'monthly_dist_plot.png'))
         plt.close(fig)
+
+
+# ---- portfolio composition figure -------------------------------------------
+# An open position sitting below this many R has not yet earned room above its
+# stop (a trade at entry already stands 1 R above it), so its tile is flagged.
+_PF_WARN_R = 1.0
+_PF_COLS = 4          # tiles per row
+_PF_GAP = 0.035       # gap between tiles, as a fraction of the grid width
+_PF_LABEL_MIN = 6.0   # bar segments narrower than this % are left unlabelled
+_PF_CASH = 'Cash Balance'
+_PF_CASH_SHORT = 'Cash'   # the bar segment is often too narrow for the full label
+
+
+def _pf_mix(colour, weight, base='white'):
+    ''' blend `colour` towards `base` by `weight` (0 = colour, 1 = base) '''
+    a, b = to_rgb(colour), to_rgb(base)
+    return tuple(a[i] * (1 - weight) + b[i] * weight for i in range(3))
+
+
+def _pf_minus(text):
+    ''' hyphen -> true minus sign, per the report's number formatting rules '''
+    return text.replace('-', '−')
+
+
+def _pf_contrast(fore, back):
+    ''' WCAG contrast ratio between two colours '''
+    def relative_luminance(colour):
+        channels = to_rgb(colour)
+        linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+                  for c in channels]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    a, b = relative_luminance(fore), relative_luminance(back)
+    return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+
+
+def _pf_label_colour(fill):
+    ''' the label colour that reads on `fill`.
+
+        The bar's accent ramp runs light enough that white text falls under 3:1
+        on its paler segments, so the colour is chosen per segment rather than
+        fixed - white on the dark end, body text on the light end. '''
+    return 'white' if _pf_contrast('white', fill) >= _pf_contrast(TEXT, fill) else TEXT
+
+
+def _pf_bar(ax, cash, positions, equity):
+    ''' part one: the whole account as a single 0-100% bar, one segment per
+    open position by weight and the cash balance last. Segments too narrow to
+    label are covered by one bracket - their exact shares are on the tiles. '''
+
+    widths = [p['value'] / equity * 100 for p in positions]
+
+    # Single-hue accent ramp, dark to light by rank. It is split in two bands
+    # rather than run straight: white text on this hue only survives while the
+    # tint stays near full strength, and body text only starts reading once it
+    # is well lightened - between the two is a dead zone where neither clears
+    # 4.5:1. So the segments wide enough to be labelled share the dark band, and
+    # the unlabelled tail (which carries no text) spreads over the light one.
+    labelled = [i for i, w in enumerate(widths) if w >= _PF_LABEL_MIN]
+    tail_idx = [i for i, w in enumerate(widths) if w < _PF_LABEL_MIN]
+
+    tints = {}
+    for rank, i in enumerate(labelled):
+        tints[i] = 0.00 + 0.16 * (rank / max(1, len(labelled) - 1))
+    for rank, i in enumerate(tail_idx):
+        tints[i] = 0.34 + 0.38 * (rank / max(1, len(tail_idx) - 1))
+
+    segments = [(p['ticker'], w, _pf_mix(ACCENT, tints[i]))
+                for i, (p, w) in enumerate(zip(positions, widths))]
+    segments.append((_PF_CASH_SHORT, cash / equity * 100, NEUTRAL_DARK))
+
+    x = 0.0
+    tail = []
+    for name, width, colour in segments:
+        ax.add_patch(Rectangle((x, 0), width, 1, facecolor=colour,
+                               edgecolor='white', lw=0.9))
+        centre = x + width / 2
+        if width >= _PF_LABEL_MIN:
+            label_colour = _pf_label_colour(colour)
+            ax.text(centre, 0.60, name, ha='center', va='center', fontsize=8.5,
+                    fontweight='semibold', color=label_colour)
+            ax.text(centre, 0.28, '{:.1f}%'.format(width), ha='center',
+                    va='center', fontsize=7.5, color=label_colour)
+        else:
+            tail.append((centre, width))
+        x += width
+
+    if tail:
+        lo = tail[0][0] - tail[0][1] / 2
+        hi = tail[-1][0] + tail[-1][1] / 2
+        total = sum(w for _, w in tail)
+        ax.plot([lo, lo, hi, hi], [-0.14, -0.30, -0.30, -0.14],
+                color=NEUTRAL, lw=0.8, clip_on=False)
+        ax.text((lo + hi) / 2, -0.44,
+                '{} position{}  ·  {:.1f}%'.format(
+                    len(tail), '' if len(tail) == 1 else 's', total),
+                ha='center', va='top', fontsize=7.5, color=TEXT2)
+
+    # only the scale's ends, printed under the bar
+    ax.text(0, -0.12, '0%', ha='left', va='top', fontsize=7, color=TEXT2)
+    ax.text(100, -0.12, '100%', ha='right', va='top', fontsize=7, color=TEXT2)
+
+    ax.set_xlim(0, 100)
+    ax.set_ylim(-0.62, 1.05)
+    ax.axis('off')
+
+
+def _pf_cells(cash, positions, max_tiles):
+    ''' the tiles to draw: the largest positions, an aggregate tile for whatever
+    the cap leaves out, and the cash balance last. '''
+
+    # below three there is no room for a position, the aggregate and the cash
+    max_tiles = max(3, max_tiles)
+    cells = list(positions)
+    if len(cells) + 1 > max_tiles:
+        shown, rest = cells[:max_tiles - 2], cells[max_tiles - 2:]
+        cells = shown + [{'ticker': '+{} others'.format(len(rest)),
+                          'value': sum(p['value'] for p in rest),
+                          'gain': sum(p['gain'] for p in rest),
+                          'aggregate': True}]
+    return cells + [{'ticker': _PF_CASH, 'value': cash, 'cash': True}]
+
+
+def _pf_tile(ax, cell, x, y, size):
+    ''' one square tile. Green when the position's open R is positive, red when
+    it is negative, neutral for the cash and aggregate tiles. The right-hand
+    column of numbers stays flush across every tile, so the warning dot sits in
+    the top-left corner and indents the ticker instead. '''
+
+    is_cash = cell.get('cash', False)
+    is_aggregate = cell.get('aggregate', False)
+    plain = is_cash or is_aggregate
+
+    if plain:
+        semantic = NEUTRAL_DARK if is_cash else (POS if cell['gain'] > 0 else NEG)
+    else:
+        semantic = POS if cell['rmul'] > 0 else NEG
+
+    head = 'white'
+    body = _pf_mix('white', 0.16, semantic)
+    ax.add_patch(FancyBboxPatch(
+        (x, y), size, size, boxstyle='round,pad=0,rounding_size=0.012',
+        facecolor=_pf_mix(semantic, 0.10), edgecolor='none', lw=0))
+
+    pad = size * 0.143
+    left, right = x + pad, x + size - pad
+    top = y + size - pad
+
+    warn = not plain and cell['rmul'] < _PF_WARN_R
+    if warn:
+        ax.add_patch(Circle((x + pad * 0.75, y + size - pad * 0.75),
+                            size * 0.038, facecolor=WARN, edgecolor='none',
+                            zorder=5))
+
+    ax.text(left + (size * 0.089 if warn else 0), top, cell['ticker'],
+            ha='left', va='top', fontsize=10.5, fontweight='bold', color=head)
+
+    if plain:
+        ax.text(left, y + size * (0.42 if is_cash else 0.46),
+                '{:,.0f}'.format(cell['value']), ha='left', va='center',
+                fontsize=12.5, fontweight='semibold', color=head)
+        if is_aggregate:
+            ax.text(left, y + pad, 'combined market value', ha='left',
+                    va='bottom', fontsize=7.5, color=body)
+        return
+
+    ax.text(right, top - size * 0.018, '{} days'.format(cell['days']),
+            ha='right', va='top', fontsize=7, color=body)
+
+    # last close and its one-day move
+    row_close = y + size * 0.600
+    ax.text(left, row_close, '{:,.2f}'.format(cell['close']), ha='left',
+            va='center', fontsize=9, color=head)
+    change = cell['day_change']
+    if change is not None:
+        # a move that rounds away is flat, not a signed "-0.0%"
+        flat = abs(round(change, 1)) == 0
+        label = '0.0%' if flat else _pf_minus('{:+.1f}%'.format(change))
+        # red marks a down day, but only where it reads: on a losing (red) tile
+        # the fill already carries that, and NEG on NEG is invisible
+        down = change < 0 and not flat and semantic != NEG
+        ax.text(right, row_close, label, ha='right', va='center', fontsize=8,
+                fontweight='bold', color=NEG if down else 'white')
+
+    # what the holding is worth right now
+    row_value = y + size * 0.425
+    ax.text(left, row_value, 'value', ha='left', va='center', fontsize=7.5,
+            color=body)
+    ax.text(right, row_value, '{:,.0f}'.format(cell['value']), ha='right',
+            va='center', fontsize=9.5, color=head)
+
+    # open profit, in dollars and in R
+    ax.plot([left, right], [y + size * 0.300] * 2,
+            color=_pf_mix(semantic, 0.45), lw=0.6)
+    ax.text(left, y + pad, _pf_minus('{:+,.0f}'.format(cell['gain'])),
+            ha='left', va='bottom', fontsize=9.5, fontweight='semibold',
+            color=head)
+    ax.text(right, y + pad + size * 0.009,
+            _pf_minus('{:+.1f}R'.format(cell['rmul'])), ha='right',
+            va='bottom', fontsize=8, fontweight='semibold', color=head)
+
+
+def styled_portfolio_plot(cash, positions, snapshot_date, quote_count, conf, ctx):
+    ''' the account's end-of-run composition: a single 0-100% bar splitting the
+    equity over the open positions and the cash balance, above a grid of square
+    tiles carrying each position's last close, one-day move, market value and
+    open profit.
+
+    Returns True when the figure was written. With no position open there is
+    nothing to compose - a full-width cash bar and one lone tile - so the figure
+    is skipped and the caller leaves it out of the report. '''
+
+    if not positions:
+        logger.info("No open positions: skipping the portfolio composition figure")
+        return False
+
+    max_tiles = int(conf.get('max_tiles', 16))
+    cells = _pf_cells(cash, positions, max_tiles)
+    equity = cash + sum(p['value'] for p in positions)
+    if equity <= 0:
+        logger.warning("Non-positive equity: skipping the portfolio composition figure")
+        return False
+
+    rows = -(-len(cells) // _PF_COLS)
+    size = (1 - _PF_GAP * (_PF_COLS - 1)) / _PF_COLS
+    grid_height = rows * size + (rows - 1) * _PF_GAP
+
+    # lay the figure out in inches so the tiles come out square whatever the row
+    # count: the tile axes gets exactly the height its square grid needs, and
+    # the surrounding margins stay fixed.
+    left, width = 0.035, 0.940
+    grid_in = FIG_WIDTH * width * grid_height
+    top_margin, bar_in, gap_in, bottom_margin = 0.60, 1.05, 0.15, 0.35
+    fig_height = top_margin + bar_in + gap_in + grid_in + bottom_margin
+
+    with report_style():
+        fig = plt.figure(figsize=(FIG_WIDTH, fig_height))
+        ax_bar = fig.add_axes([left, (bottom_margin + grid_in + gap_in) / fig_height,
+                               width, bar_in / fig_height])
+        ax_tiles = fig.add_axes([left, bottom_margin / fig_height,
+                                 width, grid_in / fig_height])
+
+        fig.text(left, 1 - 0.11 / fig_height,
+                 'Portfolio composition and open positions',
+                 ha='left', va='top', fontsize=12, fontweight='medium', color=TEXT)
+        # how much of the traded universe is actually in play, not just how many
+        # positions are open
+        held = '{} open position{}'.format(len(positions),
+                                           '' if len(positions) == 1 else 's')
+        if quote_count:
+            # how much of the traded universe is actually in play
+            held += ' ({} quotes total)'.format(quote_count)
+        fig.text(left, 1 - 0.32 / fig_height,
+                 'As at {}  •  equity {:,.0f}  •  {}'.format(
+                     snapshot_date, equity, held),
+                 ha='left', va='top', fontsize=8, color=TEXT2)
+
+        _pf_bar(ax_bar, cash, positions, equity)
+
+        ax_tiles.set_xlim(0, 1)
+        ax_tiles.set_ylim(0, grid_height)
+        ax_tiles.axis('off')
+        ax_tiles.set_aspect('equal', adjustable='box')
+        for i, cell in enumerate(cells):
+            row, col = divmod(i, _PF_COLS)
+            _pf_tile(ax_tiles, cell, col * (size + _PF_GAP),
+                     (rows - 1 - row) * (size + _PF_GAP), size)
+
+        flagged = sum(1 for p in positions if p['rmul'] < _PF_WARN_R)
+        if flagged:
+            fig.text(left, 0.10 / fig_height, '●', ha='left', va='bottom',
+                     fontsize=7.5, color=WARN)
+            fig.text(left + 0.017, 0.10 / fig_height,
+                     'open gain under {:.0f}R ({} of {})'.format(
+                         _PF_WARN_R, flagged, len(positions)),
+                     ha='left', va='bottom', fontsize=7.5, color=TEXT2)
+
+        fig.savefig(ctx.outpath('images', 'portfolio_plot.png'), bbox_inches=None)
+        plt.close(fig)
+
+    return True
 
 
 def styled_trades_plot(trades_lst, Rmul30_lst, ctx):

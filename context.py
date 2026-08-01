@@ -92,6 +92,11 @@ class SystemStats:
     avg_risk_per: float = 0.0
     final_balance: float = 0.0
     cagr: float = 0.0
+    # end-of-run portfolio snapshot, taken before the balance simulation closes
+    # its open trades out - the only point where cash, units and mark-to-market
+    # values all hold at once. Consumed by the portfolio composition figure.
+    portfolio_cash: float = 0.0
+    portfolio_positions: list = field(default_factory=list)
     # daily equity-curve results (set by do_equity_simulation)
     best_month: float = 0.0
     worst_month: float = 0.0
