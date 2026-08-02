@@ -27,7 +27,7 @@ from matplotlib.ticker import StrMethodFormatter
 from matplotlib.offsetbox import TextArea, DrawingArea, HPacker, AnchoredOffsetbox
 
 from matplotlib.colors import TwoSlopeNorm, to_rgb
-from matplotlib.patches import Rectangle, FancyBboxPatch, Circle
+from matplotlib.patches import Rectangle, FancyBboxPatch
 
 from tradesysx.report_style import (report_style, ACCENT, NEUTRAL, NEUTRAL_DARK,
                                     POS, NEG, GRID, TEXT, TEXT2, WARN, IND_GREEN,
@@ -322,8 +322,7 @@ _PF_WARN_R = 1.0
 _PF_COLS = 4          # tiles per row
 _PF_GAP = 0.035       # gap between tiles, as a fraction of the grid width
 _PF_LABEL_MIN = 6.0   # bar segments narrower than this % are left unlabelled
-_PF_CASH = 'Cash Balance'
-_PF_CASH_SHORT = 'Cash'   # the bar segment is often too narrow for the full label
+_PF_CASH = 'Cash'
 
 
 def _pf_mix(colour, weight, base='white'):
@@ -382,7 +381,7 @@ def _pf_bar(ax, cash, positions, equity):
 
     segments = [(p['ticker'], w, _pf_mix(ACCENT, tints[i]))
                 for i, (p, w) in enumerate(zip(positions, widths))]
-    segments.append((_PF_CASH_SHORT, cash / equity * 100, NEUTRAL_DARK))
+    segments.append((_PF_CASH, cash / equity * 100, NEUTRAL_DARK))
 
     x = 0.0
     tail = []
@@ -461,14 +460,14 @@ def _pf_tile(ax, cell, x, y, size):
     left, right = x + pad, x + size - pad
     top = y + size - pad
 
+    # a position still running under 1 R is called out by an amber ticker, so
+    # every tile keeps the same layout and the left edge stays flush. Amber is a
+    # weaker foreground on these fills than the white it replaces (2.3:1 against
+    # ~5:1), but it separates on hue rather than on value, which is what carries
+    # the cue here - and it matches the footnote that explains it.
     warn = not plain and cell['rmul'] < _PF_WARN_R
-    if warn:
-        ax.add_patch(Circle((x + pad * 0.75, y + size - pad * 0.75),
-                            size * 0.038, facecolor=WARN, edgecolor='none',
-                            zorder=5))
-
-    ax.text(left + (size * 0.089 if warn else 0), top, cell['ticker'],
-            ha='left', va='top', fontsize=10.5, fontweight='bold', color=head)
+    ax.text(left, top, cell['ticker'], ha='left', va='top', fontsize=10.5,
+            fontweight='bold', color=WARN if warn else head)
 
     if plain:
         ax.text(left, y + size * (0.42 if is_cash else 0.46),
@@ -583,12 +582,12 @@ def styled_portfolio_plot(cash, positions, snapshot_date, quote_count, conf, ctx
 
         flagged = sum(1 for p in positions if p['rmul'] < _PF_WARN_R)
         if flagged:
-            fig.text(left, 0.10 / fig_height, '●', ha='left', va='bottom',
-                     fontsize=7.5, color=WARN)
-            fig.text(left + 0.017, 0.10 / fig_height,
+            # printed in the same amber as the tickers it explains
+            fig.text(left, 0.10 / fig_height,
                      'open gain under {:.0f}R ({} of {})'.format(
                          _PF_WARN_R, flagged, len(positions)),
-                     ha='left', va='bottom', fontsize=7.5, color=TEXT2)
+                     ha='left', va='bottom', fontsize=7.5, fontweight='semibold',
+                     color=WARN)
 
         fig.savefig(ctx.outpath('images', 'portfolio_plot.png'), bbox_inches=None)
         plt.close(fig)
