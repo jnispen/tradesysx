@@ -3532,12 +3532,25 @@ def _eur_values_line(ax, df, eurusd):
 
     # open up the bottom of the y range so the text and the legend sit in free
     # space rather than on top of the curves
-    bottom, top = ax.get_ylim()
-    ax.set_ylim(bottom - (top - bottom) * 0.14, top)
+    rp.reserve_bottom_band(ax, rp._EUR_LINE_BAND)
 
     ax.annotate('[{}]'.format(', '.join(parts)), xy=(x, y), xycoords='axes fraction',
                 xytext=(0, 8), textcoords='offset points', ha=ha, va='bottom',
                 color='gray')
+
+# Empty band kept under the data for the classic R-average box (as a fraction of
+# the data range) - bigger than the styled charts' _R_AVERAGE_BAND because the
+# classic annotation is fontsize 22 and boxed, and sits 35pt off the bottom.
+_R_AVERAGE_BAND = 0.12
+
+def _hide_negative_yticks(ax):
+    ''' drop the y ticks below zero on a price panel. The panel opens extra room
+        under the data for the R-average, the legend and the EUR line (see
+        rp.reserve_bottom_band), which on a ticker whose range starts near zero
+        pushes the axis under it - and a negative price tick reads as if the stock
+        could trade there. The empty band stays, the numbers do not. Call this
+        last, once the y range is final. Mirrors report_plots._NonNegativeLocator. '''
+    ax.set_yticks([t for t in ax.get_yticks() if t >= 0])
 
 def _panel_last_value_labels(ax, df, name):
     ''' print the latest value of a sub-plot indicator just past its final point,
@@ -3619,6 +3632,7 @@ def plot_benchmark_price(df, ticker, description, conf, ctx):
     plt.ylabel(ctx.price_label(ticker))
     plt.legend(loc='lower right')
     _eur_values_line(ax, df, ctx.eur_rate(ticker))
+    _hide_negative_yticks(ax)
     plt.savefig(ctx.outpath("plots", f"{ticker}_plot.png"), dpi=150)
     plt.close(fig)
 
@@ -3681,6 +3695,7 @@ def ticker_plot(df, ticker, description, conf, ctx):
     if 'Rmul' in df.columns:
         trades_count = df['Rmul'].count()
         r_avg = df['Rmul'].sum() / trades_count if trades_count else 0.0
+        rp.reserve_bottom_band(ax, _R_AVERAGE_BAND)
         plt.annotate('R-average: {:,.2f} ({} trades)'.format(r_avg, trades_count),
                      xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35),
                      bbox={'facecolor':'0.9', 'boxstyle':'square', 'alpha':0.2}, textcoords='offset points', ha='left', va='top')
@@ -3690,6 +3705,7 @@ def ticker_plot(df, ticker, description, conf, ctx):
     plt.ylabel(ctx.price_label(ticker))
     plt.legend(loc='lower right')
     _eur_values_line(ax, df, ctx.eur_rate(ticker))
+    _hide_negative_yticks(ax)
     plt.savefig(ctx.outpath("plots", f"{ticker}_plot.png"), dpi=150)
     plt.close(fig)
 
@@ -3792,6 +3808,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
     if 'Rmul' in df.columns:
         trades_count = df['Rmul'].count()
         r_avg = df['Rmul'].sum() / trades_count if trades_count else 0.0
+        rp.reserve_bottom_band(ax1, _R_AVERAGE_BAND)
         ax1.annotate('R-average: {:,.2f} ({} trades)'.format(r_avg, trades_count),
                      xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35),
                      bbox={'facecolor':'0.9', 'boxstyle':'square', 'alpha':0.2}, textcoords='offset points', ha='left', va='top')
@@ -3802,6 +3819,7 @@ def ticker_plot_ta(df, ticker, description, conf, ctx):
     ax1.set_ylabel(ctx.price_label(ticker))
     ax1.legend(loc='lower right')
     _eur_values_line(ax1, df, ctx.eur_rate(ticker))
+    _hide_negative_yticks(ax1)
     ax2.legend(loc='lower right')
     if not (bbrsi or macd):
         ax3.grid(linestyle='--')
@@ -3868,6 +3886,7 @@ def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
                  textcoords='offset points', ha='right', va='top')
 
     if 'Rmul' in df.columns:
+        rp.reserve_bottom_band(ax1, _R_AVERAGE_BAND)
         ax1.annotate('R-average: {:,.2f} ({} trades)'.format(df['Rmul'].sum()/df['Rmul'].count(), df['Rmul'].count()),
                      xy=(0.01, 0), xycoords='axes fraction', fontsize=22, xytext=(0,35),
                      bbox={'facecolor':'0.9', 'boxstyle':'square', 'alpha':0.2}, textcoords='offset points', ha='left', va='top')
@@ -3927,6 +3946,7 @@ def ticker_plot_ta_custom(df, ticker, description, conf, ctx):
         ax.grid(linestyle='--')
         ax.legend(loc='lower right')
     _eur_values_line(ax1, df, ctx.eur_rate(ticker))
+    _hide_negative_yticks(ax1)
 
     plt.xlabel('Date')
     plt.savefig(ctx.outpath("plots/TA-custom", f"{ticker}_plot_ta_custom.png"), dpi=150)

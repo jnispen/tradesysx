@@ -23,7 +23,7 @@ import talib as ta
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.patches as mpatches
-from matplotlib.ticker import StrMethodFormatter
+from matplotlib.ticker import StrMethodFormatter, AutoLocator
 from matplotlib.offsetbox import TextArea, DrawingArea, HPacker, AnchoredOffsetbox
 
 from matplotlib.colors import TwoSlopeNorm, to_rgb
@@ -46,6 +46,13 @@ _ANN_FS = 13     # corner annotations (trade details, R-average, date)
 _AX_FS = 14      # axis labels
 _TICK_FS = 12    # tick labels
 _LEG_FS = 12     # legend
+
+# Empty band kept under the data on a price panel (as a fraction of the data
+# range) for the text that sits along its bottom edge - see reserve_bottom_band.
+# The legend plus the EUR line above it needs more room than the single
+# R-average line.
+_EUR_LINE_BAND = 0.14
+_R_AVERAGE_BAND = 0.07
 
 
 # Reader-facing names for the position-sizing keys used in conf['pos_sizing'].
@@ -71,6 +78,20 @@ def pos_sizing_label(conf):
 
 def _thousands(ax):
     ax.yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+
+
+class _NonNegativeLocator(AutoLocator):
+    ''' the default tick locator with the ticks below zero dropped. A price panel
+    opens extra room under the data for the legend and the EUR line (see
+    _text_above_legend), which on a ticker whose range starts near zero pushes
+    the axis under it - and a negative price tick reads as if the stock could
+    trade there. The empty band stays, the ticks do not. Locating (rather than
+    formatting) keeps it right when the y range is changed after the axis is
+    styled, and drops the stray gridline with the label. '''
+
+    def tick_values(self, vmin, vmax):
+        ticks = super().tick_values(vmin, vmax)
+        return ticks[ticks >= 0]
 
 
 def styled_balance_plot(df, conf, ctx, val_out):
@@ -977,10 +998,12 @@ def _legend_if_multi(ax, **kw):
 
 def _style_price_axis(ax, label='Price (USD)'):
     ''' shared cosmetics for a price panel: horizontal-only hairline grid,
-    thousands-separated y axis, larger ticks/label for the wide format. `label`
-    names the currency the ticker is quoted in (see RunContext.price_label). '''
+    thousands-separated y axis with no ticks below zero (where a price cannot
+    go), larger ticks/label for the wide format. `label` names the currency the
+    ticker is quoted in (see RunContext.price_label). '''
     ax.grid(axis='y'); ax.grid(axis='x', visible=False)
     _thousands(ax)
+    ax.yaxis.set_major_locator(_NonNegativeLocator())
     ax.set_ylabel(label, fontsize=_AX_FS)
     ax.tick_params(labelsize=_TICK_FS)
 
@@ -1130,11 +1153,32 @@ def _eur_values_line(ax, df, eurusd):
     _text_above_legend(ax, '[{}]'.format(', '.join(parts)), fontsize=_TICK_FS, color=TEXT2)
 
 
+def reserve_bottom_band(ax, frac):
+    ''' open up an empty band under the plotted data, `frac` of the data range
+    high, so the text that sits along the bottom of a price panel (R-average,
+    legend, EUR line) lands in free space instead of on top of the curves.
+
+    Reservations do not stack: the band is always measured against the y range
+    as it was before the first call, so a panel that reserves room for both the
+    R-average and the EUR line ends up with one band, sized by the larger of the
+    two. Prices cannot go negative, but the band regularly reaches under zero on
+    a ticker that started near it - _NonNegativeLocator keeps that stretch of
+    axis unlabelled. Shared with the classic charts in utils.py. '''
+    base = getattr(ax, '_reserved_base_ylim', None)
+    if base is None:
+        base = ax._reserved_base_ylim = ax.get_ylim()
+
+    frac = max(frac, getattr(ax, '_reserved_frac', 0.0))
+    ax._reserved_frac = frac
+
+    bottom, top = base
+    ax.set_ylim(bottom - (top - bottom) * frac, top)
+
+
 def _text_above_legend(ax, text, **kw):
     ''' place a line of text just above the axes' legend, aligned with its left
-    edge (bottom right corner of the axes when there is no legend), and open up
-    the bottom of the y range so the text and the legend sit in free space
-    rather than on top of the curves. '''
+    edge (bottom right corner of the axes when there is no legend), in a band
+    opened up under the data. '''
     ax.figure.canvas.draw()   # the legend only has a position once it is laid out
     x, y, ha = 0.99, 0.02, 'right'
     legend = ax.get_legend()
@@ -1145,8 +1189,7 @@ def _text_above_legend(ax, text, **kw):
         except Exception:       # no renderer available - fall back to the corner
             pass
 
-    bottom, top = ax.get_ylim()
-    ax.set_ylim(bottom - (top - bottom) * 0.14, top)
+    reserve_bottom_band(ax, _EUR_LINE_BAND)
 
     ax.annotate(text, xy=(x, y), xycoords='axes fraction', xytext=(0, 8),
                 textcoords='offset points', ha=ha, va='bottom', **kw)
@@ -1192,10 +1235,12 @@ def _styled_price_annotations(ax, df):
                 xy=(0.99, 1), xycoords='axes fraction', xytext=(0, 8),
                 textcoords='offset points', fontsize=_ANN_FS, color=TEXT2, ha='right', va='bottom')
 
-    # R-average, bottom-left
+    # R-average, bottom-left - in a band opened up under the data, since the
+    # left edge of a price panel is normally where the curve runs lowest
     if 'Rmul' in df.columns:
         n = df['Rmul'].count()
         r_avg = df['Rmul'].sum() / n if n else 0.0
+        reserve_bottom_band(ax, _R_AVERAGE_BAND)
         ax.annotate('R-average: {:,.2f} ({} trades)'.format(r_avg, n),
                     xy=(0.01, 0.01), xycoords='axes fraction', xytext=(0, 4),
                     textcoords='offset points', fontsize=_ANN_FS, color=TEXT2, ha='left', va='bottom')
