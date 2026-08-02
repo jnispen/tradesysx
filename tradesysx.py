@@ -206,6 +206,7 @@ def update_quotes(conf, ctx):
             logger.info('==== [5/8] Running trading balance simulation (backtest) ====')
             balance_df = ut.do_balance_simulation(total_trades_list.df, total_trades_table.df, conf, last_close_date, ctx, stats)
             ut.balance_plot(balance_df, conf, ctx)
+            ut.portfolio_plot(quotes, conf, last_close_date, ctx, stats)
 
         # 12. monte carlo smulation to test position sizing strategy - risks the
         # average dollar amount from the balance simulation above, so it goes

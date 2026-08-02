@@ -21,6 +21,16 @@ GRID = "#E5E3DC"     # gridlines / hairlines
 TEXT = "#2C2C2A"     # body text
 TEXT2 = "#5F5E5A"    # secondary text
 
+# Darker companion to NEUTRAL, for a neutral *fill* that has to carry white
+# text: NEUTRAL is a ~2:1 background, which is fine behind a benchmark line but
+# not behind a label. Same warm-grey family, one step down in value.
+NEUTRAL_DARK = TEXT2
+
+# Attention cue, not a data series: the portfolio figure's tiles use it to flag
+# an open position still running close to its stop. Kept out of the chart
+# palette above so it never competes with the strategy/benchmark reading.
+WARN = "#E9A23B"     # amber warning dot
+
 # Diverging ramp for signed "share" measures that run loss -> gain (e.g. the
 # fraction of its peak a trade kept). Built from the two semantic colours
 # through a paper-toned midpoint, so it stays inside the palette and keeps the

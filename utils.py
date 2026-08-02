@@ -1412,6 +1412,8 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
     img_mfe_mae = _data_uri(ctx.outpath('images', 'mfe_mae_scatter_plot.png'))
     img_equity_detail = sim_img('equity_plot.png')
     img_monthly_dist = sim_img('monthly_dist_plot.png')
+    # only written when the run ended with at least one position open
+    img_portfolio = sim_img('portfolio_plot.png') if stats.portfolio_positions else ""
 
     # the whole account section rests on the balance simulation, so with that
     # skipped there is no chart and no table to show - the banner at the top of
@@ -1568,13 +1570,24 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
                             f'style="width:76%">'
                             f'<figcaption>Distribution of monthly returns in dollars, with the mean '
                             f'(dashed).</figcaption></figure>' if img_monthly_dist else "")
+        # the portfolio snapshot needs the full page width, and the two figures
+        # above already fill their own page, so it starts a new one
+        portfolio_fig = (f'<figure class="equityfig pbreak">'
+                         f'<img src="{img_portfolio}" alt="Portfolio composition and open positions" '
+                         f'style="width:100%">'
+                         f'<figcaption>How the account\'s equity stood at the last close: its split '
+                         f'over the open positions and the cash balance (top), then each position\'s '
+                         f'last close and one-day move, market value and open profit. Green is an '
+                         f'open gain, red an open loss; an amber dot marks a position still running '
+                         f'under 1 R.</figcaption></figure>' if img_portfolio else "")
         account_detail_section = f"""
         <h2 id="sec-account-detail" class="pbreak">{account_detail_title}</h2>
         <figure class="equityfig"><img src="{img_equity_detail}" alt="Daily equity curve with drawdown, trailing 1-year return and monthly return" style="width:88%">
         <figcaption>Daily equity curve against the buy-and-hold benchmark (top), the drawdown
         from the running equity peak in percent, the trailing one-year return in dollars and
         the monthly return in dollars (bottom).</figcaption></figure>
-        {monthly_dist_fig}"""
+        {monthly_dist_fig}
+        {portfolio_fig}"""
 
     # ---- table of contents ----
     # only worth a page of its own in the full report - the short one has few
@@ -1845,6 +1858,29 @@ def format_to_2_decimals(x):
         return f"{float(x):.2f}"
     return x
 
+def format_table_decimals(dframe, skip=()):
+    ''' pad every numeric cell in a table to 2 decimals, for display in a PDF.
+
+        Applied to all columns rather than a named list so a column added later
+        is covered too: non-numeric cells (dates, tickers, '-' placeholders,
+        NaN) do not match and are left alone. `skip` is for numeric columns that
+        are not decimal quantities, e.g. a day count. '''
+    for col in dframe.columns:
+        if col not in skip:
+            dframe[col] = dframe[col].apply(format_to_2_decimals)
+    return dframe
+
+def round_to_2(x):
+    ''' round a numeric cell to 2 decimals, leaving placeholders ('-') alone.
+
+        The CSVs keep numbers, so they are rounded rather than padded - padding
+        to a fixed "1.50" is display formatting and belongs to the PDF only
+        (see format_to_2_decimals). '''
+    try:
+        return round(float(x), 2)
+    except (TypeError, ValueError):
+        return x
+
 def compute_position_size(conf, balance, total_equity, stats):
     '''return the amount of capital to allocate per trade.'''
 
@@ -1872,6 +1908,61 @@ def risk_basis(conf, balance, total_equity):
     compute_position_size used (total equity for total_equity_risk, the cash
     balance for every other sizing method). '''
     return total_equity if conf["pos_sizing"] == "total_equity_risk" else balance
+
+def _portfolio_positions(active_trades, df_trades_table, ohlc_cache):
+    ''' the still-open positions as plain dicts, ready for the portfolio figure.
+
+        Each entry carries what the tile prints: the units held and their
+        mark-to-market value at the last close, that close and its one-day
+        change, the open profit in dollars and in R, and the days held. The
+        one-day change comes from the ticker's own OHLC history (the last two
+        closes), so it is the position's own daily move rather than the
+        account's. '''
+
+    positions = []
+    for ticker, units in active_trades.items():
+        if units == 0:
+            continue
+
+        rows = df_trades_table.loc[(df_trades_table['Ticker'] == ticker) &
+                                   (df_trades_table['LastClose'] != '-'), :]
+        if rows.empty:
+            logger.warning(f"No open-trade row for {ticker}, left out of the portfolio figure")
+            continue
+        row = rows.iloc[0]
+
+        try:
+            last_close = float(row['LastClose'])
+            rmul = float(row['Rmul'])
+            profit = float(row['Profit'])
+            days = int(row['Length'])
+        except (TypeError, ValueError) as e:
+            logger.warning(f"Unusable open-trade row for {ticker} ({e}), left out of the portfolio figure")
+            continue
+
+        # one-day price change, when the history holds a previous close
+        day_change = None
+        hist = ohlc_cache.get(ticker)
+        if hist is not None and 'Close' in hist.columns:
+            closes = pd.to_numeric(hist['Close'], errors='coerce').dropna()
+            if len(closes) >= 2 and closes.iloc[-2]:
+                prev = float(closes.iloc[-2])
+                day_change = (last_close - prev) / prev * 100
+
+        positions.append({
+            'ticker': ticker,
+            'units': float(units),
+            'value': float(units) * last_close,
+            'close': last_close,
+            'day_change': day_change,
+            'gain': float(units) * profit,
+            'rmul': rmul,
+            'days': days,
+        })
+
+    # largest holding first - both halves of the figure read in this order
+    positions.sort(key=lambda p: p['value'], reverse=True)
+    return positions
 
 def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, stats):
     ''' simulates the virtual account balance for the trades list '''
@@ -1969,6 +2060,13 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     pos_inv_cnt = len(pos_inv_lst)
     avg_invested = sum(pos_inv_lst)/pos_inv_cnt
 
+    # snapshot the portfolio before the open trades are closed out below: this
+    # is the only point where the cash balance, the units still held and their
+    # mark-to-market values all hold at the same time (after the loop `balance`
+    # has absorbed every position). Feeds the portfolio composition figure.
+    stats.portfolio_cash = balance
+    stats.portfolio_positions = _portfolio_positions(active_trades, df_trades_table, ohlc_cache)
+
     # close all open trades to get the total balance
     closed_open_trades = 0
     for key, value in active_trades.items():
@@ -1994,13 +2092,6 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
                 'RiskPerc': "-"
             }
             dframe = pd.concat([dframe, pd.DataFrame([tmp_row])], ignore_index=True)
-
-    dframe['Enter'] = dframe['Enter'].apply(format_to_2_decimals)
-    dframe['Exit'] = dframe['Exit'].apply(format_to_2_decimals)
-    dframe['Profit'] = dframe['Profit'].apply(format_to_2_decimals)
-    dframe['Units'] = dframe['Units'].apply(format_to_2_decimals)
-    dframe['RiskAbs'] = dframe['RiskAbs'].apply(format_to_2_decimals)
-    dframe['RiskPerc'] = dframe['RiskPerc'].apply(format_to_2_decimals)
 
     # absolute and % wise risk
     abs_risk_df = dframe[['RiskAbs']].copy()
@@ -2037,12 +2128,19 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     logger.info(f"Final balance     : {balance:,.2f}")
     logger.info(f"CAGR              : {cagr:.1%}")
 
+    # the CSV keeps numbers, rounded but not padded
+    for col in ('Enter', 'Exit', 'Risk', 'Profit', 'Units', 'RiskAbs', 'RiskPerc'):
+        dframe[col] = dframe[col].apply(round_to_2)
+
     logger.debug("\n%s", dframe)
     dframe.to_csv(ctx.outpath("tables/", "trades_list.csv"), index=False)
 
-    # save to pdf file
+    # save to pdf file. The 2-decimal formatting is display only and applies
+    # from here on: the CSV above keeps the raw rounded values, so anything
+    # reading it back gets numbers rather than strings.
     dframe.index = dframe.index + 1
     dframe['Date'] = pd.to_datetime(dframe['Date'], errors='coerce').dt.strftime('%d-%m-%Y')
+    dframe = format_table_decimals(dframe)
     html = df_to_html(dframe)
     HTML(string=html).write_pdf(ctx.outpath("trades_list.pdf"))
 
@@ -2740,13 +2838,16 @@ def save_trades_table(dframe, conf, ctx):
     # save the R-multiples of all trades for later reuse (e.g. tst/simulator.py)
     dframe['Rmul'].to_csv(ctx.outpath('tables', "Rmul_trades.csv"), index=False)
 
-    # save to pdf file
+    # save to pdf file. Rendered from a copy: the caller keeps using this frame
+    # for the system statistics and the Monte Carlo run, which need Rmul and the
+    # other columns as numbers, not as formatted strings.
+    dframe = dframe.copy()
     dframe.index = dframe.index + 1
     dframe['Enter'] = pd.to_datetime(dframe['Enter'], errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = pd.to_datetime(dframe['Exit'], format='%Y-%m-%d', errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = dframe['Exit'].where(dframe['Exit'].notna(), "-")
-    dframe['PriceIn'] = dframe['PriceIn'].apply(format_to_2_decimals)
-    dframe['PriceOut'] = dframe['PriceOut'].apply(format_to_2_decimals)
+    # Length is a day count, not a decimal quantity
+    dframe = format_table_decimals(dframe, skip=('Length',))
     # MAE and MFE are kept in the CSV for analysis but dropped from the PDF to
     # avoid widening the printed trades table
     html = df_to_html(dframe.drop(columns=['MAE', 'MFE'], errors='ignore'))
@@ -3079,6 +3180,19 @@ def monthly_dist_plot(df, conf, ctx):
     plt.savefig(ctx.outpath('images', 'monthly_dist_plot.png'), bbox_inches='tight')
     plt.close(fig)
 
+
+def portfolio_plot(quotes, conf, last_close_date, ctx, stats):
+    ''' plot the end-of-run portfolio composition from the snapshot taken by
+        do_balance_simulation. `quotes` is the traded quote list, so the figure
+        can say how much of that universe is actually held. Styled reports only
+        - the classic report has no counterpart figure. '''
+
+    if conf.get('report_style', 'styled') != 'styled':
+        return False
+
+    return rp.styled_portfolio_plot(stats.portfolio_cash, stats.portfolio_positions,
+                                    last_close_date.strftime('%Y-%m-%d'),
+                                    len(quotes), conf, ctx)
 
 def balance_plot(df, conf, ctx):
     ''' plot paper trading simulation results '''
