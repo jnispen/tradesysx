@@ -16,6 +16,7 @@
     "ta_custom"    : ["FI"],
     "report_type"  : "short",
     "report_style" : "styled",
+    "max_tiles"    : 16,
     "stloss"       : "2atr",
     "enter"        : "DONCH",
     "exit"         : "DONCH",

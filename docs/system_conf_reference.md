@@ -62,6 +62,9 @@ Selects the summary report variant; both write `out/system_summary.pdf` (`full` 
 **report_style** — [`classic`/`styled`]\
 Selects the look of `out/system_summary.pdf`. `classic` is the original report; `styled` produces a professionally formatted report with KPI cards, a strategy-vs-benchmark comparison, restyled charts and a benchmark table. Defaults to `styled` when absent.
 
+**max_tiles** — [`integer`]\
+Maximum number of tiles in the portfolio composition figure (styled report only). The largest holdings get a tile each, the rest are combined into one. Defaults to `16` when absent.
+
 **stloss** — [`3atr`/`2atr`/`xatr`/`percent`]\
 Stop-loss strategy. `3atr` = 3×ATR below the close, `2atr` = 2×ATR below the close, `xatr` = `atr_factor`×ATR below the close (see `atr_factor`), `percent` = stoploss set as a percentage below the entry price (see `stoploss`).
 

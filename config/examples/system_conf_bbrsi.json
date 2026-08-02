@@ -16,6 +16,7 @@
     "ta_custom"    : ["FI"],
     "report_type"  : "short",
     "report_style" : "styled",
+    "max_tiles"    : 16,
     "stloss"       : "xatr",
     "enter"        : "BBRSI",
     "exit"         : "BBRSI",
