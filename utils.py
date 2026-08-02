@@ -1858,6 +1858,29 @@ def format_to_2_decimals(x):
         return f"{float(x):.2f}"
     return x
 
+def format_table_decimals(dframe, skip=()):
+    ''' pad every numeric cell in a table to 2 decimals, for display in a PDF.
+
+        Applied to all columns rather than a named list so a column added later
+        is covered too: non-numeric cells (dates, tickers, '-' placeholders,
+        NaN) do not match and are left alone. `skip` is for numeric columns that
+        are not decimal quantities, e.g. a day count. '''
+    for col in dframe.columns:
+        if col not in skip:
+            dframe[col] = dframe[col].apply(format_to_2_decimals)
+    return dframe
+
+def round_to_2(x):
+    ''' round a numeric cell to 2 decimals, leaving placeholders ('-') alone.
+
+        The CSVs keep numbers, so they are rounded rather than padded - padding
+        to a fixed "1.50" is display formatting and belongs to the PDF only
+        (see format_to_2_decimals). '''
+    try:
+        return round(float(x), 2)
+    except (TypeError, ValueError):
+        return x
+
 def compute_position_size(conf, balance, total_equity, stats):
     '''return the amount of capital to allocate per trade.'''
 
@@ -2070,13 +2093,6 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
             }
             dframe = pd.concat([dframe, pd.DataFrame([tmp_row])], ignore_index=True)
 
-    dframe['Enter'] = dframe['Enter'].apply(format_to_2_decimals)
-    dframe['Exit'] = dframe['Exit'].apply(format_to_2_decimals)
-    dframe['Profit'] = dframe['Profit'].apply(format_to_2_decimals)
-    dframe['Units'] = dframe['Units'].apply(format_to_2_decimals)
-    dframe['RiskAbs'] = dframe['RiskAbs'].apply(format_to_2_decimals)
-    dframe['RiskPerc'] = dframe['RiskPerc'].apply(format_to_2_decimals)
-
     # absolute and % wise risk
     abs_risk_df = dframe[['RiskAbs']].copy()
     per_risk_df = dframe[['RiskPerc']].copy()
@@ -2112,12 +2128,19 @@ def do_balance_simulation(dframe, df_trades_table, conf, last_close_date, ctx, s
     logger.info(f"Final balance     : {balance:,.2f}")
     logger.info(f"CAGR              : {cagr:.1%}")
 
+    # the CSV keeps numbers, rounded but not padded
+    for col in ('Enter', 'Exit', 'Risk', 'Profit', 'Units', 'RiskAbs', 'RiskPerc'):
+        dframe[col] = dframe[col].apply(round_to_2)
+
     logger.debug("\n%s", dframe)
     dframe.to_csv(ctx.outpath("tables/", "trades_list.csv"), index=False)
 
-    # save to pdf file
+    # save to pdf file. The 2-decimal formatting is display only and applies
+    # from here on: the CSV above keeps the raw rounded values, so anything
+    # reading it back gets numbers rather than strings.
     dframe.index = dframe.index + 1
     dframe['Date'] = pd.to_datetime(dframe['Date'], errors='coerce').dt.strftime('%d-%m-%Y')
+    dframe = format_table_decimals(dframe)
     html = df_to_html(dframe)
     HTML(string=html).write_pdf(ctx.outpath("trades_list.pdf"))
 
@@ -2815,13 +2838,16 @@ def save_trades_table(dframe, conf, ctx):
     # save the R-multiples of all trades for later reuse (e.g. tst/simulator.py)
     dframe['Rmul'].to_csv(ctx.outpath('tables', "Rmul_trades.csv"), index=False)
 
-    # save to pdf file
+    # save to pdf file. Rendered from a copy: the caller keeps using this frame
+    # for the system statistics and the Monte Carlo run, which need Rmul and the
+    # other columns as numbers, not as formatted strings.
+    dframe = dframe.copy()
     dframe.index = dframe.index + 1
     dframe['Enter'] = pd.to_datetime(dframe['Enter'], errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = pd.to_datetime(dframe['Exit'], format='%Y-%m-%d', errors='coerce').dt.strftime('%d-%m-%Y')
     dframe['Exit'] = dframe['Exit'].where(dframe['Exit'].notna(), "-")
-    dframe['PriceIn'] = dframe['PriceIn'].apply(format_to_2_decimals)
-    dframe['PriceOut'] = dframe['PriceOut'].apply(format_to_2_decimals)
+    # Length is a day count, not a decimal quantity
+    dframe = format_table_decimals(dframe, skip=('Length',))
     # MAE and MFE are kept in the CSV for analysis but dropped from the PDF to
     # avoid widening the printed trades table
     html = df_to_html(dframe.drop(columns=['MAE', 'MFE'], errors='ignore'))
