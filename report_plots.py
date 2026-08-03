@@ -340,6 +340,7 @@ def styled_monthly_dist_plot(df, ctx):
 # An open position sitting below this many R has not yet earned room above its
 # stop (a trade at entry already stands 1 R above it), so its tile is flagged.
 _PF_WARN_R = 1.0
+_PF_NEW_DAYS = 1      # a trade this young was entered at the last close
 _PF_COLS = 4          # tiles per row
 _PF_GAP = 0.035       # gap between tiles, as a fraction of the grid width
 _PF_LABEL_MIN = 6.0   # bar segments narrower than this % are left unlabelled
@@ -456,9 +457,30 @@ def _pf_cells(cash, positions, max_tiles):
     return cells + [{'ticker': _PF_CASH, 'value': cash, 'cash': True}]
 
 
-def _pf_tile(ax, cell, x, y, size):
+def _pf_semantic(value):
+    ''' the tile colour for an open result: green above zero, red below, and
+    neutral at exactly zero. A position entered on the last close stands at
+    0 R by construction (its entry price *is* the last close), so it has had
+    no time to move either way - painting it red would report a loss the
+    trade never took. '''
+
+    if value > 0:
+        return POS
+    return NEG if value < 0 else NEUTRAL_DARK
+
+
+def _pf_warn(position, warn_days):
+    ''' whether the position is called out in amber: still under 1 R once it
+    has run past the exits' grace period (`intrade_wait`). Inside that window
+    the exits cannot fire yet and a trade entered on the last close stands at
+    exactly 0 R, so a thin open gain there says nothing about the trade. '''
+
+    return position['days'] > warn_days and position['rmul'] < _PF_WARN_R
+
+
+def _pf_tile(ax, cell, x, y, size, warn_days):
     ''' one square tile. Green when the position's open R is positive, red when
-    it is negative, neutral for the cash and aggregate tiles. The right-hand
+    it is negative, neutral when it is flat or for the cash tile. The right-hand
     column of numbers stays flush across every tile, so the warning dot sits in
     the top-left corner and indents the ticker instead. '''
 
@@ -467,15 +489,30 @@ def _pf_tile(ax, cell, x, y, size):
     plain = is_cash or is_aggregate
 
     if plain:
-        semantic = NEUTRAL_DARK if is_cash else (POS if cell['gain'] > 0 else NEG)
+        semantic = NEUTRAL_DARK if is_cash else _pf_semantic(cell['gain'])
     else:
-        semantic = POS if cell['rmul'] > 0 else NEG
+        semantic = _pf_semantic(cell['rmul'])
 
     head = 'white'
     body = _pf_mix('white', 0.16, semantic)
+    fill = _pf_mix(semantic, 0.10)
+
+    # a position entered at the last close has no result to report yet, so its
+    # tile is inverted rather than filled with a verdict colour: a pale fill,
+    # green text and a green outline. Green at full strength only reads on the
+    # pale fill - on the tiles' own fills it sits at their luminance and
+    # disappears, which is why the text is not simply recoloured in place.
+    is_new = not plain and cell['days'] <= _PF_NEW_DAYS
+    if is_new:
+        fill = _pf_mix(NEUTRAL_DARK, 0.86)
+        head, body = POS, _pf_mix(POS, 0.25)
+
+    # clip_on lets the outline sit on the grid's outer edge without the axes
+    # cutting half of its width away
     ax.add_patch(FancyBboxPatch(
         (x, y), size, size, boxstyle='round,pad=0,rounding_size=0.012',
-        facecolor=_pf_mix(semantic, 0.10), edgecolor='none', lw=0))
+        facecolor=fill, lw=3.5 if is_new else 0,
+        edgecolor=_pf_mix(POS, 0.10) if is_new else 'none', clip_on=False))
 
     pad = size * 0.143
     left, right = x + pad, x + size - pad
@@ -486,7 +523,7 @@ def _pf_tile(ax, cell, x, y, size):
     # weaker foreground on these fills than the white it replaces (2.3:1 against
     # ~5:1), but it separates on hue rather than on value, which is what carries
     # the cue here - and it matches the footnote that explains it.
-    warn = not plain and cell['rmul'] < _PF_WARN_R
+    warn = not plain and _pf_warn(cell, warn_days)
     ax.text(left, top, cell['ticker'], ha='left', va='top', fontsize=10.5,
             fontweight='bold', color=WARN if warn else head)
 
@@ -499,7 +536,8 @@ def _pf_tile(ax, cell, x, y, size):
                     va='bottom', fontsize=7.5, color=body)
         return
 
-    ax.text(right, top - size * 0.018, '{} days'.format(cell['days']),
+    ax.text(right, top - size * 0.018,
+            '{} day{}'.format(cell['days'], '' if cell['days'] == 1 else 's'),
             ha='right', va='top', fontsize=7, color=body)
 
     # last close and its one-day move
@@ -515,7 +553,7 @@ def _pf_tile(ax, cell, x, y, size):
         # the fill already carries that, and NEG on NEG is invisible
         down = change < 0 and not flat and semantic != NEG
         ax.text(right, row_close, label, ha='right', va='center', fontsize=8,
-                fontweight='bold', color=NEG if down else 'white')
+                fontweight='bold', color=NEG if down else head)
 
     # what the holding is worth right now
     row_value = y + size * 0.425
@@ -550,6 +588,9 @@ def styled_portfolio_plot(cash, positions, snapshot_date, quote_count, conf, ctx
         return False
 
     max_tiles = int(conf.get('max_tiles', 16))
+    # the exits' grace period doubles as the age a position must reach before
+    # its open R is worth flagging (see _pf_warn)
+    warn_days = float(conf.get('intrade_wait', 0))
     cells = _pf_cells(cash, positions, max_tiles)
     equity = cash + sum(p['value'] for p in positions)
     if equity <= 0:
@@ -599,14 +640,14 @@ def styled_portfolio_plot(cash, positions, snapshot_date, quote_count, conf, ctx
         for i, cell in enumerate(cells):
             row, col = divmod(i, _PF_COLS)
             _pf_tile(ax_tiles, cell, col * (size + _PF_GAP),
-                     (rows - 1 - row) * (size + _PF_GAP), size)
+                     (rows - 1 - row) * (size + _PF_GAP), size, warn_days)
 
-        flagged = sum(1 for p in positions if p['rmul'] < _PF_WARN_R)
+        flagged = sum(1 for p in positions if _pf_warn(p, warn_days))
         if flagged:
             # printed in the same amber as the tickers it explains
             fig.text(left, 0.10 / fig_height,
-                     'open gain under {:.0f}R ({} of {})'.format(
-                         _PF_WARN_R, flagged, len(positions)),
+                     'open gain <{:.0f}R after {:.0f}+ days ({} of {})'.format(
+                         _PF_WARN_R, warn_days, flagged, len(positions)),
                      ha='left', va='bottom', fontsize=7.5, fontweight='semibold',
                      color=WARN)
 

@@ -1578,8 +1578,7 @@ def generate_styled_report(stat_df, conf, quotes, ctx, stats, full=False):
                          f'<figcaption>How the account\'s equity stood at the last close: its split '
                          f'over the open positions and the cash balance (top), then each position\'s '
                          f'last close and one-day move, market value and open profit. Green is an '
-                         f'open gain, red an open loss; an amber dot marks a position still running '
-                         f'under 1 R.</figcaption></figure>' if img_portfolio else "")
+                         f'open gain, red an open loss.</figcaption></figure>' if img_portfolio else "")
         account_detail_section = f"""
         <h2 id="sec-account-detail" class="pbreak">{account_detail_title}</h2>
         <figure class="equityfig"><img src="{img_equity_detail}" alt="Daily equity curve with drawdown, trailing 1-year return and monthly return" style="width:88%">
