@@ -344,6 +344,7 @@ _PF_COLS = 4          # tiles per row
 _PF_GAP = 0.035       # gap between tiles, as a fraction of the grid width
 _PF_LABEL_MIN = 6.0   # bar segments narrower than this % are left unlabelled
 _PF_CASH = 'Cash'
+_PF_INVESTED = 'Invested'
 
 
 def _pf_mix(colour, weight, base='white'):
@@ -442,18 +443,27 @@ def _pf_bar(ax, cash, positions, equity):
 
 def _pf_cells(cash, positions, max_tiles):
     ''' the tiles to draw: the largest positions, an aggregate tile for whatever
-    the cap leaves out, and the cash balance last. '''
+    the cap leaves out, then the two summary tiles - the cash balance and the
+    invested total - which always close the grid. '''
 
-    # below three there is no room for a position, the aggregate and the cash
-    max_tiles = max(3, max_tiles)
+    # below four there is no room for a position, the aggregate and the two
+    # summary tiles
+    max_tiles = max(4, max_tiles)
     cells = list(positions)
-    if len(cells) + 1 > max_tiles:
-        shown, rest = cells[:max_tiles - 2], cells[max_tiles - 2:]
+    if len(cells) + 2 > max_tiles:
+        shown, rest = cells[:max_tiles - 3], cells[max_tiles - 3:]
         cells = shown + [{'ticker': '+{} others'.format(len(rest)),
                           'value': sum(p['value'] for p in rest),
                           'gain': sum(p['gain'] for p in rest),
                           'aggregate': True}]
-    return cells + [{'ticker': _PF_CASH, 'value': cash, 'cash': True}]
+
+    # the invested total is the positions' market value, so that it and the cash
+    # tile add up to the equity the bar above splits
+    return cells + [{'ticker': _PF_CASH, 'value': cash, 'cash': True},
+                    {'ticker': _PF_INVESTED, 'totals': True,
+                     'value': sum(p['value'] for p in positions),
+                     'gain': sum(p['gain'] for p in positions),
+                     'count': len(positions)}]
 
 
 def _pf_semantic(value):
@@ -485,10 +495,13 @@ def _pf_tile(ax, cell, x, y, size, warn_days):
 
     is_cash = cell.get('cash', False)
     is_aggregate = cell.get('aggregate', False)
-    plain = is_cash or is_aggregate
+    is_totals = cell.get('totals', False)
+    plain = is_cash or is_aggregate or is_totals
 
     if plain:
-        semantic = NEUTRAL_DARK if is_cash else _pf_semantic(cell['gain'])
+        # the two summary tiles share the cash tile's neutral fill, so they read
+        # as a pair against the holdings rather than as holdings themselves
+        semantic = NEUTRAL_DARK if (is_cash or is_totals) else _pf_semantic(cell['gain'])
     else:
         semantic = _pf_semantic(cell['rmul'])
 
@@ -529,6 +542,38 @@ def _pf_tile(ax, cell, x, y, size, warn_days):
     warn = not plain and _pf_warn(cell, warn_days)
     ax.text(left, top, cell['ticker'], ha='left', va='top', fontsize=10.5,
             fontweight='bold', color=WARN if warn else head)
+
+    if is_totals:
+        # the position tiles' own anatomy, one row shorter: the count where the
+        # days go, the invested total as the headline, and the open profit in
+        # dollars and against cost on the bottom line. Its colour is lightened
+        # well clear of the neutral fill, which POS and NEG both sit on top of.
+        ax.text(right, top - size * 0.018, '{} pos'.format(cell['count']),
+                ha='right', va='top', fontsize=7, color=body)
+        ax.text(left, y + size * 0.585, '{:,.0f}'.format(cell['value']),
+                ha='left', va='center', fontsize=12.5, fontweight='semibold',
+                color=head)
+        gain = cell['gain']
+        # the percentage is the gain over what the positions cost, not over the
+        # invested value in the headline. Cost gets its own row directly above
+        # it - the tile then reads top to bottom as "worth this, cost that, so
+        # this much up", and which number the percentage divides by is visible
+        # rather than assumed.
+        cost = cell['value'] - gain
+        ax.text(left, y + size * 0.425, 'cost', ha='left', va='center',
+                fontsize=7.5, color=body)
+        ax.text(right, y + size * 0.425, '{:,.0f}'.format(cost), ha='right',
+                va='center', fontsize=9.5, color=head)
+        ax.plot([left, right], [y + size * 0.300] * 2, color=rule, lw=0.6)
+
+        tint = _pf_mix(POS if gain >= 0 else NEG, 0.55)
+        ax.text(left, y + pad, _pf_minus('{:+,.0f}'.format(gain)), ha='left',
+                va='bottom', fontsize=9.5, fontweight='semibold', color=tint)
+        if cost > 0:
+            ax.text(right, y + pad + size * 0.009,
+                    _pf_minus('{:+.1f}%'.format(gain / cost * 100)), ha='right',
+                    va='bottom', fontsize=8, fontweight='semibold', color=tint)
+        return
 
     if plain:
         ax.text(left, y + size * (0.42 if is_cash else 0.46),
