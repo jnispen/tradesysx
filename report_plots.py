@@ -340,7 +340,6 @@ def styled_monthly_dist_plot(df, ctx):
 # An open position sitting below this many R has not yet earned room above its
 # stop (a trade at entry already stands 1 R above it), so its tile is flagged.
 _PF_WARN_R = 1.0
-_PF_NEW_DAYS = 1      # a trade this young was entered at the last close
 _PF_COLS = 4          # tiles per row
 _PF_GAP = 0.035       # gap between tiles, as a fraction of the grid width
 _PF_LABEL_MIN = 6.0   # bar segments narrower than this % are left unlabelled
@@ -496,23 +495,27 @@ def _pf_tile(ax, cell, x, y, size, warn_days):
     head = 'white'
     body = _pf_mix('white', 0.16, semantic)
     fill = _pf_mix(semantic, 0.10)
+    rule = _pf_mix(semantic, 0.45)
 
-    # a position entered at the last close has no result to report yet, so its
-    # tile is inverted rather than filled with a verdict colour: a pale fill,
-    # green text and a green outline. Green at full strength only reads on the
-    # pale fill - on the tiles' own fills it sits at their luminance and
-    # disappears, which is why the text is not simply recoloured in place.
-    is_new = not plain and cell['days'] <= _PF_NEW_DAYS
-    if is_new:
+    # a position the exits cannot act on yet - one still inside the grace period
+    # (`intrade_wait`) - is drawn inverted rather than filled with a verdict
+    # colour: a pale fill with the text and the outline carrying the sign. The
+    # open result stays readable, but a trade a few days old never gets the
+    # solid block of colour that reads as a settled win or loss. A position
+    # entered at the last close stands at exactly 0 R and takes the green.
+    is_young = not plain and cell['days'] <= warn_days
+    if is_young:
+        tint = NEG if cell['rmul'] < 0 else POS
         fill = _pf_mix(NEUTRAL_DARK, 0.86)
-        head, body = POS, _pf_mix(POS, 0.25)
+        head, body = tint, _pf_mix(tint, 0.25)
+        rule = _pf_mix(tint, 0.55, fill)
 
     # clip_on lets the outline sit on the grid's outer edge without the axes
     # cutting half of its width away
     ax.add_patch(FancyBboxPatch(
         (x, y), size, size, boxstyle='round,pad=0,rounding_size=0.012',
-        facecolor=fill, lw=3.5 if is_new else 0,
-        edgecolor=_pf_mix(POS, 0.10) if is_new else 'none', clip_on=False))
+        facecolor=fill, lw=3.5 if is_young else 0,
+        edgecolor=_pf_mix(head, 0.10) if is_young else 'none', clip_on=False))
 
     pad = size * 0.143
     left, right = x + pad, x + size - pad
@@ -563,8 +566,7 @@ def _pf_tile(ax, cell, x, y, size, warn_days):
             va='center', fontsize=9.5, color=head)
 
     # open profit, in dollars and in R
-    ax.plot([left, right], [y + size * 0.300] * 2,
-            color=_pf_mix(semantic, 0.45), lw=0.6)
+    ax.plot([left, right], [y + size * 0.300] * 2, color=rule, lw=0.6)
     ax.text(left, y + pad, _pf_minus('{:+,.0f}'.format(cell['gain'])),
             ha='left', va='bottom', fontsize=9.5, fontweight='semibold',
             color=head)
