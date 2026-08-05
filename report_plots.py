@@ -83,7 +83,7 @@ def _thousands(ax):
 class _NonNegativeLocator(AutoLocator):
     ''' the default tick locator with the ticks below zero dropped. A price panel
     opens extra room under the data for the legend and the EUR line (see
-    _text_above_legend), which on a ticker whose range starts near zero pushes
+    _text_beside_legend), which on a ticker whose range starts near zero pushes
     the axis under it - and a negative price tick reads as if the stock could
     trade there. The empty band stays, the ticks do not. Locating (rather than
     formatting) keeps it right when the y range is changed after the axis is
@@ -1180,7 +1180,7 @@ def _text_width(ax, text):
 
 def _eur_values_line(ax, df, eurusd):
     ''' the last close and the active stoploss in EUR, as one line sitting just
-    above the legend. Call this after the legend is placed. Nothing is drawn
+    left of the legend. Call this after the legend is placed. Nothing is drawn
     without an EUR/USD rate (price_eur off, or a ticker not quoted in USD). '''
     if not eurusd:
         return
@@ -1191,7 +1191,7 @@ def _eur_values_line(ax, df, eurusd):
     if 'STLoss' in df.columns and 'InTrade' in df.columns and last['InTrade'] > 0 and last['STLoss'] > 0:
         parts.append('stoploss €{:,.2f}'.format(last['STLoss'] / eurusd))
 
-    _text_above_legend(ax, '[{}]'.format(', '.join(parts)), fontsize=_TICK_FS, color=TEXT2)
+    _text_beside_legend(ax, '[{}]'.format(', '.join(parts)), fontsize=_TICK_FS, color=TEXT2)
 
 
 def reserve_bottom_band(ax, frac):
@@ -1216,24 +1216,102 @@ def reserve_bottom_band(ax, frac):
     ax.set_ylim(bottom - (top - bottom) * frac, top)
 
 
-def _text_above_legend(ax, text, **kw):
-    ''' place a line of text just above the axes' legend, aligned with its left
-    edge (bottom right corner of the axes when there is no legend), in a band
+# Volume overlay: window of the mean drawn over the bars, the share of the panel
+# (measured above the reserved bottom band) the tallest bar may reach, and the
+# breathing room kept between the legend and the foot of the bars.
+_VOL_MEAN_WINDOW = 20
+_VOL_HEIGHT_FRAC = 0.22
+_VOL_LEGEND_PAD = 0.02
+
+
+def _volume_overlay(ax, df, conf):
+    ''' volume as grey bars along the bottom of a price panel, with a
+    _VOL_MEAN_WINDOW-day mean over them - drawn only when 'VOL' is in
+    conf['plot_indicators'].
+
+    Volume is scaled into the panel's own y coordinates rather than onto a twin
+    axis, so it can be anchored exactly on top of the band reserved for the
+    legend and the R-average / EUR lines (see reserve_bottom_band) instead of
+    running behind them. Call this last, once every other reservation has been
+    made and the legend is placed: the band is grown to clear the legend, and
+    the anchor is only correct against the resulting y limits.
+
+    Absolute volume is not read at a glance - only the shape against the mean is
+    - so no second y axis is drawn; the latest value is labelled instead. The
+    mean stays a dark neutral rather than picking up an indicator colour: gold
+    already reads as SMA225 on this panel, and green/red as the trade markers. '''
+    if 'VOL' not in conf.get('plot_indicators', []) or 'Volume' not in df.columns:
+        return
+
+    vol = pd.to_numeric(df['Volume'], errors='coerce')
+    vmax = vol.max()
+    if not np.isfinite(vmax) or vmax <= 0:      # indices and some ETFs report none
+        return
+
+    _reserve_below_legend(ax)
+
+    # top of the reserved band (the data bottom before any reservation), which is
+    # where the bars stand; falls back to the panel bottom when nothing reserved
+    ylim = ax.get_ylim()
+    base = getattr(ax, '_reserved_base_ylim', ylim)[0]
+    scale = (ylim[1] - base) * _VOL_HEIGHT_FRAC / vmax
+
+    ax.bar(df.index, vol * scale, bottom=base, width=1, color=NEUTRAL,
+           alpha=.35, linewidth=0, zorder=0)
+    ax.plot(df.index, base + vol.rolling(_VOL_MEAN_WINDOW).mean() * scale,
+            color=NEUTRAL_DARK, linewidth=1.0, zorder=1)
+
+    last = vol.dropna()
+    if not last.empty:
+        ax.annotate('Vol {}'.format(fmt_indicator_value(float(last.iloc[-1]))),
+                    xy=(last.index[-1], base + float(last.iloc[-1]) * scale),
+                    xytext=(6, 0), textcoords='offset points', va='center',
+                    color=TEXT2, fontsize=_TICK_FS, annotation_clip=False)
+
+    ax.set_ylim(ylim)   # bar() autoscales, and the anchor assumes these limits
+
+
+def _reserve_below_legend(ax):
+    ''' grow the reserved bottom band until its top clears the panel's legend,
+    so the volume bars standing on that top start above the legend entries
+    instead of running behind them.
+
+    The legend is placed in axes coordinates and so does not move when the band
+    resizes: with its top at axes fraction f, a band of frac (of the original
+    data range) puts the band top at f = frac/(1 + frac) of the axes, hence the
+    frac/(1 - f) below. '''
+    legend = ax.get_legend()
+    if legend is None:
+        return
+    try:
+        ax.figure.canvas.draw()     # the legend only has an extent once laid out
+        top = legend.get_window_extent().transformed(ax.transAxes.inverted()).y1
+    except Exception:               # no renderer available - leave the band as is
+        return
+
+    f = min(top + _VOL_LEGEND_PAD, 0.5)     # never give the bars over half the panel
+    if f > 0:
+        reserve_bottom_band(ax, f / (1 - f))
+
+
+def _text_beside_legend(ax, text, **kw):
+    ''' place a line of text immediately to the left of the axes' legend, centred
+    on it (bottom right corner of the axes when there is no legend), in a band
     opened up under the data. '''
     ax.figure.canvas.draw()   # the legend only has a position once it is laid out
-    x, y, ha = 0.99, 0.02, 'right'
+    x, y, dx = 0.99, 0.02, 0
     legend = ax.get_legend()
     if legend is not None:
         try:
             box = legend.get_window_extent().transformed(ax.transAxes.inverted())
-            x, y, ha = box.x0, box.y1, 'left'
+            x, y, dx = box.x0, (box.y0 + box.y1) / 2, -8
         except Exception:       # no renderer available - fall back to the corner
             pass
 
     reserve_bottom_band(ax, _EUR_LINE_BAND)
 
-    ax.annotate(text, xy=(x, y), xycoords='axes fraction', xytext=(0, 8),
-                textcoords='offset points', ha=ha, va='bottom', **kw)
+    ax.annotate(text, xy=(x, y), xycoords='axes fraction', xytext=(dx, 0),
+                textcoords='offset points', ha='right', va='center', **kw)
 
 
 def _styled_price_annotations(ax, df):
@@ -1406,6 +1484,7 @@ def styled_ticker_plot(df, ticker, description, conf, ctx):
         _format_date_axis(ax)
         _legend_if_multi(ax, loc='lower right', ncol=3, fontsize=_LEG_FS)
         _eur_values_line(ax, df, ctx.eur_rate(ticker))
+        _volume_overlay(ax, df, conf)
         fig.savefig(ctx.outpath('plots', f'{ticker}_plot.png'))
         plt.close(fig)
 
@@ -1428,6 +1507,7 @@ def _styled_ta_figure(df, ticker, description, conf, ctx, panels, out_dir, out_f
         _style_price_axis(ax1, ctx.price_label(ticker))
         _legend_if_multi(ax1, loc='lower right', ncol=3, fontsize=_LEG_FS)
         _eur_values_line(ax1, df, ctx.eur_rate(ticker))
+        _volume_overlay(ax1, df, conf)
 
         for ax, name in zip(axes[1:], panels):
             _indicator_panel(ax, df, conf, name)
