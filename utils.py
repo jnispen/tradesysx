@@ -354,7 +354,7 @@ def get_quotes_data(quotes, conf, outfile, ctx):
 
         dfr.to_csv(ctx.outpath('data',f"{ticker}_{outfile}"))
 
-VALID_PLOT_INDICATORS = {'BB', 'BBB', 'SMA225', 'DON'}
+VALID_PLOT_INDICATORS = {'BB', 'BBB', 'SMA225', 'DON', 'VOL'}
 
 def validate_plot_indicators(conf):
     ''' validates the conf['plot_indicators'] list against the known indicator names '''
@@ -3421,7 +3421,9 @@ def _active_stoploss_line(ax, df):
 
 def _plot_price_overlays(ax, df, conf):
     ''' draws the price-panel TA overlays (BB/SMA225/EMA/SMA/CE) + Close + Enter/Exit markers.
-        Shared by ticker_plot and ticker_plot_ta so the two stay in sync. '''
+        Shared by ticker_plot and ticker_plot_ta so the two stay in sync.
+        The 'VOL' overlay is deliberately styled-only (report_plots._volume_overlay)
+        and has no counterpart here. '''
     plot_indicators = conf.get('plot_indicators', [])
 
     if conf['enter'] == 'BBRSI' or 'BB' in plot_indicators:

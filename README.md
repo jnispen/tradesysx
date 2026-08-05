@@ -89,7 +89,8 @@ overlays, picked from three tiers:
 - **User-selectable** — the `plot_indicators` list in `system_conf.json` adds
   indicators that aren't tied to a strategy, currently `"BB"` (Bollinger
   Bands), `"BBB"` (Bollinger Band Breakout bands), `"SMA225"` (225-day SMA,
-  bull/bear market reference) and `"DON"` (Donchian channel).
+  bull/bear market reference), `"DON"` (Donchian channel) and `"VOL"` (volume
+  bars along the foot of the panel and a 20-day mean).
 
 The price axis is labelled with the currency the ticker is quoted in, as
 reported by Yahoo Finance (`Price (USD)`, `Price (EUR)`, …).
