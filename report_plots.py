@@ -564,15 +564,20 @@ def _pf_tile(ax, cell, x, y, size, warn_days):
                 fontsize=7.5, color=body)
         ax.text(right, y + size * 0.425, '{:,.0f}'.format(cost), ha='right',
                 va='center', fontsize=9.5, color=head)
-        ax.plot([left, right], [y + size * 0.300] * 2, color=rule, lw=0.6)
+        ax.plot([left, right], [y + size * 0.345] * 2, color=rule, lw=0.6)
 
+        # the percentage keeps the right-hand column, the amount drops to a line
+        # of its own below it. Side by side, a long amount and a long percentage
+        # meet in the middle of the tile; set diagonally they cannot, however
+        # many digits either grows to. The amount still lands on the same bottom
+        # line as every other tile's, so the grid's baselines stay in step.
         tint = _pf_mix(POS if gain >= 0 else NEG, 0.55)
+        if cost > 0:
+            ax.text(right, y + size * 0.262,
+                    _pf_minus('{:+.1f}%'.format(gain / cost * 100)), ha='right',
+                    va='center', fontsize=8, fontweight='semibold', color=tint)
         ax.text(left, y + pad, _pf_minus('{:+,.0f}'.format(gain)), ha='left',
                 va='bottom', fontsize=9.5, fontweight='semibold', color=tint)
-        if cost > 0:
-            ax.text(right, y + pad + size * 0.009,
-                    _pf_minus('{:+.1f}%'.format(gain / cost * 100)), ha='right',
-                    va='bottom', fontsize=8, fontweight='semibold', color=tint)
         return
 
     if plain:
